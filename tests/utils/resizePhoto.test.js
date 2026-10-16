@@ -10,25 +10,15 @@ function makeImageFile(width, height) {
   canvas.getContext('2d').fillRect(0, 0, width, height);
 
   return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => resolve(
-        new File(
-          [blob],
-          'photo.png',
-          { type: 'image/png' }
-        )
-      )
-    );
+    canvas.toBlob((blob) => resolve(new File([blob], 'photo.png', { type: 'image/png' })));
   });
 }
 
-test('보기용과 썸네일을 WebP로 만든다',
-  async () => {
-    const file = await makeImageFile(3000, 2000);
+test('보기용과 썸네일을 WebP로 만든다', async () => {
+  const file = await makeImageFile(3000, 2000);
 
-    const { full, thumb } = await resizePhoto(file);
+  const { full, thumb } = await resizePhoto(file);
 
-    expect(full.type).toBe('image/webp');
-    expect(thumb.type).toBe('image/webp');
-  }
-);
+  expect(full.type).toBe('image/webp');
+  expect(thumb.type).toBe('image/webp');
+});
