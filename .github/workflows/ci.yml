@@ -51,6 +51,16 @@ jobs:
         if: steps.project.outputs.exists == 'true'
         run: pnpm lint
 
+      # 테스트가 실제 Chromium에서 돌아서 브라우저와 시스템 라이브러리를 같이 설치해요
+      - name: 테스트용 브라우저 설치
+        if: steps.project.outputs.exists == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      # 테스트 파일이 아직 없는 브랜치에서도 통과하도록 --passWithNoTests를 붙여요
+      - name: 테스트
+        if: steps.project.outputs.exists == 'true'
+        run: pnpm test --run --passWithNoTests
+
       - name: 빌드
         if: steps.project.outputs.exists == 'true'
         run: pnpm build
