@@ -67,7 +67,7 @@ async function drawToBlob(bitmap, maxEdge) {
   }
 
   // WebP을 못 만드는 브라우저 (Safari)는 PNG를 돌려줘서 용량이 커지므로 JPEG로 대신합니다.
-  return canvasToBlob(canvas, 'JPEG');
+  return canvasToBlob(canvas, 'image/jpeg');
 }
 
 /**
