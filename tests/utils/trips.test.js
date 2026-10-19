@@ -4,11 +4,42 @@ import edge from '@/data/fixtures/edge.journey.json';
 import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
+import { selectJourneyTotals } from '@/utils/journeyTotals';
 import { selectTrips, selectTripStats } from '@/utils/trips';
 
 /** 이름으로 여행 ID를 찾아요. 같은 이름이 둘이면 첫 번째예요. */
 function findTripId(journey, name) {
   return journey.trips.find((trip) => trip.name === name).id;
+}
+
+/** 한 여행에 도시 이름이 같은 지점이 여러 개 든 작은 journey를 만들어요. [나라 코드, ...]마다 지점 하나예요. */
+function makeJourneyWithCities(...ccs) {
+  const stops = ccs.map((cc, index) => ({
+    id: `s${index}`,
+    tripId: 't1',
+    city: '포틀랜드',
+    cc,
+    transit: false,
+    photoCount: 1,
+  }));
+
+  return {
+    home: null,
+    stops,
+    legs: [],
+    trips: [
+      {
+        id: 't1',
+        name: '포틀랜드',
+        from: '2025-01-01T09:00:00+00:00',
+        to: '2025-01-03T09:00:00+00:00',
+        days: 3,
+        stopIds: stops.map((stop) => stop.id),
+        legIds: [],
+        chapter: false,
+      },
+    ],
+  };
 }
 
 describe('selectTrips', () => {
@@ -115,6 +146,24 @@ describe('selectTripStats', () => {
     const splitKm = selectTripStats(edge, before.id).km + selectTripStats(edge, after.id).km;
 
     expect(selectTripStats(journey, merged.id).km).toBe(splitKm);
+  });
+
+  test('이름이 같아도 나라가 다른 도시는 따로 세요 (미국 포틀랜드, 호주 포틀랜드)', () => {
+    const journey = makeJourneyWithCities('US', 'AU');
+
+    expect(selectTripStats(journey, 't1').cities).toBe(2);
+  });
+
+  test('같은 나라의 같은 도시는 몇 번 들러도 한 번만 세요', () => {
+    const journey = makeJourneyWithCities('US', 'US');
+
+    expect(selectTripStats(journey, 't1').cities).toBe(1);
+  });
+
+  test('도시 수가 selectJourneyTotals와 같아요', () => {
+    const journey = makeJourneyWithCities('US', 'AU', 'US');
+
+    expect(selectTripStats(journey, 't1').cities).toBe(selectJourneyTotals(journey).cities);
   });
 
   test('없는 여행 ID나 빈 journey는 null이에요', () => {
