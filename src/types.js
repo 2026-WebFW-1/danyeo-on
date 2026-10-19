@@ -1,0 +1,78 @@
+// 여러 파일이 같이 쓰는 데이터의 모양을 JSDoc @typedef로 적어 둔 곳이에요.
+// 모양의 기준은 src/data/README.md의 fixtures(<인물>.journey.json)예요.
+// 다른 파일에선 `@param {import('@/types').Journey} journey`처럼 불러다 써요.
+
+/**
+ * 머문 곳 하나. 집은 들어 있지 않아요.
+ *
+ * @typedef {object} Stop
+ * @property {string} id 이 지점의 첫 사진 ID
+ * @property {string} tripId 속한 여행 ID
+ * @property {number} lat
+ * @property {number} lng
+ * @property {string} city 도시 이름. 예: '밴쿠버'
+ * @property {string} country 나라 이름. 예: '캐나다'
+ * @property {string} cc 나라 코드. 예: 'CA'
+ * @property {string} from 처음 찍은 시각(시간대 포함). 예: '2025-06-28T18:30:51-07:00'
+ * @property {string} to 마지막으로 찍은 시각(시간대 포함)
+ * @property {number} days 머문 날 수
+ * @property {boolean} chapter 14일 이상 머물렀으면 true(챕터)
+ * @property {string | null} slug 챕터 주소 조각. 챕터가 아니면 null. 예: '밴쿠버-2025'
+ * @property {boolean} transit 경유지면 true. 선·통계에서 빠져요
+ * @property {string[]} photoIds
+ * @property {number} photoCount
+ * @property {string | null} coverFileKey 대표 사진. 예: 'public:/photos/tokyo-1.jpg'
+ */
+
+/**
+ * 지점과 지점 사이의 이동 구간 하나.
+ *
+ * @typedef {object} Leg
+ * @property {string} id 계산할 때마다 새로 매겨져요. 예: 'leg_1'
+ * @property {string | null} tripId 집을 안 들르고 다음 여행으로 가는 구간(gap)이면 null
+ * @property {'outbound' | 'between' | 'gap' | 'return'} kind 집→첫 지점 | 여행 안 | 집 안 들르고 다음 여행 | →집
+ * @property {string} from 'home' 또는 지점 ID
+ * @property {string} to 'home' 또는 지점 ID
+ * @property {[number, number]} fromLatLng
+ * @property {[number, number]} toLatLng
+ * @property {string} departAt 출발 시각(시간대 포함)
+ * @property {string} arriveAt 도착 시각(시간대 포함)
+ * @property {number} hours
+ * @property {'photos' | 'estimated'} timing 사진 시각 | 거리로 추정
+ * @property {number} km
+ * @property {'flight' | 'train' | 'car'} mode
+ * @property {'auto' | 'user'} modeSource
+ * @property {boolean} crossesAntimeridian 날짜변경선을 넘는 구간이면 true
+ */
+
+/**
+ * 여행 하나. 지점과 구간은 ID로 가리켜요.
+ *
+ * @typedef {object} Trip
+ * @property {string} id 이 여행의 첫 사진 ID
+ * @property {string} name 예: '방콕 · 다낭'
+ * @property {'auto' | 'user'} nameSource
+ * @property {string} from 시작 시각(시간대 포함)
+ * @property {string} to 끝 시각(시간대 포함)
+ * @property {number} days
+ * @property {string[]} stopIds
+ * @property {string[]} legIds
+ * @property {boolean} chapter 챕터 지점이 하나라도 있으면 true
+ */
+
+/**
+ * 사진과 보정으로 계산한, 화면이 받는 여행 기록 전체.
+ * 여행이 0개면 배열은 전부 비고 home·periods는 null이에요.
+ *
+ * @typedef {object} Journey
+ * @property {{ lat: number, lng: number, city: string } | null} home
+ * @property {Stop[]} stops
+ * @property {Leg[]} legs
+ * @property {Trip[]} trips
+ * @property {string[]} unlocated 위치가 없어 지점에 못 넣은 사진 ID
+ * @property {string[]} excluded 사용자가 뺀 사진 ID
+ * @property {{ anchor: string, '1y': { from: string, to: string }, '2y': { from: string, to: string }, all: { from: string, to: string } } | null} periods
+ */
+
+// 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
+export {};
