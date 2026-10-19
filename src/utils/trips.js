@@ -16,7 +16,7 @@
  *
  * @typedef {object} TripStats
  * @property {number} days 여행 일수
- * @property {number} cities 도시 수. 경유 지점은 안 세요
+ * @property {number} cities 도시 수. 경유 지점은 안 세고, 이름이 같아도 나라가 다르면 따로 세요
  * @property {number} km 이동 거리 합. 집을 안 들르고 앞 여행에서 바로 온 구간(gap)도 넣고, 반올림한 정수예요
  * @property {number} photos 사진 수. 경유 지점의 사진은 빼요
  */
@@ -71,9 +71,12 @@ export function selectTripStats(journey, tripId) {
   const legIds = new Set([...trip.legIds, ...gapLegIds]);
   const km = [...legIds].reduce((sum, id) => sum + (legsById.get(id)?.km ?? 0), 0);
 
+  // 도시 이름만 보면 다른 나라의 같은 이름을 하나로 세므로 나라 코드를 같이 묶어요(selectJourneyTotals와 같은 기준).
+  const cities = new Set(stops.map((stop) => `${stop.cc}/${stop.city}`));
+
   return {
     days: trip.days,
-    cities: new Set(stops.map((stop) => stop.city)).size,
+    cities: cities.size,
     km: Math.round(km),
     photos: stops.reduce((sum, stop) => sum + stop.photoCount, 0),
   };
