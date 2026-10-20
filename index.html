@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- 글꼴 CSS(googleapis)와 글꼴 파일(gstatic)이 다른 서버라, 두 곳 모두 연결을 미리 열어 둠 -->
+    <!-- CORS: Cross-Origin Resource Sharing -->
+    <!-- 글꼴 CSS는 CORS 없이 쿠키를 붙이는 방식으로 요청 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <!-- 글꼴 gstatic: 브라우저가 항상 CORS + 쿠키 없이 요청 -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <!-- 본문 Noto Sans KR, 숫자·단계 번호 JetBrains Mono, 로고 Playfair Display. 디자인에 쓰는 굵기만 받음 -->
+    <!-- display=swap을 걸어 글꼴을 받는 동안은 기본 글꼴을 노출 -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Noto+Sans+KR:wght@400;500;700&family=Playfair+Display:wght@700&display=swap"
+    />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>다녀온.</title>
   </head>

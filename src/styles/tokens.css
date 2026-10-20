@@ -1,10 +1,34 @@
 /*
- * 디자인 토큰. 피그마 MVP의 "00 · Foundations" 값을 여기에 옮겨 적어요.
+ * 디자인 토큰. 피그마 timeline 파일 "◆ Foundations" 페이지와 이름·값을 맞춰요.
+ * https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/timeline?node-id=280-2
  * 여기 적은 변수는 바로 클래스가 돼요.
- *   --color-ink: #111;   → text-ink, bg-ink, border-ink
- *   --font-sans: ...;    → font-sans
- *   --radius-card: 16px; → rounded-card
+ *   --color-ink: #000;  → text-ink, bg-ink, border-ink
+ *   --text-13: 13px;    → text-13
+ * Tailwind 기본에 같은 값이 있으면(text-sm = 14px 등) 기본 클래스를 쓰고, 없는 것만 여기 더해요.
  * 브레이크포인트는 기본값을 써요. 모바일 / 웹을 나누는 기준은 lg(1024px)예요.
  */
 @theme {
+  /* 색. 피그마 color/* 이름을 그대로 씁니다 */
+  --color-ink: #000; /* 제목 */
+  --color-body: #333; /* 본문 */
+  --color-gray: #666; /* 보조 글 */
+  --color-dim: #9a9a9a; /* 흐림, 비활성 */
+  --color-line: #dad7cf; /* 테두리, 막대 바탕 */
+  --color-nav: #0c0c0c; /* Nav, 검정 버튼 */
+  --color-pink: #e6007e; /* 강조 */
+  --color-bg: #f8f6f0; /* 페이지 바탕 */
+  --color-paper: #efebe2; /* 카드 안쪽 바탕 */
+  --color-dash: #b5b1a8; /* 드롭존 점선. 피그마에 변수 없음 */
+
+  /* 글꼴 파일은 index.html에서 받습니다. --font-sans를 바꾸면 Preflight가 body 기본 글꼴로 씁니다 */
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* 글자 크기. Tailwind 기본(text-xs 12, text-sm 14 …)에 없는 것만 */
+  --text-11: 11px;
+  --text-13: 13px;
+  --text-28: 28px;
+  --text-44: 44px;
+  --text-56: 56px;
 }
