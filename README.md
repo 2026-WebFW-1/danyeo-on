@@ -1,4 +1,4 @@
-# travelog-draft
+# 다녀온.
 
 2026 웹프레임워크1 팀 프로젝트 · 여행 기록을 동선으로 공유하는 웹 서비스
 
@@ -14,8 +14,8 @@
 **Node 26**과 **pnpm**이 필요해요. 설치 방법은 [기여 가이드](CONTRIBUTING.md#처음-세팅하기)를 참고해 주세요.
 
 ```bash
-git clone https://github.com/2026-WebFW-1/travelog-draft.git
-cd travelog-draft
+git clone https://github.com/2026-WebFW-1/danyeo-on.git
+cd danyeo-on
 pnpm install
 pnpm dev
 ```
