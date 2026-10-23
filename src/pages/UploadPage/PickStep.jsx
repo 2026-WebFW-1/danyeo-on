@@ -44,15 +44,15 @@ export default function PickStep({ onPick }) {
   // flex 안에서 mx-auto는 폭을 내용만큼 줄여 버려서 w-full을 같이 줍니다.
   return (
     <main className="flex min-h-screen flex-col justify-center bg-canvas">
-      <div className="mx-auto w-full max-w-360 px-4 py-10 lg:px-30 lg:pt-14 lg:pb-12">
+      <div className="mx-auto w-full max-w-360 px-4 py-10 lg:px-30 lg:pt-14 lg:pb-12 2xl:max-w-400">
         {/* 왼쪽 칸은 글·버튼 폭(auto), 오른쪽 칸은 남는 폭 전부(1fr). 폴라로이드는 오른쪽 칸 가운데에 둡니다. */}
         <div className="md:grid md:grid-cols-[auto_1fr] md:gap-10">
           <header>
             <p className="text-xs leading-normal font-medium tracking-[0.04em] text-accent">
               STEP 1 / 2 · 고르기
             </p>
-            <h1 className="mt-3 text-6xl font-bold text-ink">사진 올리기</h1>
-            <p className="mt-3 text-xl break-keep text-muted">
+            <h1 className="mt-3 text-6xl font-bold text-ink 2xl:text-7xl">사진 올리기</h1>
+            <p className="mt-3 text-xl break-keep text-muted 2xl:text-2xl">
               폴더째 넣으면 여행별로 알아서 나눠 드려요.
             </p>
 
@@ -99,7 +99,7 @@ export default function PickStep({ onPick }) {
           {/* 꾸밈용이라 휴대폰에서는 숨깁니다. 칸 폭의 88%로 늘고 줄되 피그마 크기(480)를 넘지 않고,
               칸 가운데에 둬서 좁은 화면에서도 오른쪽 끝에 붙지 않게 합니다.
               -mt-6: 피그마처럼 사진이 STEP 글자보다 조금 위에서 시작하게 합니다. */}
-          <PhotoStack className="hidden w-[88%] max-w-120 self-start justify-self-center md:-mt-6 md:block" />
+          <PhotoStack className="hidden w-[88%] max-w-120 self-start justify-self-center md:-mt-6 md:block 2xl:max-w-150" />
         </div>
 
         <hr className="mt-6 border-line" />
