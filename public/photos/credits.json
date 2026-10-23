@@ -1,187 +1,187 @@
 {
  "gangneung": [
   {
-   "file": "/photos/gangneung-1.jpg",
+   "file": "/photos/full/gangneung-1.webp",
    "title": "Gangneung"
   },
   {
-   "file": "/photos/gangneung-3.jpg",
+   "file": "/photos/full/gangneung-3.webp",
    "title": "Ojukheon"
   },
   {
-   "file": "/photos/gangneung-4.jpg",
+   "file": "/photos/full/gangneung-4.webp",
    "title": "Jumunjin"
   }
  ],
  "busan": [
   {
-   "file": "/photos/busan-1.jpg",
+   "file": "/photos/full/busan-1.webp",
    "title": "Haeundae Beach"
   },
   {
-   "file": "/photos/busan-2.jpg",
+   "file": "/photos/full/busan-2.webp",
    "title": "Gamcheon Culture Village"
   },
   {
-   "file": "/photos/busan-3.jpg",
+   "file": "/photos/full/busan-3.webp",
    "title": "Gwangan Bridge"
   },
   {
-   "file": "/photos/busan-4.jpg",
+   "file": "/photos/full/busan-4.webp",
    "title": "Jagalchi Market"
   }
  ],
  "gyeongju": [
   {
-   "file": "/photos/gyeongju-1.jpg",
+   "file": "/photos/full/gyeongju-1.webp",
    "title": "Donggung Palace and Wolji Pond"
   },
   {
-   "file": "/photos/gyeongju-2.jpg",
+   "file": "/photos/full/gyeongju-2.webp",
    "title": "Bulguksa"
   },
   {
-   "file": "/photos/gyeongju-3.jpg",
+   "file": "/photos/full/gyeongju-3.webp",
    "title": "Cheomseongdae"
   },
   {
-   "file": "/photos/gyeongju-4.jpg",
+   "file": "/photos/full/gyeongju-4.webp",
    "title": "Seokguram"
   }
  ],
  "jeju": [
   {
-   "file": "/photos/jeju-1.jpg",
+   "file": "/photos/full/jeju-1.webp",
    "title": "Seongsan Ilchulbong"
   },
   {
-   "file": "/photos/jeju-2.jpg",
+   "file": "/photos/full/jeju-2.webp",
    "title": "Hallasan"
   },
   {
-   "file": "/photos/jeju-5.jpg",
+   "file": "/photos/full/jeju-5.webp",
    "title": "Manjanggul"
   },
   {
-   "file": "/photos/jeju-8.jpg",
+   "file": "/photos/full/jeju-8.webp",
    "title": "Hyeopjae Beach"
   }
  ],
  "jeonju": [
   {
-   "file": "/photos/jeonju-3.jpg",
+   "file": "/photos/full/jeonju-3.webp",
    "title": "Jeondong Cathedral"
   },
   {
-   "file": "/photos/jeonju-4.jpg",
+   "file": "/photos/full/jeonju-4.webp",
    "title": "Bibimbap"
   },
   {
-   "file": "/photos/jeonju-5.jpg",
+   "file": "/photos/full/jeonju-5.webp",
    "title": "Jeonju",
    "source": "https://en.wikipedia.org/wiki/Jeonju"
   }
  ],
  "yeosu": [
   {
-   "file": "/photos/yeosu-1.jpg",
+   "file": "/photos/full/yeosu-1.webp",
    "title": "Yeosu"
   },
   {
-   "file": "/photos/yeosu-2.jpg",
+   "file": "/photos/full/yeosu-2.webp",
    "title": "Odongdo"
   },
   {
-   "file": "/photos/yeosu-3.jpg",
+   "file": "/photos/full/yeosu-3.webp",
    "title": "Hyangiram"
   }
  ],
  "suncheon": [
   {
-   "file": "/photos/suncheon-4.jpg",
+   "file": "/photos/full/suncheon-4.webp",
    "title": "Songgwangsa"
   },
   {
-   "file": "/photos/suncheon-5.jpg",
+   "file": "/photos/full/suncheon-5.webp",
    "title": "Suncheon",
    "source": "https://en.wikipedia.org/wiki/Suncheon"
   },
   {
-   "file": "/photos/suncheon-6.jpg",
+   "file": "/photos/full/suncheon-6.webp",
    "title": "Seonamsa",
    "source": "https://en.wikipedia.org/wiki/Seonamsa"
   }
  ],
  "sokcho": [
   {
-   "file": "/photos/sokcho-1.jpg",
+   "file": "/photos/full/sokcho-1.webp",
    "title": "Seoraksan",
    "source": "https://en.wikipedia.org/wiki/Seoraksan"
   },
   {
-   "file": "/photos/sokcho-2.jpg",
+   "file": "/photos/full/sokcho-2.webp",
    "title": "Ulsanbawi"
   },
   {
-   "file": "/photos/sokcho-3.jpg",
+   "file": "/photos/full/sokcho-3.webp",
    "title": "Sokcho"
   },
   {
-   "file": "/photos/sokcho-4.jpg",
+   "file": "/photos/full/sokcho-4.webp",
    "title": "Sinheungsa"
   }
  ],
  "tokyo": [
   {
-   "file": "/photos/tokyo-1.jpg",
+   "file": "/photos/full/tokyo-1.webp",
    "title": "Tokyo"
   },
   {
-   "file": "/photos/tokyo-2.jpg",
+   "file": "/photos/full/tokyo-2.webp",
    "title": "Senso-ji"
   },
   {
-   "file": "/photos/tokyo-3.jpg",
+   "file": "/photos/full/tokyo-3.webp",
    "title": "Shibuya Crossing"
   },
   {
-   "file": "/photos/tokyo-4.jpg",
+   "file": "/photos/full/tokyo-4.webp",
    "title": "Tokyo Tower"
   }
  ],
  "bangkok": [
   {
-   "file": "/photos/bangkok-1.jpg",
+   "file": "/photos/full/bangkok-1.webp",
    "title": "Bangkok"
   },
   {
-   "file": "/photos/bangkok-2.jpg",
+   "file": "/photos/full/bangkok-2.webp",
    "title": "Wat Arun"
   },
   {
-   "file": "/photos/bangkok-3.jpg",
+   "file": "/photos/full/bangkok-3.webp",
    "title": "Grand Palace"
   },
   {
-   "file": "/photos/bangkok-4.jpg",
+   "file": "/photos/full/bangkok-4.webp",
    "title": "Chatuchak Weekend Market"
   }
  ],
  "danang": [
   {
-   "file": "/photos/danang-1.jpg",
+   "file": "/photos/full/danang-1.webp",
    "title": "Da Nang"
   },
   {
-   "file": "/photos/danang-2.jpg",
+   "file": "/photos/full/danang-2.webp",
    "title": "Marble Mountains (Vietnam)"
   },
   {
-   "file": "/photos/danang-3.jpg",
+   "file": "/photos/full/danang-3.webp",
    "title": "Dragon Bridge (Da Nang)"
   },
   {
-   "file": "/photos/danang-4.jpg",
+   "file": "/photos/full/danang-4.webp",
    "title": "Golden Bridge, Ba Na Hills",
    "artist": "DvTor8303",
    "license": "CC0",
@@ -190,215 +190,215 @@
  ],
  "vancouver": [
   {
-   "file": "/photos/vancouver-1.jpg",
+   "file": "/photos/full/vancouver-1.webp",
    "title": "Vancouver"
   },
   {
-   "file": "/photos/vancouver-2.jpg",
+   "file": "/photos/full/vancouver-2.webp",
    "title": "Stanley Park"
   },
   {
-   "file": "/photos/vancouver-3.jpg",
+   "file": "/photos/full/vancouver-3.webp",
    "title": "Grouse Mountain"
   },
   {
-   "file": "/photos/vancouver-4.jpg",
+   "file": "/photos/full/vancouver-4.webp",
    "title": "Gastown"
   },
   {
-   "file": "/photos/vancouver-5.jpg",
+   "file": "/photos/full/vancouver-5.webp",
    "title": "Capilano Suspension Bridge"
   },
   {
-   "file": "/photos/vancouver-6.jpg",
+   "file": "/photos/full/vancouver-6.webp",
    "title": "Coal Harbour"
   },
   {
-   "file": "/photos/vancouver-8.jpg",
+   "file": "/photos/full/vancouver-8.webp",
    "title": "Granville Island"
   }
  ],
  "banff": [
   {
-   "file": "/photos/banff-1.jpg",
+   "file": "/photos/full/banff-1.webp",
    "title": "Banff National Park"
   },
   {
-   "file": "/photos/banff-2.jpg",
+   "file": "/photos/full/banff-2.webp",
    "title": "Lake Louise (Alberta)"
   },
   {
-   "file": "/photos/banff-3.jpg",
+   "file": "/photos/full/banff-3.webp",
    "title": "Moraine Lake"
   },
   {
-   "file": "/photos/banff-4.jpg",
+   "file": "/photos/full/banff-4.webp",
    "title": "Banff, Alberta"
   }
  ],
  "toronto": [
   {
-   "file": "/photos/toronto-1.jpg",
+   "file": "/photos/full/toronto-1.webp",
    "title": "Toronto"
   },
   {
-   "file": "/photos/toronto-2.jpg",
+   "file": "/photos/full/toronto-2.webp",
    "title": "Niagara Falls"
   },
   {
-   "file": "/photos/toronto-3.jpg",
+   "file": "/photos/full/toronto-3.webp",
    "title": "CN Tower"
   },
   {
-   "file": "/photos/toronto-4.jpg",
+   "file": "/photos/full/toronto-4.webp",
    "title": "Distillery District"
   }
  ],
  "newyork": [
   {
-   "file": "/photos/newyork-1.jpg",
+   "file": "/photos/full/newyork-1.webp",
    "title": "New York City"
   },
   {
-   "file": "/photos/newyork-2.jpg",
+   "file": "/photos/full/newyork-2.webp",
    "title": "Times Square"
   },
   {
-   "file": "/photos/newyork-3.jpg",
+   "file": "/photos/full/newyork-3.webp",
    "title": "Central Park"
   },
   {
-   "file": "/photos/newyork-4.jpg",
+   "file": "/photos/full/newyork-4.webp",
    "title": "Brooklyn Bridge"
   }
  ],
  "osaka": [
   {
-   "file": "/photos/osaka-1.jpg",
+   "file": "/photos/full/osaka-1.webp",
    "title": "Osaka"
   },
   {
-   "file": "/photos/osaka-2.jpg",
+   "file": "/photos/full/osaka-2.webp",
    "title": "Dōtonbori"
   },
   {
-   "file": "/photos/osaka-3.jpg",
+   "file": "/photos/full/osaka-3.webp",
    "title": "Osaka Castle"
   },
   {
-   "file": "/photos/osaka-4.jpg",
+   "file": "/photos/full/osaka-4.webp",
    "title": "Shinsekai"
   }
  ],
  "paris": [
   {
-   "file": "/photos/paris-1.jpg",
+   "file": "/photos/full/paris-1.webp",
    "title": "Paris"
   },
   {
-   "file": "/photos/paris-3.jpg",
+   "file": "/photos/full/paris-3.webp",
    "title": "Seine"
   },
   {
-   "file": "/photos/paris-4.jpg",
+   "file": "/photos/full/paris-4.webp",
    "title": "Louvre"
   }
  ],
  "london": [
   {
-   "file": "/photos/london-1.jpg",
+   "file": "/photos/full/london-1.webp",
    "title": "London"
   },
   {
-   "file": "/photos/london-2.jpg",
+   "file": "/photos/full/london-2.webp",
    "title": "Tower Bridge"
   },
   {
-   "file": "/photos/london-3.jpg",
+   "file": "/photos/full/london-3.webp",
    "title": "Big Ben"
   },
   {
-   "file": "/photos/london-4.jpg",
+   "file": "/photos/full/london-4.webp",
    "title": "Eurostar"
   }
  ],
  "barcelona": [
   {
-   "file": "/photos/barcelona-1.jpg",
+   "file": "/photos/full/barcelona-1.webp",
    "title": "Barcelona"
   },
   {
-   "file": "/photos/barcelona-2.jpg",
+   "file": "/photos/full/barcelona-2.webp",
    "title": "Sagrada Família"
   },
   {
-   "file": "/photos/barcelona-3.jpg",
+   "file": "/photos/full/barcelona-3.webp",
    "title": "Park Güell"
   },
   {
-   "file": "/photos/barcelona-4.jpg",
+   "file": "/photos/full/barcelona-4.webp",
    "title": "Casa Batlló"
   }
  ],
  "istanbul": [
   {
-   "file": "/photos/istanbul-1.jpg",
+   "file": "/photos/full/istanbul-1.webp",
    "title": "Istanbul"
   },
   {
-   "file": "/photos/istanbul-2.jpg",
+   "file": "/photos/full/istanbul-2.webp",
    "title": "Hagia Sophia"
   },
   {
-   "file": "/photos/istanbul-4.jpg",
+   "file": "/photos/full/istanbul-4.webp",
    "title": "Galata Tower"
   }
  ],
  "sydney": [
   {
-   "file": "/photos/sydney-1.jpg",
+   "file": "/photos/full/sydney-1.webp",
    "title": "Sydney"
   },
   {
-   "file": "/photos/sydney-2.jpg",
+   "file": "/photos/full/sydney-2.webp",
    "title": "Sydney Opera House"
   },
   {
-   "file": "/photos/sydney-3.jpg",
+   "file": "/photos/full/sydney-3.webp",
    "title": "Bondi Beach"
   },
   {
-   "file": "/photos/sydney-4.jpg",
+   "file": "/photos/full/sydney-4.webp",
    "title": "Sydney Harbour Bridge"
   }
  ],
  "tongyeong": [
   {
-   "file": "/photos/tongyeong-1.jpg",
+   "file": "/photos/full/tongyeong-1.webp",
    "title": "Tongyeong",
    "source": "https://en.wikipedia.org/wiki/Tongyeong"
   },
   {
-   "file": "/photos/tongyeong-2.jpg",
+   "file": "/photos/full/tongyeong-2.webp",
    "title": "Hallyeohaesang National Park",
    "source": "https://en.wikipedia.org/wiki/Hallyeohaesang_National_Park"
   },
   {
-   "file": "/photos/tongyeong-3.jpg",
+   "file": "/photos/full/tongyeong-3.webp",
    "title": "Hansan Island",
    "source": "https://en.wikipedia.org/wiki/Hansando"
   }
  ],
  "panoramas": [
   {
-   "file": "/photos/busan-tower-360.jpg",
+   "file": "/photos/full/busan-tower-360.webp",
    "title": "Busan Tower 360 Degree Panorama 001.jpg",
    "artist": "User Spike",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Busan_Tower_360_Degree_Panorama_001.jpg"
   },
   {
-   "file": "/photos/seongsan-pano.jpg",
+   "file": "/photos/full/seongsan-pano.webp",
    "title": "Panorama from Seongsan Ilchulbong (성산 일출봉) - Flickr - mrmin123.jpg",
    "artist": "Minyoung Choi from Cupertino, CA, USA",
    "license": "CC BY-SA 2.0",
@@ -407,49 +407,49 @@
  ],
  "sapporo": [
   {
-   "file": "/photos/sapporo-1.jpg",
+   "file": "/photos/full/sapporo-1.webp",
    "title": "Odori Park Sapporo Snow Festival 2007.JPG",
    "artist": "Eckhard Pecher",
    "license": "CC BY 2.5",
    "source": "https://commons.wikimedia.org/wiki/File:Odori_Park_Sapporo_Snow_Festival_2007.JPG"
   },
   {
-   "file": "/photos/sapporo-2.jpg",
+   "file": "/photos/full/sapporo-2.webp",
    "title": "Hokkaido Sapporo Odori Park.jpg",
    "artist": "Nkns",
    "license": "CC BY-SA 3.0",
    "source": "https://commons.wikimedia.org/wiki/File:Hokkaido_Sapporo_Odori_Park.jpg"
   },
   {
-   "file": "/photos/sapporo-3.jpg",
+   "file": "/photos/full/sapporo-3.webp",
    "title": "Sapporo Clock Tower 20090112.jpg",
    "artist": "MiNe",
    "license": "CC BY 2.0",
    "source": "https://commons.wikimedia.org/wiki/File:Sapporo_Clock_Tower_20090112.jpg"
   },
   {
-   "file": "/photos/sapporo-4.jpg",
+   "file": "/photos/full/sapporo-4.webp",
    "title": "Otaru Canal Cruise (20240223).jpg",
    "artist": "Fumikas Sagisavas",
    "license": "CC0",
    "source": "https://commons.wikimedia.org/wiki/File:Otaru_Canal_Cruise_(20240223).jpg"
   },
   {
-   "file": "/photos/sapporo-5.jpg",
+   "file": "/photos/full/sapporo-5.webp",
    "title": "小樽雪あかりの路2013（Otaru Snow Light Path 2013） - panoramio (1).jpg",
    "artist": "t-konno",
    "license": "CC BY-SA 3.0",
    "source": "https://commons.wikimedia.org/wiki/File:%E5%B0%8F%E6%A8%BD%E9%9B%AA%E3%81%82%E3%81%8B%E3%82%8A%E3%81%AE%E8%B7%AF2013%EF%BC%88Otaru_Snow_Light_Path_2013%EF%BC%89_-_panoramio_(1).jpg"
   },
   {
-   "file": "/photos/sapporo-6.jpg",
+   "file": "/photos/full/sapporo-6.webp",
    "title": "Sapporo Snow Festival Odori-Site At Night Panorama 1.jpg",
    "artist": "ja:User:京浜にけ",
    "license": "CC BY-SA 3.0",
    "source": "https://commons.wikimedia.org/wiki/File:Sapporo_Snow_Festival_Odori-Site_At_Night_Panorama_1.jpg"
   },
   {
-   "file": "/photos/sapporo-7.jpg",
+   "file": "/photos/full/sapporo-7.webp",
    "title": "Ramen Alley Sapporo Japan.jpg",
    "artist": "Sgroey",
    "license": "CC BY-SA 4.0",
@@ -458,105 +458,105 @@
  ],
  "kyoto": [
   {
-   "file": "/photos/kyoto-1.jpg",
+   "file": "/photos/full/kyoto-1.webp",
    "title": "Kiyomizu-dera",
    "artist": "Martin Falbisoner",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Kiyomizu-dera,_Kyoto,_November_2016_-01.jpg"
   },
   {
-   "file": "/photos/kyoto-2.jpg",
+   "file": "/photos/full/kyoto-2.webp",
    "title": "Kiyomizu-dera",
    "artist": "Martin Falbisoner",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Kiyomizu-dera,_Kyoto,_November_2016_-02.jpg"
   },
   {
-   "file": "/photos/kyoto-3.jpg",
+   "file": "/photos/full/kyoto-3.webp",
    "title": "Kyoto view from Kiyomizu-dera",
    "artist": "そらみみ (Soramimi)",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:View_of_Kyoto_City_from_Okunoin_Hall_of_Kiyomizudera_Temple.JPG"
   },
   {
-   "file": "/photos/kyoto-4.jpg",
+   "file": "/photos/full/kyoto-4.webp",
    "title": "Nishiki Market",
    "artist": "Pitan",
    "license": "CC BY-SA 3.0",
    "source": "https://commons.wikimedia.org/wiki/File:Nishiki_ichiba_kyoto.jpg"
   },
   {
-   "file": "/photos/kyoto-5.jpg",
+   "file": "/photos/full/kyoto-5.webp",
    "title": "Nishiki Market",
    "artist": "collinox",
    "license": "CC BY 2.0",
    "source": "https://commons.wikimedia.org/wiki/File:Tsukemono_shop_by_collinox_in_Nishiki_Ichiba,_Kyoto.jpg"
   },
   {
-   "file": "/photos/kyoto-6.jpg",
+   "file": "/photos/full/kyoto-6.webp",
    "title": "Fushimi Inari",
    "artist": "Basile Morin",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine,_Kyoto,_Japan.jpg"
   },
   {
-   "file": "/photos/kyoto-7.jpg",
+   "file": "/photos/full/kyoto-7.webp",
    "title": "Kennin-ji gate, Gion",
    "artist": "HAGAT hOMSZE",
    "license": "CC0",
    "source": "https://commons.wikimedia.org/wiki/File:JP_%E6%97%A5%E6%9C%AC_Japan_%E4%BA%AC%E9%83%BD_Kyoto_Higashiyama-ku_Gion_%E8%8A%B1%E8%A6%8B%E5%B0%8F%E8%B7%AF%E9%80%9A_Hanamikoji_Dori_10am_morning_June_2026_N13P_08.jpg"
   },
   {
-   "file": "/photos/kyoto-8.jpg",
+   "file": "/photos/full/kyoto-8.webp",
    "title": "Arashiyama",
    "artist": "Basile Morin",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Bamboo_Forest,_Arashiyama,_Kyoto,_Japan.jpg"
   },
   {
-   "file": "/photos/kyoto-9.jpg",
+   "file": "/photos/full/kyoto-9.webp",
    "title": "Unadon",
    "artist": "663highland",
    "license": "CC BY 2.5",
    "source": "https://commons.wikimedia.org/wiki/File:Tokyo_Chikuyotei_Unadon01s2100.jpg"
   },
   {
-   "file": "/photos/kyoto-10.jpg",
+   "file": "/photos/full/kyoto-10.webp",
    "title": "Sannenzaka",
    "artist": "Aporon999",
    "license": "CC BY-SA 3.0",
    "source": "https://commons.wikimedia.org/wiki/File:Sanneizaka-kyoto.JPG"
   },
   {
-   "file": "/photos/kyoto-11.jpg",
+   "file": "/photos/full/kyoto-11.webp",
    "title": "Nijo Castle",
    "artist": "稲垣啓二",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Nijo_Castle_2023.jpg"
   },
   {
-   "file": "/photos/kyoto-12.jpg",
+   "file": "/photos/full/kyoto-12.webp",
    "title": "Latte",
    "artist": "Abdulrohmatt",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Cup_of_coffee_with_latte_art_2016.jpg"
   },
   {
-   "file": "/photos/kyoto-13.jpg",
+   "file": "/photos/full/kyoto-13.webp",
    "title": "Nishiki Market",
    "artist": "Sergiy Galyonkin from Raleigh, USA",
    "license": "CC BY-SA 2.0",
    "source": "https://commons.wikimedia.org/wiki/File:Nishiki_Market,_Kyoto_-_Flickr_-_Sergiy_Galyonkin.jpg"
   },
   {
-   "file": "/photos/kyoto-14.jpg",
+   "file": "/photos/full/kyoto-14.webp",
    "title": "Yasaka Koshindo",
    "artist": "Basile Morin",
    "license": "CC BY-SA 4.0",
    "source": "https://commons.wikimedia.org/wiki/File:Multi-coloured_kukuri-zaru_talismans_at_Kongoji_Yasaka_K%C5%8Dshin-d%C5%8D_temple,_Kyoto,_Japan.jpg"
   },
   {
-   "file": "/photos/kyoto-15.jpg",
+   "file": "/photos/full/kyoto-15.webp",
    "title": "Tofuku-ji",
    "artist": "lumoplank",
    "license": "CC0",
@@ -565,7 +565,7 @@
  ],
  "fukuoka": [
   {
-   "file": "/photos/fukuoka-1.jpg",
+   "file": "/photos/full/fukuoka-1.webp",
    "title": "Nakasu yatai stalls",
    "artist": "Yoshikazu TAKADA",
    "license": "CC BY 2.0",
