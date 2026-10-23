@@ -29,7 +29,7 @@
         "p_e5e9cf"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/bangkok-3.jpg"
+      "coverFileKey": "public:/photos/bangkok-3.webp"
     },
     {
       "id": "p_75d831",
@@ -52,7 +52,7 @@
         "p_aa343d"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/danang-1.jpg"
+      "coverFileKey": "public:/photos/danang-1.webp"
     },
     {
       "id": "p_8e704b",
@@ -74,7 +74,7 @@
         "p_328c3e"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/gangneung-3.jpg"
+      "coverFileKey": "public:/photos/gangneung-3.webp"
     },
     {
       "id": "p_0c434a",
@@ -97,7 +97,7 @@
         "p_654bd8"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/fukuoka-1.jpg"
+      "coverFileKey": "public:/photos/fukuoka-1.webp"
     },
     {
       "id": "p_6dd203",
@@ -130,7 +130,7 @@
         "p_81af2d"
       ],
       "photoCount": 14,
-      "coverFileKey": "public:/photos/kyoto-11.jpg"
+      "coverFileKey": "public:/photos/kyoto-11.webp"
     },
     {
       "id": "p_70c91e",
@@ -153,7 +153,7 @@
         "p_015886"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/tokyo-1.jpg"
+      "coverFileKey": "public:/photos/tokyo-1.webp"
     },
     {
       "id": "p_c55a2f",
@@ -179,7 +179,7 @@
         "p_ab9dc7"
       ],
       "photoCount": 7,
-      "coverFileKey": "public:/photos/sapporo-3.jpg"
+      "coverFileKey": "public:/photos/sapporo-3.webp"
     },
     {
       "id": "p_aeecfe",
@@ -203,7 +203,7 @@
         "p_ca6f69"
       ],
       "photoCount": 5,
-      "coverFileKey": "public:/photos/busan-1.jpg"
+      "coverFileKey": "public:/photos/busan-1.webp"
     },
     {
       "id": "p_c98ca9",
@@ -226,7 +226,7 @@
         "p_4ea1ca"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/gyeongju-1.jpg"
+      "coverFileKey": "public:/photos/gyeongju-1.webp"
     },
     {
       "id": "p_3c1060",
@@ -251,7 +251,7 @@
         "p_c4be0a"
       ],
       "photoCount": 6,
-      "coverFileKey": "public:/photos/vancouver-6.jpg"
+      "coverFileKey": "public:/photos/vancouver-6.webp"
     },
     {
       "id": "p_606b31",
@@ -273,7 +273,7 @@
         "p_bfe8c0"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/banff-4.jpg"
+      "coverFileKey": "public:/photos/banff-4.webp"
     },
     {
       "id": "p_8a6ac3",
@@ -296,7 +296,7 @@
         "p_8b6f51"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/osaka-2.jpg"
+      "coverFileKey": "public:/photos/osaka-2.webp"
     },
     {
       "id": "p_f309fe",
@@ -318,7 +318,7 @@
         "p_c952e9"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/jeonju-3.jpg"
+      "coverFileKey": "public:/photos/jeonju-3.webp"
     },
     {
       "id": "p_c60246",
@@ -340,7 +340,7 @@
         "p_4a90b2"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/paris-1.jpg"
+      "coverFileKey": "public:/photos/paris-1.webp"
     },
     {
       "id": "p_677fcc",
@@ -363,7 +363,7 @@
         "p_fa9e4a"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/london-4.jpg"
+      "coverFileKey": "public:/photos/london-4.webp"
     },
     {
       "id": "p_405d61",
@@ -386,7 +386,7 @@
         "p_f3ecba"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/barcelona-1.jpg"
+      "coverFileKey": "public:/photos/barcelona-1.webp"
     },
     {
       "id": "p_c1e96f",
@@ -411,7 +411,7 @@
         "p_506e1a"
       ],
       "photoCount": 6,
-      "coverFileKey": "public:/photos/yeosu-1.jpg"
+      "coverFileKey": "public:/photos/yeosu-1.webp"
     },
     {
       "id": "p_1eb564",
@@ -434,7 +434,7 @@
         "p_a9e014"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/sokcho-3.jpg"
+      "coverFileKey": "public:/photos/sokcho-3.webp"
     },
     {
       "id": "p_412fd8",
@@ -457,7 +457,7 @@
         "p_962143"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/istanbul-1.jpg"
+      "coverFileKey": "public:/photos/istanbul-1.webp"
     }
   ],
   "legs": [

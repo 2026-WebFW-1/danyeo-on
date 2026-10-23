@@ -160,14 +160,14 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "tokyo-1.jpg",
+              "image": "tokyo-1.webp",
               "place": "신주쿠",
               "lat": 35.6896,
               "lng": 139.7006,
               "at": "2025-01-30T15:00"
             },
             {
-              "image": "tokyo-3.jpg",
+              "image": "tokyo-3.webp",
               "place": "시부야 스크램블",
               "lat": 35.6595,
               "lng": 139.7005,
@@ -183,14 +183,14 @@
               "note": "자정 30초 후. 현지 날짜가 바뀐다"
             },
             {
-              "image": "tokyo-2.jpg",
+              "image": "tokyo-2.webp",
               "place": "센소지",
               "lat": 35.7148,
               "lng": 139.7967,
               "at": "2025-02-01T10:00"
             },
             {
-              "image": "tokyo-4.jpg",
+              "image": "tokyo-4.webp",
               "place": "도쿄 타워",
               "lat": 35.6586,
               "lng": 139.7454,
@@ -262,21 +262,21 @@
           "offset": "+03:00",
           "photos": [
             {
-              "image": "istanbul-1.jpg",
+              "image": "istanbul-1.webp",
               "place": "술탄아흐메트",
               "lat": 41.0082,
               "lng": 28.9784,
               "at": "2025-04-10T17:00"
             },
             {
-              "image": "istanbul-2.jpg",
+              "image": "istanbul-2.webp",
               "place": "아야 소피아",
               "lat": 41.0086,
               "lng": 28.9802,
               "at": "2025-04-11T10:00"
             },
             {
-              "image": "istanbul-4.jpg",
+              "image": "istanbul-4.webp",
               "place": "갈라타 탑",
               "lat": 41.0256,
               "lng": 28.9741,
@@ -296,21 +296,21 @@
           "offset": "+01:00",
           "photos": [
             {
-              "image": "london-1.jpg",
+              "image": "london-1.webp",
               "place": "트라팔가 광장",
               "lat": 51.508,
               "lng": -0.1281,
               "at": "2025-08-01T12:00"
             },
             {
-              "image": "london-2.jpg",
+              "image": "london-2.webp",
               "place": "타워 브리지",
               "lat": 51.5055,
               "lng": -0.0754,
               "at": "2025-08-03T17:00"
             },
             {
-              "image": "london-3.jpg",
+              "image": "london-3.webp",
               "place": "빅벤",
               "lat": 51.5007,
               "lng": -0.1246,
@@ -318,7 +318,7 @@
               "note": "앞 사진과 18일 비었지만 21일 미만이라 같은 지점. 8/1~8/25 = 25일 → 챕터"
             },
             {
-              "image": "london-4.jpg",
+              "image": "london-4.webp",
               "place": "세인트 판크라스",
               "lat": 51.532,
               "lng": -0.1263,
@@ -338,7 +338,7 @@
           "offset": "+02:00",
           "photos": [
             {
-              "image": "paris-1.jpg",
+              "image": "paris-1.webp",
               "place": "파리 시내",
               "lat": 48.8566,
               "lng": 2.3522,
@@ -346,14 +346,14 @@
               "note": "첫날"
             },
             {
-              "image": "paris-3.jpg",
+              "image": "paris-3.webp",
               "place": "센강",
               "lat": 48.853,
               "lng": 2.3499,
               "at": "2025-09-07T19:00"
             },
             {
-              "image": "paris-4.jpg",
+              "image": "paris-4.webp",
               "place": "루브르",
               "lat": 48.8606,
               "lng": 2.3376,
@@ -374,28 +374,28 @@
           "offset": "+02:00",
           "photos": [
             {
-              "image": "barcelona-1.jpg",
+              "image": "barcelona-1.webp",
               "place": "바르셀로나 시내",
               "lat": 41.3874,
               "lng": 2.1686,
               "at": "2025-10-01T14:00"
             },
             {
-              "image": "barcelona-2.jpg",
+              "image": "barcelona-2.webp",
               "place": "사그라다 파밀리아",
               "lat": 41.4036,
               "lng": 2.1744,
               "at": "2025-10-05T10:00"
             },
             {
-              "image": "barcelona-3.jpg",
+              "image": "barcelona-3.webp",
               "place": "구엘 공원",
               "lat": 41.4145,
               "lng": 2.1527,
               "at": "2025-10-09T16:00"
             },
             {
-              "image": "barcelona-4.jpg",
+              "image": "barcelona-4.webp",
               "place": "카사 바트요",
               "lat": 41.3916,
               "lng": 2.1649,
@@ -416,14 +416,14 @@
           "offset": "+11:00",
           "photos": [
             {
-              "image": "sydney-1.jpg",
+              "image": "sydney-1.webp",
               "place": "시드니 시내",
               "lat": -33.8688,
               "lng": 151.2093,
               "at": "2026-01-10T18:00"
             },
             {
-              "image": "sydney-2.jpg",
+              "image": "sydney-2.webp",
               "place": "오페라 하우스(위치 꺼짐)",
               "lat": null,
               "lng": null,
@@ -445,14 +445,14 @@
               "at": "2026-01-11T16:00"
             },
             {
-              "image": "sydney-3.jpg",
+              "image": "sydney-3.webp",
               "place": "본다이 비치",
               "lat": -33.8915,
               "lng": 151.2767,
               "at": "2026-01-12T11:00"
             },
             {
-              "image": "sydney-4.jpg",
+              "image": "sydney-4.webp",
               "place": "하버 브리지",
               "lat": -33.8523,
               "lng": 151.2108,
@@ -472,7 +472,7 @@
           "offset": "-04:00",
           "photos": [
             {
-              "image": "toronto-1.jpg",
+              "image": "toronto-1.webp",
               "place": "토론토 시내",
               "lat": 43.6532,
               "lng": -79.3832,
@@ -487,7 +487,7 @@
           "offset": "-04:00",
           "photos": [
             {
-              "image": "toronto-2.jpg",
+              "image": "toronto-2.webp",
               "place": "나이아가라 폭포",
               "lat": 43.09,
               "lng": -79.079,
@@ -503,7 +503,7 @@
           "offset": "-04:00",
           "photos": [
             {
-              "image": "toronto-3.jpg",
+              "image": "toronto-3.webp",
               "place": "CN 타워",
               "lat": 43.6426,
               "lng": -79.3871,
@@ -511,7 +511,7 @@
               "note": "토론토 재방문 → 새 지점"
             },
             {
-              "image": "toronto-4.jpg",
+              "image": "toronto-4.webp",
               "place": "디스틸러리 지구",
               "lat": 43.6503,
               "lng": -79.3596,
@@ -526,28 +526,28 @@
           "offset": "-04:00",
           "photos": [
             {
-              "image": "newyork-1.jpg",
+              "image": "newyork-1.webp",
               "place": "맨해튼",
               "lat": 40.7128,
               "lng": -74.006,
               "at": "2026-04-22T18:00"
             },
             {
-              "image": "newyork-2.jpg",
+              "image": "newyork-2.webp",
               "place": "타임스스퀘어",
               "lat": 40.758,
               "lng": -73.9855,
               "at": "2026-04-23T21:00"
             },
             {
-              "image": "newyork-3.jpg",
+              "image": "newyork-3.webp",
               "place": "센트럴 파크",
               "lat": 40.7829,
               "lng": -73.9654,
               "at": "2026-04-24T10:00"
             },
             {
-              "image": "newyork-4.jpg",
+              "image": "newyork-4.webp",
               "place": "브루클린 브리지",
               "lat": 40.7061,
               "lng": -73.9969,
@@ -621,7 +621,7 @@
     },
     {
       "type": "mode",
-      "anchor": "toronto-4.jpg",
+      "anchor": "toronto-4.webp",
       "mode": "car",
       "why": "토론토→뉴욕 약 550km가 기차로 판정되지만 실제론 차"
     }

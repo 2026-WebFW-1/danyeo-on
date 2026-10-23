@@ -95,7 +95,7 @@
         "p_889388"
       ],
       "photoCount": 5,
-      "coverFileKey": "public:/photos/tokyo-1.jpg"
+      "coverFileKey": "public:/photos/tokyo-1.webp"
     },
     {
       "id": "p_a85c11",
@@ -159,7 +159,7 @@
         "p_dfec5e"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/istanbul-1.jpg"
+      "coverFileKey": "public:/photos/istanbul-1.webp"
     },
     {
       "id": "p_dabafe",
@@ -182,7 +182,7 @@
         "p_57d4a2"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/london-1.jpg"
+      "coverFileKey": "public:/photos/london-1.webp"
     },
     {
       "id": "p_110d32",
@@ -204,7 +204,7 @@
         "p_7d74cb"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/paris-1.jpg"
+      "coverFileKey": "public:/photos/paris-1.webp"
     },
     {
       "id": "p_97d0f0",
@@ -227,7 +227,7 @@
         "p_5c38af"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/barcelona-1.jpg"
+      "coverFileKey": "public:/photos/barcelona-1.webp"
     },
     {
       "id": "p_0b4ad7",
@@ -249,7 +249,7 @@
         "p_fa31bd"
       ],
       "photoCount": 3,
-      "coverFileKey": "public:/photos/sydney-1.jpg"
+      "coverFileKey": "public:/photos/sydney-1.webp"
     },
     {
       "id": "p_d3b7fd",
@@ -269,7 +269,7 @@
         "p_d3b7fd"
       ],
       "photoCount": 1,
-      "coverFileKey": "public:/photos/toronto-1.jpg"
+      "coverFileKey": "public:/photos/toronto-1.webp"
     },
     {
       "id": "p_3385fa",
@@ -289,7 +289,7 @@
         "p_3385fa"
       ],
       "photoCount": 1,
-      "coverFileKey": "public:/photos/toronto-2.jpg"
+      "coverFileKey": "public:/photos/toronto-2.webp"
     },
     {
       "id": "p_02d3c9",
@@ -310,7 +310,7 @@
         "p_591c3c"
       ],
       "photoCount": 2,
-      "coverFileKey": "public:/photos/toronto-3.jpg"
+      "coverFileKey": "public:/photos/toronto-3.webp"
     },
     {
       "id": "p_318e77",
@@ -333,7 +333,7 @@
         "p_ad3be5"
       ],
       "photoCount": 4,
-      "coverFileKey": "public:/photos/newyork-1.jpg"
+      "coverFileKey": "public:/photos/newyork-1.webp"
     }
   ],
   "legs": [

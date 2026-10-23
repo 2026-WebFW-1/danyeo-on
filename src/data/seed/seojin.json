@@ -785,7 +785,7 @@
         "shutter": 0.0667,
         "iso": 1250
       },
-      "fileKey": "public:/photos/bangkok-3.jpg",
+      "fileKey": "public:/photos/bangkok-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -805,7 +805,7 @@
         "shutter": 0.002,
         "iso": 64
       },
-      "fileKey": "public:/photos/bangkok-2.jpg",
+      "fileKey": "public:/photos/bangkok-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -825,7 +825,7 @@
         "shutter": 0.002,
         "iso": 64
       },
-      "fileKey": "public:/photos/bangkok-4.jpg",
+      "fileKey": "public:/photos/bangkok-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -845,7 +845,7 @@
         "shutter": 0.0333,
         "iso": 1250
       },
-      "fileKey": "public:/photos/bangkok-1.jpg",
+      "fileKey": "public:/photos/bangkok-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -865,7 +865,7 @@
         "shutter": 0.001,
         "iso": 32
       },
-      "fileKey": "public:/photos/danang-1.jpg",
+      "fileKey": "public:/photos/danang-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -885,7 +885,7 @@
         "shutter": 0.00833,
         "iso": 64
       },
-      "fileKey": "public:/photos/danang-4.jpg",
+      "fileKey": "public:/photos/danang-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -905,7 +905,7 @@
         "shutter": 0.00833,
         "iso": 50
       },
-      "fileKey": "public:/photos/danang-2.jpg",
+      "fileKey": "public:/photos/danang-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -925,7 +925,7 @@
         "shutter": 0.004,
         "iso": 50
       },
-      "fileKey": "public:/photos/danang-3.jpg",
+      "fileKey": "public:/photos/danang-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1105,7 +1105,7 @@
         "shutter": 0.00833,
         "iso": 64
       },
-      "fileKey": "public:/photos/gangneung-3.jpg",
+      "fileKey": "public:/photos/gangneung-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1125,7 +1125,7 @@
         "shutter": 0.002,
         "iso": 25
       },
-      "fileKey": "public:/photos/gangneung-4.jpg",
+      "fileKey": "public:/photos/gangneung-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1145,7 +1145,7 @@
         "shutter": 0.001,
         "iso": 50
       },
-      "fileKey": "public:/photos/gangneung-1.jpg",
+      "fileKey": "public:/photos/gangneung-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1505,7 +1505,7 @@
         "shutter": 0.025,
         "iso": 640
       },
-      "fileKey": "public:/photos/fukuoka-1.jpg",
+      "fileKey": "public:/photos/fukuoka-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1805,7 +1805,7 @@
         "shutter": 0.0005,
         "iso": 100
       },
-      "fileKey": "public:/photos/kyoto-11.jpg",
+      "fileKey": "public:/photos/kyoto-11.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1825,7 +1825,7 @@
         "shutter": 0.002,
         "iso": 25
       },
-      "fileKey": "public:/photos/kyoto-4.jpg",
+      "fileKey": "public:/photos/kyoto-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1845,7 +1845,7 @@
         "shutter": 0.00833,
         "iso": 25
       },
-      "fileKey": "public:/photos/kyoto-13.jpg",
+      "fileKey": "public:/photos/kyoto-13.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1865,7 +1865,7 @@
         "shutter": 0.001,
         "iso": 40
       },
-      "fileKey": "public:/photos/kyoto-6.jpg",
+      "fileKey": "public:/photos/kyoto-6.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1885,7 +1885,7 @@
         "shutter": 0.001,
         "iso": 32
       },
-      "fileKey": "public:/photos/kyoto-15.jpg",
+      "fileKey": "public:/photos/kyoto-15.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1905,7 +1905,7 @@
         "shutter": 0.002,
         "iso": 40
       },
-      "fileKey": "public:/photos/kyoto-9.jpg",
+      "fileKey": "public:/photos/kyoto-9.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1925,7 +1925,7 @@
         "shutter": 0.004,
         "iso": 64
       },
-      "fileKey": "public:/photos/kyoto-10.jpg",
+      "fileKey": "public:/photos/kyoto-10.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1945,7 +1945,7 @@
         "shutter": 0.001,
         "iso": 80
       },
-      "fileKey": "public:/photos/kyoto-14.jpg",
+      "fileKey": "public:/photos/kyoto-14.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1965,7 +1965,7 @@
         "shutter": 0.00833,
         "iso": 32
       },
-      "fileKey": "public:/photos/kyoto-1.jpg",
+      "fileKey": "public:/photos/kyoto-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -1985,7 +1985,7 @@
         "shutter": 0.0005,
         "iso": 50
       },
-      "fileKey": "public:/photos/kyoto-2.jpg",
+      "fileKey": "public:/photos/kyoto-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2005,7 +2005,7 @@
         "shutter": 0.0005,
         "iso": 32
       },
-      "fileKey": "public:/photos/kyoto-3.jpg",
+      "fileKey": "public:/photos/kyoto-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2025,7 +2025,7 @@
         "shutter": 0.0005,
         "iso": 25
       },
-      "fileKey": "public:/photos/kyoto-8.jpg",
+      "fileKey": "public:/photos/kyoto-8.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2045,7 +2045,7 @@
         "shutter": 0.001,
         "iso": 25
       },
-      "fileKey": "public:/photos/kyoto-12.jpg",
+      "fileKey": "public:/photos/kyoto-12.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2065,7 +2065,7 @@
         "shutter": 0.0005,
         "iso": 40
       },
-      "fileKey": "public:/photos/kyoto-5.jpg",
+      "fileKey": "public:/photos/kyoto-5.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2445,7 +2445,7 @@
         "shutter": 0.0005,
         "iso": 80
       },
-      "fileKey": "public:/photos/tokyo-1.jpg",
+      "fileKey": "public:/photos/tokyo-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2465,7 +2465,7 @@
         "shutter": 0.05,
         "iso": 1250
       },
-      "fileKey": "public:/photos/tokyo-3.jpg",
+      "fileKey": "public:/photos/tokyo-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2485,7 +2485,7 @@
         "shutter": 0.002,
         "iso": 100
       },
-      "fileKey": "public:/photos/tokyo-2.jpg",
+      "fileKey": "public:/photos/tokyo-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2505,7 +2505,7 @@
         "shutter": 0.0005,
         "iso": 40
       },
-      "fileKey": "public:/photos/tokyo-4.jpg",
+      "fileKey": "public:/photos/tokyo-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2585,7 +2585,7 @@
         "shutter": 0.002,
         "iso": 80
       },
-      "fileKey": "public:/photos/sapporo-3.jpg",
+      "fileKey": "public:/photos/sapporo-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2605,7 +2605,7 @@
         "shutter": 0.0667,
         "iso": 1250
       },
-      "fileKey": "public:/photos/sapporo-7.jpg",
+      "fileKey": "public:/photos/sapporo-7.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2625,7 +2625,7 @@
         "shutter": 0.004,
         "iso": 100
       },
-      "fileKey": "public:/photos/sapporo-1.jpg",
+      "fileKey": "public:/photos/sapporo-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2645,7 +2645,7 @@
         "shutter": 0.004,
         "iso": 100
       },
-      "fileKey": "public:/photos/sapporo-2.jpg",
+      "fileKey": "public:/photos/sapporo-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2665,7 +2665,7 @@
         "shutter": 0.0167,
         "iso": 1000
       },
-      "fileKey": "public:/photos/sapporo-6.jpg",
+      "fileKey": "public:/photos/sapporo-6.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2685,7 +2685,7 @@
         "shutter": 0.002,
         "iso": 32
       },
-      "fileKey": "public:/photos/sapporo-4.jpg",
+      "fileKey": "public:/photos/sapporo-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2705,7 +2705,7 @@
         "shutter": 0.0005,
         "iso": 100
       },
-      "fileKey": "public:/photos/sapporo-5.jpg",
+      "fileKey": "public:/photos/sapporo-5.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2825,7 +2825,7 @@
         "shutter": 0.00833,
         "iso": 25
       },
-      "fileKey": "public:/photos/busan-1.jpg",
+      "fileKey": "public:/photos/busan-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2845,7 +2845,7 @@
         "shutter": 0.00833,
         "iso": 64
       },
-      "fileKey": "public:/photos/busan-3.jpg",
+      "fileKey": "public:/photos/busan-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2865,7 +2865,7 @@
         "shutter": 0.002,
         "iso": 100
       },
-      "fileKey": "public:/photos/busan-2.jpg",
+      "fileKey": "public:/photos/busan-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2885,7 +2885,7 @@
         "shutter": 0.002,
         "iso": 40
       },
-      "fileKey": "public:/photos/busan-4.jpg",
+      "fileKey": "public:/photos/busan-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2905,7 +2905,7 @@
         "shutter": 0.0005,
         "iso": 32
       },
-      "fileKey": "public:/photos/busan-tower-360.jpg",
+      "fileKey": "public:/photos/busan-tower-360.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2925,7 +2925,7 @@
         "shutter": 0.0667,
         "iso": 1250
       },
-      "fileKey": "public:/photos/gyeongju-1.jpg",
+      "fileKey": "public:/photos/gyeongju-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2945,7 +2945,7 @@
         "shutter": 0.004,
         "iso": 40
       },
-      "fileKey": "public:/photos/gyeongju-2.jpg",
+      "fileKey": "public:/photos/gyeongju-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2965,7 +2965,7 @@
         "shutter": 0.004,
         "iso": 80
       },
-      "fileKey": "public:/photos/gyeongju-4.jpg",
+      "fileKey": "public:/photos/gyeongju-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -2985,7 +2985,7 @@
         "shutter": 0.002,
         "iso": 100
       },
-      "fileKey": "public:/photos/gyeongju-3.jpg",
+      "fileKey": "public:/photos/gyeongju-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3725,7 +3725,7 @@
         "shutter": 0.001,
         "iso": 25
       },
-      "fileKey": "public:/photos/vancouver-6.jpg",
+      "fileKey": "public:/photos/vancouver-6.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3745,7 +3745,7 @@
         "shutter": 0.002,
         "iso": 80
       },
-      "fileKey": "public:/photos/vancouver-4.jpg",
+      "fileKey": "public:/photos/vancouver-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3765,7 +3765,7 @@
         "shutter": 0.0005,
         "iso": 32
       },
-      "fileKey": "public:/photos/vancouver-5.jpg",
+      "fileKey": "public:/photos/vancouver-5.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3785,7 +3785,7 @@
         "shutter": 0.00833,
         "iso": 25
       },
-      "fileKey": "public:/photos/vancouver-3.jpg",
+      "fileKey": "public:/photos/vancouver-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3805,7 +3805,7 @@
         "shutter": 0.001,
         "iso": 80
       },
-      "fileKey": "public:/photos/vancouver-8.jpg",
+      "fileKey": "public:/photos/vancouver-8.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3825,7 +3825,7 @@
         "shutter": 0.0167,
         "iso": 1250
       },
-      "fileKey": "public:/photos/vancouver-1.jpg",
+      "fileKey": "public:/photos/vancouver-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3845,7 +3845,7 @@
         "shutter": 0.0005,
         "iso": 40
       },
-      "fileKey": "public:/photos/banff-4.jpg",
+      "fileKey": "public:/photos/banff-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3865,7 +3865,7 @@
         "shutter": 0.00833,
         "iso": 25
       },
-      "fileKey": "public:/photos/banff-1.jpg",
+      "fileKey": "public:/photos/banff-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -3885,7 +3885,7 @@
         "shutter": 0.00833,
         "iso": 50
       },
-      "fileKey": "public:/photos/banff-2.jpg",
+      "fileKey": "public:/photos/banff-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4045,7 +4045,7 @@
         "shutter": 0.025,
         "iso": 800
       },
-      "fileKey": "public:/photos/osaka-2.jpg",
+      "fileKey": "public:/photos/osaka-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4065,7 +4065,7 @@
         "shutter": 0.00833,
         "iso": 100
       },
-      "fileKey": "public:/photos/osaka-3.jpg",
+      "fileKey": "public:/photos/osaka-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4085,7 +4085,7 @@
         "shutter": 0.0667,
         "iso": 1250
       },
-      "fileKey": "public:/photos/osaka-4.jpg",
+      "fileKey": "public:/photos/osaka-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4105,7 +4105,7 @@
         "shutter": 0.0005,
         "iso": 64
       },
-      "fileKey": "public:/photos/osaka-1.jpg",
+      "fileKey": "public:/photos/osaka-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4205,7 +4205,7 @@
         "shutter": 0.0005,
         "iso": 100
       },
-      "fileKey": "public:/photos/jeonju-3.jpg",
+      "fileKey": "public:/photos/jeonju-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4225,7 +4225,7 @@
         "shutter": 0.00833,
         "iso": 25
       },
-      "fileKey": "public:/photos/jeonju-4.jpg",
+      "fileKey": "public:/photos/jeonju-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4245,7 +4245,7 @@
         "shutter": 0.001,
         "iso": 80
       },
-      "fileKey": "public:/photos/jeonju-5.jpg",
+      "fileKey": "public:/photos/jeonju-5.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4725,7 +4725,7 @@
         "shutter": 0.001,
         "iso": 50
       },
-      "fileKey": "public:/photos/paris-1.jpg",
+      "fileKey": "public:/photos/paris-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4745,7 +4745,7 @@
         "shutter": 0.001,
         "iso": 64
       },
-      "fileKey": "public:/photos/paris-3.jpg",
+      "fileKey": "public:/photos/paris-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4765,7 +4765,7 @@
         "shutter": 0.002,
         "iso": 25
       },
-      "fileKey": "public:/photos/paris-4.jpg",
+      "fileKey": "public:/photos/paris-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4785,7 +4785,7 @@
         "shutter": 0.00833,
         "iso": 32
       },
-      "fileKey": "public:/photos/london-4.jpg",
+      "fileKey": "public:/photos/london-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4805,7 +4805,7 @@
         "shutter": 0.00833,
         "iso": 100
       },
-      "fileKey": "public:/photos/london-2.jpg",
+      "fileKey": "public:/photos/london-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4825,7 +4825,7 @@
         "shutter": 0.002,
         "iso": 80
       },
-      "fileKey": "public:/photos/london-3.jpg",
+      "fileKey": "public:/photos/london-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4845,7 +4845,7 @@
         "shutter": 0.002,
         "iso": 32
       },
-      "fileKey": "public:/photos/london-1.jpg",
+      "fileKey": "public:/photos/london-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4865,7 +4865,7 @@
         "shutter": 0.004,
         "iso": 80
       },
-      "fileKey": "public:/photos/barcelona-1.jpg",
+      "fileKey": "public:/photos/barcelona-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4885,7 +4885,7 @@
         "shutter": 0.0005,
         "iso": 100
       },
-      "fileKey": "public:/photos/barcelona-2.jpg",
+      "fileKey": "public:/photos/barcelona-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4905,7 +4905,7 @@
         "shutter": 0.004,
         "iso": 50
       },
-      "fileKey": "public:/photos/barcelona-3.jpg",
+      "fileKey": "public:/photos/barcelona-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -4925,7 +4925,7 @@
         "shutter": 0.00833,
         "iso": 50
       },
-      "fileKey": "public:/photos/barcelona-4.jpg",
+      "fileKey": "public:/photos/barcelona-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5705,7 +5705,7 @@
         "shutter": 0.001,
         "iso": 32
       },
-      "fileKey": "public:/photos/yeosu-1.jpg",
+      "fileKey": "public:/photos/yeosu-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5725,7 +5725,7 @@
         "shutter": 0.00833,
         "iso": 50
       },
-      "fileKey": "public:/photos/yeosu-2.jpg",
+      "fileKey": "public:/photos/yeosu-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5745,7 +5745,7 @@
         "shutter": 0.05,
         "iso": 800
       },
-      "fileKey": "public:/photos/yeosu-3.jpg",
+      "fileKey": "public:/photos/yeosu-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5765,7 +5765,7 @@
         "shutter": 0.002,
         "iso": 40
       },
-      "fileKey": "public:/photos/suncheon-6.jpg",
+      "fileKey": "public:/photos/suncheon-6.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5785,7 +5785,7 @@
         "shutter": 0.0005,
         "iso": 64
       },
-      "fileKey": "public:/photos/suncheon-4.jpg",
+      "fileKey": "public:/photos/suncheon-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -5805,7 +5805,7 @@
         "shutter": 0.0005,
         "iso": 25
       },
-      "fileKey": "public:/photos/suncheon-5.jpg",
+      "fileKey": "public:/photos/suncheon-5.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6125,7 +6125,7 @@
         "shutter": 0.004,
         "iso": 40
       },
-      "fileKey": "public:/photos/sokcho-3.jpg",
+      "fileKey": "public:/photos/sokcho-3.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6145,7 +6145,7 @@
         "shutter": 0.001,
         "iso": 40
       },
-      "fileKey": "public:/photos/sokcho-4.jpg",
+      "fileKey": "public:/photos/sokcho-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6165,7 +6165,7 @@
         "shutter": 0.004,
         "iso": 32
       },
-      "fileKey": "public:/photos/sokcho-2.jpg",
+      "fileKey": "public:/photos/sokcho-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6185,7 +6185,7 @@
         "shutter": 0.004,
         "iso": 100
       },
-      "fileKey": "public:/photos/sokcho-1.jpg",
+      "fileKey": "public:/photos/sokcho-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6325,7 +6325,7 @@
         "shutter": 0.0005,
         "iso": 32
       },
-      "fileKey": "public:/photos/istanbul-1.jpg",
+      "fileKey": "public:/photos/istanbul-1.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6345,7 +6345,7 @@
         "shutter": 0.00833,
         "iso": 50
       },
-      "fileKey": "public:/photos/istanbul-2.jpg",
+      "fileKey": "public:/photos/istanbul-2.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {
@@ -6385,7 +6385,7 @@
         "shutter": 0.025,
         "iso": 800
       },
-      "fileKey": "public:/photos/istanbul-4.jpg",
+      "fileKey": "public:/photos/istanbul-4.webp",
       "uploadedAt": "2026-10-01T21:00:00+09:00"
     },
     {

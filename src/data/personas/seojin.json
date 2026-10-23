@@ -61,28 +61,28 @@
           "offset": "+07:00",
           "photos": [
             {
-              "image": "bangkok-3.jpg",
+              "image": "bangkok-3.webp",
               "place": "짜오프라야 강변(왕궁 야경)",
               "lat": 13.748,
               "lng": 100.489,
               "at": "2024-07-11T20:10"
             },
             {
-              "image": "bangkok-2.jpg",
+              "image": "bangkok-2.webp",
               "place": "왓 아룬",
               "lat": 13.7437,
               "lng": 100.4889,
               "at": "2024-07-12T10:30"
             },
             {
-              "image": "bangkok-4.jpg",
+              "image": "bangkok-4.webp",
               "place": "짜뚜짝 주말시장",
               "lat": 13.7999,
               "lng": 100.5503,
               "at": "2024-07-13T11:00"
             },
             {
-              "image": "bangkok-1.jpg",
+              "image": "bangkok-1.webp",
               "place": "마하나콘 전망대",
               "lat": 13.7236,
               "lng": 100.5283,
@@ -97,28 +97,28 @@
           "offset": "+07:00",
           "photos": [
             {
-              "image": "danang-1.jpg",
+              "image": "danang-1.webp",
               "place": "숙소 루프톱",
               "lat": 16.064,
               "lng": 108.229,
               "at": "2024-07-14T16:10"
             },
             {
-              "image": "danang-4.jpg",
+              "image": "danang-4.webp",
               "place": "바나힐 골든브리지",
               "lat": 15.995,
               "lng": 107.9965,
               "at": "2024-07-15T09:30"
             },
             {
-              "image": "danang-2.jpg",
+              "image": "danang-2.webp",
               "place": "오행산",
               "lat": 16.0036,
               "lng": 108.2636,
               "at": "2024-07-15T17:50"
             },
             {
-              "image": "danang-3.jpg",
+              "image": "danang-3.webp",
               "place": "용다리",
               "lat": 16.0612,
               "lng": 108.2272,
@@ -140,21 +140,21 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "gangneung-3.jpg",
+              "image": "gangneung-3.webp",
               "place": "오죽헌",
               "lat": 37.779,
               "lng": 128.8786,
               "at": "2024-08-15T15:00"
             },
             {
-              "image": "gangneung-4.jpg",
+              "image": "gangneung-4.webp",
               "place": "주문진항",
               "lat": 37.8925,
               "lng": 128.8316,
               "at": "2024-08-16T08:40"
             },
             {
-              "image": "gangneung-1.jpg",
+              "image": "gangneung-1.webp",
               "place": "주문진 등대",
               "lat": 37.896,
               "lng": 128.833,
@@ -188,7 +188,7 @@
               "at": "2024-10-04T10:40"
             },
             {
-              "image": "fukuoka-1.jpg",
+              "image": "fukuoka-1.webp",
               "place": "나카스 포장마차",
               "lat": 33.5925,
               "lng": 130.4065,
@@ -213,98 +213,98 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "kyoto-11.jpg",
+              "image": "kyoto-11.webp",
               "place": "니조성",
               "lat": 35.0142,
               "lng": 135.748,
               "at": "2024-11-22T14:10"
             },
             {
-              "image": "kyoto-4.jpg",
+              "image": "kyoto-4.webp",
               "place": "니시키 시장",
               "lat": 35.005,
               "lng": 135.7649,
               "at": "2024-11-22T17:30"
             },
             {
-              "image": "kyoto-13.jpg",
+              "image": "kyoto-13.webp",
               "place": "니시키 시장",
               "lat": 35.0051,
               "lng": 135.7655,
               "at": "2024-11-22T17:45"
             },
             {
-              "image": "kyoto-6.jpg",
+              "image": "kyoto-6.webp",
               "place": "후시미 이나리",
               "lat": 34.9671,
               "lng": 135.7727,
               "at": "2024-11-23T07:50"
             },
             {
-              "image": "kyoto-15.jpg",
+              "image": "kyoto-15.webp",
               "place": "도후쿠지",
               "lat": 34.9767,
               "lng": 135.774,
               "at": "2024-11-23T11:20"
             },
             {
-              "image": "kyoto-9.jpg",
+              "image": "kyoto-9.webp",
               "place": "기온 장어덮밥집",
               "lat": 35.003,
               "lng": 135.773,
               "at": "2024-11-23T13:00"
             },
             {
-              "image": "kyoto-10.jpg",
+              "image": "kyoto-10.webp",
               "place": "산넨자카",
               "lat": 34.996,
               "lng": 135.781,
               "at": "2024-11-23T15:40"
             },
             {
-              "image": "kyoto-14.jpg",
+              "image": "kyoto-14.webp",
               "place": "야사카 고신도",
               "lat": 34.9985,
               "lng": 135.7792,
               "at": "2024-11-23T16:10"
             },
             {
-              "image": "kyoto-1.jpg",
+              "image": "kyoto-1.webp",
               "place": "기요미즈데라",
               "lat": 34.9949,
               "lng": 135.785,
               "at": "2024-11-24T08:30"
             },
             {
-              "image": "kyoto-2.jpg",
+              "image": "kyoto-2.webp",
               "place": "기요미즈데라",
               "lat": 34.9952,
               "lng": 135.7846,
               "at": "2024-11-24T08:45"
             },
             {
-              "image": "kyoto-3.jpg",
+              "image": "kyoto-3.webp",
               "place": "기요미즈데라 오쿠노인",
               "lat": 34.9946,
               "lng": 135.7856,
               "at": "2024-11-24T09:20"
             },
             {
-              "image": "kyoto-8.jpg",
+              "image": "kyoto-8.webp",
               "place": "아라시야마 대나무숲",
               "lat": 35.017,
               "lng": 135.6713,
               "at": "2024-11-24T14:00"
             },
             {
-              "image": "kyoto-12.jpg",
+              "image": "kyoto-12.webp",
               "place": "숙소 앞 카페",
               "lat": 35.008,
               "lng": 135.768,
               "at": "2024-11-25T09:30"
             },
             {
-              "image": "kyoto-5.jpg",
+              "image": "kyoto-5.webp",
               "place": "니시키 시장 츠케모노 가게",
               "lat": 35.0049,
               "lng": 135.766,
@@ -326,28 +326,28 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "tokyo-1.jpg",
+              "image": "tokyo-1.webp",
               "place": "도쿄도청 전망대",
               "lat": 35.6896,
               "lng": 139.6917,
               "at": "2025-01-23T16:10"
             },
             {
-              "image": "tokyo-3.jpg",
+              "image": "tokyo-3.webp",
               "place": "시부야 스크램블",
               "lat": 35.6595,
               "lng": 139.7005,
               "at": "2025-01-23T19:40"
             },
             {
-              "image": "tokyo-2.jpg",
+              "image": "tokyo-2.webp",
               "place": "센소지",
               "lat": 35.7148,
               "lng": 139.7967,
               "at": "2025-01-24T10:20"
             },
             {
-              "image": "tokyo-4.jpg",
+              "image": "tokyo-4.webp",
               "place": "도쿄 타워",
               "lat": 35.6586,
               "lng": 139.7454,
@@ -365,49 +365,49 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "sapporo-3.jpg",
+              "image": "sapporo-3.webp",
               "place": "삿포로 시계탑",
               "lat": 43.0625,
               "lng": 141.3536,
               "at": "2025-02-06T16:00"
             },
             {
-              "image": "sapporo-7.jpg",
+              "image": "sapporo-7.webp",
               "place": "라멘 골목",
               "lat": 43.056,
               "lng": 141.353,
               "at": "2025-02-06T19:30"
             },
             {
-              "image": "sapporo-1.jpg",
+              "image": "sapporo-1.webp",
               "place": "TV타워에서 본 오도리 공원",
               "lat": 43.061,
               "lng": 141.3565,
               "at": "2025-02-07T10:20"
             },
             {
-              "image": "sapporo-2.jpg",
+              "image": "sapporo-2.webp",
               "place": "TV타워에서 본 오도리 공원",
               "lat": 43.0611,
               "lng": 141.3566,
               "at": "2025-02-07T10:30"
             },
             {
-              "image": "sapporo-6.jpg",
+              "image": "sapporo-6.webp",
               "place": "눈축제 오도리 회장",
               "lat": 43.0595,
               "lng": 141.348,
               "at": "2025-02-07T19:00"
             },
             {
-              "image": "sapporo-4.jpg",
+              "image": "sapporo-4.webp",
               "place": "오타루 운하",
               "lat": 43.1993,
               "lng": 140.9945,
               "at": "2025-02-08T13:30"
             },
             {
-              "image": "sapporo-5.jpg",
+              "image": "sapporo-5.webp",
               "place": "오타루 눈빛거리",
               "lat": 43.1975,
               "lng": 140.994,
@@ -429,35 +429,35 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "busan-1.jpg",
+              "image": "busan-1.webp",
               "place": "해운대",
               "lat": 35.1587,
               "lng": 129.1604,
               "at": "2025-02-28T15:20"
             },
             {
-              "image": "busan-3.jpg",
+              "image": "busan-3.webp",
               "place": "광안리",
               "lat": 35.1532,
               "lng": 129.1187,
               "at": "2025-03-01T08:50"
             },
             {
-              "image": "busan-2.jpg",
+              "image": "busan-2.webp",
               "place": "감천문화마을",
               "lat": 35.0975,
               "lng": 129.0106,
               "at": "2025-03-01T11:30"
             },
             {
-              "image": "busan-4.jpg",
+              "image": "busan-4.webp",
               "place": "자갈치시장",
               "lat": 35.0966,
               "lng": 129.0306,
               "at": "2025-03-01T14:10"
             },
             {
-              "image": "busan-tower-360.jpg",
+              "image": "busan-tower-360.webp",
               "place": "부산타워",
               "lat": 35.101,
               "lng": 129.0325,
@@ -472,28 +472,28 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "gyeongju-1.jpg",
+              "image": "gyeongju-1.webp",
               "place": "동궁과 월지",
               "lat": 35.8347,
               "lng": 129.2266,
               "at": "2025-03-01T19:30"
             },
             {
-              "image": "gyeongju-2.jpg",
+              "image": "gyeongju-2.webp",
               "place": "불국사",
               "lat": 35.79,
               "lng": 129.332,
               "at": "2025-03-02T10:00"
             },
             {
-              "image": "gyeongju-4.jpg",
+              "image": "gyeongju-4.webp",
               "place": "석굴암",
               "lat": 35.795,
               "lng": 129.349,
               "at": "2025-03-02T11:30"
             },
             {
-              "image": "gyeongju-3.jpg",
+              "image": "gyeongju-3.webp",
               "place": "첨성대",
               "lat": 35.8347,
               "lng": 129.219,
@@ -520,42 +520,42 @@
               "key": "flight-to-vancouver"
             },
             {
-              "image": "vancouver-6.jpg",
+              "image": "vancouver-6.webp",
               "place": "콜 하버",
               "lat": 49.2897,
               "lng": -123.1254,
               "at": "2025-06-28T18:30"
             },
             {
-              "image": "vancouver-4.jpg",
+              "image": "vancouver-4.webp",
               "place": "개스타운",
               "lat": 49.284,
               "lng": -123.1086,
               "at": "2025-07-05T14:00"
             },
             {
-              "image": "vancouver-5.jpg",
+              "image": "vancouver-5.webp",
               "place": "카필라노 흔들다리",
               "lat": 49.3429,
               "lng": -123.1149,
               "at": "2025-07-12T13:10"
             },
             {
-              "image": "vancouver-3.jpg",
+              "image": "vancouver-3.webp",
               "place": "그라우스 산",
               "lat": 49.38,
               "lng": -123.0815,
               "at": "2025-07-26T11:00"
             },
             {
-              "image": "vancouver-8.jpg",
+              "image": "vancouver-8.webp",
               "place": "그랜빌 아일랜드",
               "lat": 49.2712,
               "lng": -123.134,
               "at": "2025-08-09T15:30"
             },
             {
-              "image": "vancouver-1.jpg",
+              "image": "vancouver-1.webp",
               "place": "밴쿠버 룩아웃",
               "lat": 49.2848,
               "lng": -123.1119,
@@ -570,21 +570,21 @@
           "offset": "-06:00",
           "photos": [
             {
-              "image": "banff-4.jpg",
+              "image": "banff-4.webp",
               "place": "밴프 타운",
               "lat": 51.1784,
               "lng": -115.5708,
               "at": "2025-08-25T17:00"
             },
             {
-              "image": "banff-1.jpg",
+              "image": "banff-1.webp",
               "place": "모레인 호수",
               "lat": 51.3217,
               "lng": -116.186,
               "at": "2025-08-26T08:10"
             },
             {
-              "image": "banff-2.jpg",
+              "image": "banff-2.webp",
               "place": "레이크 루이스 전망대",
               "lat": 51.417,
               "lng": -116.223,
@@ -604,28 +604,28 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "osaka-2.jpg",
+              "image": "osaka-2.webp",
               "place": "도톤보리",
               "lat": 34.6687,
               "lng": 135.5013,
               "at": "2025-09-19T19:30"
             },
             {
-              "image": "osaka-3.jpg",
+              "image": "osaka-3.webp",
               "place": "오사카성",
               "lat": 34.6873,
               "lng": 135.5262,
               "at": "2025-09-20T11:00"
             },
             {
-              "image": "osaka-4.jpg",
+              "image": "osaka-4.webp",
               "place": "신세카이",
               "lat": 34.6525,
               "lng": 135.5063,
               "at": "2025-09-20T20:00"
             },
             {
-              "image": "osaka-1.jpg",
+              "image": "osaka-1.webp",
               "place": "오사카성 공원",
               "lat": 34.686,
               "lng": 135.53,
@@ -647,21 +647,21 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "jeonju-3.jpg",
+              "image": "jeonju-3.webp",
               "place": "전동성당",
               "lat": 35.8132,
               "lng": 127.149,
               "at": "2025-10-04T15:00"
             },
             {
-              "image": "jeonju-4.jpg",
+              "image": "jeonju-4.webp",
               "place": "비빔밥집",
               "lat": 35.817,
               "lng": 127.146,
               "at": "2025-10-04T18:30"
             },
             {
-              "image": "jeonju-5.jpg",
+              "image": "jeonju-5.webp",
               "place": "오목대에서 본 한옥마을",
               "lat": 35.815,
               "lng": 127.154,
@@ -681,21 +681,21 @@
           "offset": "+01:00",
           "photos": [
             {
-              "image": "paris-1.jpg",
+              "image": "paris-1.webp",
               "place": "파리 시내",
               "lat": 48.8566,
               "lng": 2.3522,
               "at": "2025-12-26T15:00"
             },
             {
-              "image": "paris-3.jpg",
+              "image": "paris-3.webp",
               "place": "센강",
               "lat": 48.853,
               "lng": 2.3499,
               "at": "2025-12-28T17:10"
             },
             {
-              "image": "paris-4.jpg",
+              "image": "paris-4.webp",
               "place": "루브르",
               "lat": 48.8606,
               "lng": 2.3376,
@@ -710,28 +710,28 @@
           "offset": "+00:00",
           "photos": [
             {
-              "image": "london-4.jpg",
+              "image": "london-4.webp",
               "place": "세인트 판크라스(유로스타 도착)",
               "lat": 51.532,
               "lng": -0.1263,
               "at": "2026-01-01T13:00"
             },
             {
-              "image": "london-2.jpg",
+              "image": "london-2.webp",
               "place": "타워 브리지",
               "lat": 51.5055,
               "lng": -0.0754,
               "at": "2026-01-02T16:30"
             },
             {
-              "image": "london-3.jpg",
+              "image": "london-3.webp",
               "place": "빅벤",
               "lat": 51.5007,
               "lng": -0.1246,
               "at": "2026-01-03T10:00"
             },
             {
-              "image": "london-1.jpg",
+              "image": "london-1.webp",
               "place": "트라팔가 광장",
               "lat": 51.508,
               "lng": -0.1281,
@@ -746,28 +746,28 @@
           "offset": "+01:00",
           "photos": [
             {
-              "image": "barcelona-1.jpg",
+              "image": "barcelona-1.webp",
               "place": "바르셀로나 시내",
               "lat": 41.3874,
               "lng": 2.1686,
               "at": "2026-01-05T14:00"
             },
             {
-              "image": "barcelona-2.jpg",
+              "image": "barcelona-2.webp",
               "place": "사그라다 파밀리아",
               "lat": 41.4036,
               "lng": 2.1744,
               "at": "2026-01-06T10:00"
             },
             {
-              "image": "barcelona-3.jpg",
+              "image": "barcelona-3.webp",
               "place": "구엘 공원",
               "lat": 41.4145,
               "lng": 2.1527,
               "at": "2026-01-07T15:30"
             },
             {
-              "image": "barcelona-4.jpg",
+              "image": "barcelona-4.webp",
               "place": "카사 바트요",
               "lat": 41.3916,
               "lng": 2.1649,
@@ -787,21 +787,21 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "yeosu-1.jpg",
+              "image": "yeosu-1.webp",
               "place": "돌산대교",
               "lat": 34.727,
               "lng": 127.747,
               "at": "2026-05-23T14:00"
             },
             {
-              "image": "yeosu-2.jpg",
+              "image": "yeosu-2.webp",
               "place": "오동도",
               "lat": 34.744,
               "lng": 127.766,
               "at": "2026-05-23T17:20"
             },
             {
-              "image": "yeosu-3.jpg",
+              "image": "yeosu-3.webp",
               "place": "향일암",
               "lat": 34.59,
               "lng": 127.802,
@@ -816,21 +816,21 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "suncheon-6.jpg",
+              "image": "suncheon-6.webp",
               "place": "선암사",
               "lat": 35.0016,
               "lng": 127.333,
               "at": "2026-05-24T15:00"
             },
             {
-              "image": "suncheon-4.jpg",
+              "image": "suncheon-4.webp",
               "place": "송광사",
               "lat": 35.0003,
               "lng": 127.2733,
               "at": "2026-05-25T10:00"
             },
             {
-              "image": "suncheon-5.jpg",
+              "image": "suncheon-5.webp",
               "place": "순천 시내",
               "lat": 34.9506,
               "lng": 127.4872,
@@ -850,28 +850,28 @@
           "offset": "+09:00",
           "photos": [
             {
-              "image": "sokcho-3.jpg",
+              "image": "sokcho-3.webp",
               "place": "속초항",
               "lat": 38.204,
               "lng": 128.596,
               "at": "2026-07-18T16:00"
             },
             {
-              "image": "sokcho-4.jpg",
+              "image": "sokcho-4.webp",
               "place": "신흥사",
               "lat": 38.172,
               "lng": 128.487,
               "at": "2026-07-19T08:00"
             },
             {
-              "image": "sokcho-2.jpg",
+              "image": "sokcho-2.webp",
               "place": "울산바위",
               "lat": 38.183,
               "lng": 128.478,
               "at": "2026-07-19T10:30"
             },
             {
-              "image": "sokcho-1.jpg",
+              "image": "sokcho-1.webp",
               "place": "설악산 권금성",
               "lat": 38.16,
               "lng": 128.48,
@@ -891,14 +891,14 @@
           "offset": "+03:00",
           "photos": [
             {
-              "image": "istanbul-1.jpg",
+              "image": "istanbul-1.webp",
               "place": "술탄아흐메트",
               "lat": 41.0082,
               "lng": 28.9784,
               "at": "2026-08-13T17:00"
             },
             {
-              "image": "istanbul-2.jpg",
+              "image": "istanbul-2.webp",
               "place": "아야 소피아",
               "lat": 41.0086,
               "lng": 28.9802,
@@ -912,7 +912,7 @@
               "at": "2026-08-15T13:30"
             },
             {
-              "image": "istanbul-4.jpg",
+              "image": "istanbul-4.webp",
               "place": "갈라타 탑",
               "lat": 41.0256,
               "lng": 28.9741,
@@ -1032,19 +1032,19 @@
   "corrections": [
     {
       "type": "rename",
-      "anchor": "paris-1.jpg",
+      "anchor": "paris-1.webp",
       "name": "졸업 여행",
       "why": "자동 이름(파리 · 런던 · 바르셀로나) 대신 사용자가 붙인 이름"
     },
     {
       "type": "rename",
-      "anchor": "yeosu-1.jpg",
+      "anchor": "yeosu-1.webp",
       "name": "여수 · 순천",
       "why": "60km 규칙으로 여수·순천이 한 지점(여수)으로 묶인다"
     },
     {
       "type": "mode",
-      "anchor": "vancouver-1.jpg",
+      "anchor": "vancouver-1.webp",
       "mode": "car",
       "why": "밴쿠버→밴프 552km가 기차로 판정되지만 실제론 버스"
     }
