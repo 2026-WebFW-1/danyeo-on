@@ -12,7 +12,18 @@ function makeFile(name, type = '') {
 
 describe('isPhotoFile', () => {
   // 사진 파일인지 검사하는 확장자 테스트
-  const files = ['a.jpg', 'a.jpeg', 'a.png', 'a.heic', 'a.heif'];
+  const files = [
+    'a.jpg',
+    'a.jpeg',
+    'a.jfif',
+    'a.jpe',
+    'a.png',
+    'a.heic',
+    'a.heif',
+    'a.avif',
+    'a.tif',
+    'a.tiff',
+  ];
   test.each(files)('%s는 사진입니다.', (name) => {
     expect(isPhotoFile(makeFile(name))).toBe(true);
   });
@@ -25,7 +36,16 @@ describe('isPhotoFile', () => {
     expect(isPhotoFile(makeFile('IMG_0099.heic', ''))).toBe(true);
   });
 
-  const notPhotoList = ['clip.mov', 'note.txt', 'photo.webp', 'jpg'];
+  // readExif가 촬영 정보를 못 읽는 형식은 받지 않습니다.
+  const notPhotoList = [
+    'clip.mov',
+    'note.txt',
+    'photo.webp',
+    'anim.gif',
+    'scan.bmp',
+    'raw.dng',
+    'jpg',
+  ];
   test.each(notPhotoList)('%s는 사진이 아닙니다.', (name) => {
     expect(isPhotoFile(makeFile(name))).toBe(false);
   });
