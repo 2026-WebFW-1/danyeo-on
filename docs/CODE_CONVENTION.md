@@ -108,8 +108,8 @@ export default function TripCard({ trip }) {
 
   return (
     <article className="bg-surface rounded-2xl p-4">
-      <h3 className="text-ink text-lg font-bold">{trip.city}</h3>
-      <p className="text-muted text-sm">{formatDate(trip.start)}</p>
+      <h3 className="text-lg font-bold text-ink">{trip.city}</h3>
+      <p className="text-sm text-muted">{formatDate(trip.start)}</p>
       <Button onClick={handleToggle}>{isOpen ? '접기' : '더 보기'}</Button>
     </article>
   );
@@ -220,8 +220,8 @@ export default function TripCard({ trip }) {
   ```css
   /* styles/tokens.css */
   @theme {
-    --color-ink: #111;
-    --color-accent: #d6307a;
+    --color-ink: #000;
+    --color-accent: #e6007e;
   }
   ```
 
@@ -232,6 +232,23 @@ export default function TripCard({ trip }) {
   // ❌ 대괄호로 값을 직접 적기
   <p className="text-[#111]">
   ```
+
+- 토큰 이름과 값은 피그마 Foundations가 기준입니다. 피그마를 먼저 고치고 `tokens.css`를 따라 고칩니다.
+- 글자 크기(`text-*`)와 모서리(`rounded-*`)는 Tailwind 기본값을 지우고 피그마 이름·값으로 다시 정의했습니다. **이 프로젝트에서 `text-sm`은 13px입니다** (Tailwind 문서의 14px과 다름). `text-base`는 없고 16px은 `text-lg`입니다.
+
+  | 클래스     | 크기 | 클래스                          | 크기          |
+  | ---------- | ---- | ------------------------------- | ------------- |
+  | `text-2xs` | 11px | `text-4xl`                      | 28px          |
+  | `text-xs`  | 12px | `text-5xl`                      | 36px          |
+  | `text-sm`  | 13px | `text-6xl`                      | 44px          |
+  | `text-md`  | 14px | `text-7xl`                      | 56px          |
+  | `text-lg`  | 16px | `text-8xl`                      | 72px          |
+  | `text-xl`  | 18px | `text-display-sm`               | 76px          |
+  | `text-2xl` | 20px | `text-display-md`               | 128px         |
+  | `text-3xl` | 24px | `text-display-lg` / `text-hero` | 136px / 150px |
+
+- 줄 높이는 크기 클래스에 들어 있어서 따로 적지 않습니다. 14·16px Regular 본문만 `leading-body-md`(1.7), `leading-body-lg`(1.8)를 크기 **뒤에** 붙입니다: `text-md leading-body-md`
+- 새 크기·줄 높이·모서리 이름을 `tokens.css`에 더하면, Tailwind 기본에 없는 이름은 `utils/cn.js`의 `extendTailwindMerge`에도 등록합니다. 등록하지 않으면 `cn`이 같이 쓴 클래스를 지울 수 있습니다.
 
 - 간격은 Tailwind 기본 단위(`p-4` = 16px)를 씁니다. `p-[13px]`처럼 대괄호 값은 피그마 수치를 맞추려고 꼭 필요할 때만 씁니다.
 - 화면 크기는 **모바일을 기본**으로 쓰고, 웹은 `lg:`(1024px 이상)를 붙여 덮어씁니다.
@@ -251,7 +268,7 @@ export default function TripCard({ trip }) {
   ```jsx
   export default function Button({ className, children, ...props }) {
     return (
-      <button className={cn('bg-ink rounded-full px-4 py-2 text-white', className)} {...props}>
+      <button className={cn('rounded-full bg-ink px-4 py-2 text-white', className)} {...props}>
         {children}
       </button>
     );
