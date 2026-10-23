@@ -26,3 +26,6 @@ dist-ssr
 
 # Vercel
 .vercel
+
+# Vitest 브라우저 테스트 실패 화면
+.vitest
