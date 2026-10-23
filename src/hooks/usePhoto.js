@@ -3,19 +3,20 @@ const PUBLIC_PREFIX = 'public:';
 
 /**
  * fileKey를 img src 주소로 바꿔요. 지원하지 않는 형식은 null이에요.
+ * 시연용 사진은 같은 이름으로 full/(긴 변 2048)과 thumb/(긴 변 400) 두 벌이 있어요.
+ * 목록·카드처럼 작게 보이는 곳은 thumb, 크게 펼쳐 보는 곳은 full을 써요.
  * @param {string | null | undefined} fileKey
- *   예: 'public:/photos/tokyo-1.jpg'
+ *   예: 'public:/photos/tokyo-1.webp'
  * @param {'thumb' | 'full'} [size]
- *   업로드 사진용 자리예요. 지금은 안 써요.
  * @returns {string | null}
- *   예: '/photos/tokyo-1.jpg'
+ *   예: '/photos/full/tokyo-1.webp', '/photos/thumb/tokyo-1.webp'
  */
-// eslint-disable-next-line no-unused-vars
-export function photoSource(fileKey, size) {
-  if (fileKey?.startsWith(PUBLIC_PREFIX)) {
-    return fileKey.slice(PUBLIC_PREFIX.length);
-  }
-  return null;
+export function photoSource(fileKey, size = 'full') {
+  if (!fileKey?.startsWith(PUBLIC_PREFIX)) return null;
+
+  const path = fileKey.slice(PUBLIC_PREFIX.length);
+  const slashIndex = path.lastIndexOf('/');
+  return `${path.slice(0, slashIndex)}/${size}${path.slice(slashIndex)}`;
 }
 
 /**

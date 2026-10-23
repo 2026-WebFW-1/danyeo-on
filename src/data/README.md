@@ -12,12 +12,12 @@ src/data/
 
 ## 인물
 
-| 인물   | 계정                | 사진  | 여행 | 쓰임                                       |
-| ------ | ------------------- | ----- | ---- | ------------------------------------------ |
-| seojin | `seojin@demo.local` | 333장 | 14개 | 기본 시연. 한 사람의 2년                    |
-| edge   | `edge@demo.local`   | 263장 | 11개 | 경계 케이스(경유, 제외, 날짜변경선 등)      |
-| empty  | `empty@demo.local`  | 0장   | 0개  | 빈 상태 화면                               |
-| heavy  | (seed 없음)         |       | 59개 | 속도 확인용. `fixtures/heavy.*`만 있음      |
+| 인물   | 계정                | 사진  | 여행 | 쓰임                                   |
+| ------ | ------------------- | ----- | ---- | -------------------------------------- |
+| seojin | `seojin@demo.local` | 333장 | 14개 | 기본 시연. 한 사람의 2년               |
+| edge   | `edge@demo.local`   | 263장 | 11개 | 경계 케이스(경유, 제외, 날짜변경선 등) |
+| empty  | `empty@demo.local`  | 0장   | 0개  | 빈 상태 화면                           |
+| heavy  | (seed 없음)         |       | 59개 | 속도 확인용. `fixtures/heavy.*`만 있음 |
 
 ## seed/&lt;인물&gt;.json
 
@@ -31,7 +31,7 @@ src/data/
     timeUncertain: false,             // offset이 없으면 true
     lat, lng,                         // 없으면 null
     camera: { make, model, focal, aperture, shutter, iso } | null,
-    fileKey: 'public:/photos/tokyo-1.jpg' | null,   // null이면 이미지 없음(회색 칸)
+    fileKey: 'public:/photos/tokyo-1.webp' | null,   // null이면 이미지 없음(회색 칸)
     uploadedAt,
   }],
   corrections: [{ id: 'c_seojin_1', ownerId, type: 'rename', anchorPhotoId, name, createdAt }],
@@ -39,17 +39,18 @@ src/data/
 }
 ```
 
-- **사진 이미지:** `fileKey`의 `public:`을 떼면 주소가 돼요. `public:/photos/tokyo-1.jpg` → `/photos/tokyo-1.jpg` (`public/photos/`에 있음)
+- **사진 이미지:** `fileKey`를 직접 주소로 쓰지 말고 `usePhoto(fileKey, 'thumb' | 'full')`로 바꿔요. `public:/photos/tokyo-1.webp` → `/photos/full/tokyo-1.webp`(긴 변 2048, 500KB 이하) 또는 `/photos/thumb/tokyo-1.webp`(긴 변 400).
+  - 이 두 벌은 my-journey의 JPG를 이 저장소에서 따로 변환해 넣은 거예요(#15). my-journey `mock/export-danyeo.py`는 아직 한 벌짜리 WebP와 다른 폴더 구조를 만들어서, 다시 돌리면 이 구조와 어긋나요.
 - **보정(corrections)** 은 사용자가 자동 결과를 고친 기록이에요. 항상 사진 ID로 가리킵니다.
 
-  | type      | 내용                                  |
-  | --------- | ------------------------------------- |
-  | `rename`  | `{ anchorPhotoId, name }` 여행 이름    |
-  | `exclude` | `{ photoId }` 사진 빼기               |
-  | `transit` | `{ photoIds }` 경유 지점 표시          |
+  | type      | 내용                                     |
+  | --------- | ---------------------------------------- |
+  | `rename`  | `{ anchorPhotoId, name }` 여행 이름      |
+  | `exclude` | `{ photoId }` 사진 빼기                  |
+  | `transit` | `{ photoIds }` 경유 지점 표시            |
   | `mode`    | `{ fromPhotoId, mode }` 이동 수단 고치기 |
-  | `split`   | `{ beforePhotoId }` 여행 나누기        |
-  | `merge`   | `{ photoIds: [a, b] }` 여행 합치기     |
+  | `split`   | `{ beforePhotoId }` 여행 나누기          |
+  | `merge`   | `{ photoIds: [a, b] }` 여행 합치기       |
 
 - **글(posts)** 은 하루에 하나, 날짜(`date`, 현지 날짜)로 붙어요.
 
@@ -90,11 +91,11 @@ src/data/
 - 맨 위의 `personaId`·`generatedBy`·`about`은 설명용이에요. 앱에선 안 씁니다.
 - 여행이 0개면 배열은 전부 비고 `periods`는 `null` (`empty.journey.json`).
 
-| 인물   | 지점 | 구간 | 여행 | 챕터                       |
-| ------ | ---- | ---- | ---- | -------------------------- |
-| seojin | 19   | 33   | 14   | `밴쿠버-2025`              |
-| edge   | 15   | 24   | 11   | `런던-2025`, `파리-2025`   |
-| heavy  | 109  | 168  | 59   | 4개                        |
+| 인물   | 지점 | 구간 | 여행 | 챕터                     |
+| ------ | ---- | ---- | ---- | ------------------------ |
+| seojin | 19   | 33   | 14   | `밴쿠버-2025`            |
+| edge   | 15   | 24   | 11   | `런던-2025`, `파리-2025` |
+| heavy  | 109  | 168  | 59   | 4개                      |
 
 ### &lt;인물&gt;.group.json: 묶기 중간 결과
 
