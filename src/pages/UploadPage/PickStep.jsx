@@ -3,8 +3,11 @@ import { useRef } from 'react';
 import { PHOTO_ACCEPT } from '@/constants/upload/upload';
 import { filterPhotoFiles } from '@/utils/upload/photoFiles';
 
+import ExampleTrips from './ExampleTrips';
+import PhotoStack from './PhotoStack';
+
 /**
- * 13a′ 사진 올리기 — 고르기 화면
+ * 13a″ 사진 올리기 — 고르기 화면
  *
  * 책임: 사진을 고르게 하고, 사진 파일만 걸러 onPick으로 보냅니다.
  * 고른 사진을 들고 있거나 다음 화면을 그리지는 않습니다.
@@ -12,13 +15,13 @@ import { filterPhotoFiles } from '@/utils/upload/photoFiles';
  * 호출: UploadPage가 고른 사진이 없을 때 그립니다.
  * <PickStep onPick={setPhotoFiles} />
  *
- * 의도: 버튼 두 개와 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onPick 하나로 나갑니다.
+ * 의도: 버튼 두 개와 화면 전체 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onPick 하나로 나갑니다.
  *
  * 주의할 것들:
  *  - 같은 폴더를 다시 고르면 change가 오지 않습니다. input.value를 비워 줘야 합니다.
- *  - 휴대폰 브라우저에서 고르면 위치가 빠질 수 있습니다. TIP 문구 출력(#52)
+ *  - 휴대폰 브라우저에서 고르면 위치가 빠질 수 있습니다. 기기별 안내는 버튼을 누르면 뜨는 다이얼로그로(#52)
  *
- * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/timeline?node-id=241-4
+ * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=355-32
  */
 export default function PickStep({ onPick }) {
   // 파일 창은 input을 눌러야만 열리는데, input은 기본 모양을 바꿀 수 없어서 숨겨 두었습니다.
@@ -39,65 +42,69 @@ export default function PickStep({ onPick }) {
 
   return (
     <main className="min-h-screen bg-canvas">
-      <div className="mx-auto flex max-w-360 flex-col gap-6 px-4 py-10 lg:px-30 lg:py-18">
-        <header className="flex flex-col gap-2">
-          <h1 className="text-5xl font-bold tracking-[-0.02em] text-ink">사진 올리기</h1>
-          <p className="text-lg leading-body-lg break-keep text-muted">
-            폴더째로 넣어주시면 알아서 분류해드려요
-          </p>
-        </header>
+      <div className="mx-auto max-w-360 px-4 py-10 lg:px-30 lg:pt-14 lg:pb-12">
+        {/* 왼쪽 칸은 글·버튼 폭(auto), 오른쪽 칸은 남는 폭 전부(1fr). 폴라로이드는 오른쪽 칸 가운데에 둡니다. */}
+        <div className="md:grid md:grid-cols-[auto_1fr] md:gap-10">
+          <header>
+            <p className="text-xs leading-normal font-medium tracking-[0.04em] text-accent">
+              STEP 1 / 2 · 고르기
+            </p>
+            <h1 className="mt-3 text-6xl font-bold text-ink">사진 올리기</h1>
+            <p className="mt-3 text-xl break-keep text-muted">
+              폴더째 넣으면 여행별로 알아서 나눠 드려요.
+            </p>
 
-        {/* 본문 곁 보조 내용 <aside> */}
-        <aside className="flex items-center gap-3 border border-line bg-white px-5 py-4">
-          <span className="font-mono text-xs leading-normal font-medium text-accent">TIP</span>
-          <p className="flex-1 text-md leading-body-md break-keep text-body">
-            휴대폰 사진은 PC로 옮겨 폴더째 넣는 게 가장 정확해요. 휴대폰 브라우저에서 바로 고르면
-            위치가 빠질 수 있어요.
-          </p>
-        </aside>
+            <div className="mt-10 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  folderInputRef.current.click();
+                }}
+                className="h-14 w-45 bg-nav text-lg font-bold text-white"
+              >
+                폴더 고르기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  photoInputRef.current.click();
+                }}
+                className="h-14 w-40 border border-nav bg-white text-lg font-medium text-ink"
+              >
+                사진만 고르기
+              </button>
+            </div>
 
-        {/* 드롭존 */}
-        <section className="flex h-75 flex-col items-center justify-center gap-3 border border-dashed border-dash bg-white px-4">
-          <p className="text-center text-2xl font-bold text-ink">여기에 폴더째 끌어다 놓기</p>
+            <p className="mt-5 text-md text-muted">jpg · heic 등 사진 파일</p>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                folderInputRef.current.click();
-              }}
-              className="border border-nav bg-nav px-6 py-4 text-lg font-bold text-white"
-            >
-              폴더 고르기
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                photoInputRef.current.click();
-              }}
-              className="border border-ink px-6 py-4 text-lg font-bold text-ink"
-            >
-              사진 고르기
-            </button>
-          </div>
+            {/* 숨은 input 2개 */}
+            <input
+              ref={folderInputRef}
+              type="file"
+              webkitdirectory="" // 폴더를 고르는 창, React에서 빈 문자열로 줘야 속성이 붙는다.
+              onChange={handleInputChange}
+              className="hidden"
+            />
+            <input
+              ref={photoInputRef}
+              type="file"
+              multiple
+              accept={PHOTO_ACCEPT}
+              onChange={handleInputChange}
+              className="hidden"
+            />
+          </header>
+          {/* 꾸밈용이라 휴대폰에서는 숨깁니다. 칸 폭의 88%로 늘고 줄되 피그마 크기(480)를 넘지 않고,
+              칸 가운데에 둬서 좁은 화면에서도 오른쪽 끝에 붙지 않게 합니다.
+              -mt-6: 피그마처럼 사진이 STEP 글자보다 조금 위에서 시작하게 합니다. */}
+          <PhotoStack className="hidden w-[88%] max-w-120 self-start justify-self-center md:-mt-6 md:block" />
+        </div>
 
-          {/* 숨은 input 2개 */}
-          <input
-            ref={folderInputRef}
-            type="file"
-            webkitdirectory="" // 폴더를 고르는 창, React에서 빈 문자열로 줘야 속성이 붙는다.
-            onChange={handleInputChange}
-            className="hidden"
-          />
-          <input
-            ref={photoInputRef}
-            type="file"
-            multiple
-            accept={PHOTO_ACCEPT}
-            onChange={handleInputChange}
-            className="hidden"
-          />
-        </section>
+        <hr className="mt-6 border-line" />
+
+        <div className="mt-5">
+          <ExampleTrips />
+        </div>
       </div>
     </main>
   );
