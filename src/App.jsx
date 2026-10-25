@@ -1,3 +1,5 @@
+import UploadPage from '@/pages/UploadPage/UploadPage';
+
 export default function App() {
-  return <h1>다녀온.</h1>;
+  return <UploadPage />;
 }
