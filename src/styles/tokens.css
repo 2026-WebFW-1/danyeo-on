@@ -21,6 +21,9 @@
   --color-dash: #b5b1a8; /* 드롭존 점선 */
   --color-nav: #0c0c0c; /* Nav, 검정 버튼 */
   --color-accent: #e6007e; /* 강조 */
+  --color-map: #f3f0e9; /* 평면 지도 바다 */
+  --color-map-land: #cfc9bd; /* 평면 지도 땅 */
+  --color-map-border: #fff; /* 나라 경계 */
 
   /* 글꼴 파일은 index.html에서 받습니다. --font-sans를 바꾸면 Preflight가 body 기본 글꼴로 씁니다 */
   --font-sans: 'Noto Sans KR', sans-serif;
