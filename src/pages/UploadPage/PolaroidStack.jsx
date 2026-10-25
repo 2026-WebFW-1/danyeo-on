@@ -25,11 +25,11 @@ const POLAROIDS = [
  * 13a″ 오른쪽 폴라로이드 묶음
  *
  * 책임: 꾸밈용 사진 세 장을 겹쳐 그립니다. 사용자의 사진이 아니라 고정 데모 사진입니다.
- * 호출: PickStep(오른쪽), DropOverlay(끌어오는 중 가운데, #51)
+ * 호출: SelectPhotosStep(오른쪽), DropOverlay(끌어오는 중 가운데, #51)
  * 크기: 쓰는 쪽이 준 폭에 맞춰 늘고 줄어듭니다. 폭을 정해 주지 않으면 부모 폭을 다 씁니다.
  *       480일 때 피그마와 같고, 높이는 폭의 348/480입니다.
  */
-export default function PhotoStack({ className }) {
+export default function PolaroidStack({ className }) {
   // 폭이 바뀌어도 모양이 그대로 커지고 줄도록 위치는 %, 안쪽 크기는 cqw(이 상자 폭의 1%)로 적습니다.
   return (
     <div className={cn('@container relative aspect-480/348 w-full', className)}>

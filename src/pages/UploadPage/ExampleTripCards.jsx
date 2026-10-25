@@ -37,9 +37,9 @@ const EXAMPLE_TRIPS = [
  * 13a″ 아래쪽 "넣으면 이렇게 묶여요" 예시
  *
  * 책임: 사진을 넣으면 여행별로 묶인다는 걸 흐린 예시 카드 세 장으로 보여 줍니다.
- * 호출: PickStep
+ * 호출: SelectPhotosStep
  */
-export default function ExampleTrips() {
+export default function ExampleTripCards() {
   return (
     <section>
       <p className="text-xs leading-normal font-medium tracking-[0.04em] text-dim">

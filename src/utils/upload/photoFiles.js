@@ -4,13 +4,13 @@
  * 책임: 파일 이름만 보고 사진을 거르며, 끌어다 놓은 폴더를 파일 목록으로 펼칩니다.(#51)
  *      사진이 실제로 열리는지, 촬영 정보가 있는지는 보지 않습니다. > #22, readExif 몫
  *
- * 호출: PickStep의 input change와 drop 핸들러
+ * 호출: SelectPhotosStep의 input change와 drop 핸들러
  *
  * 생각할 것:
  *  - 확장자만 jpg인 깨진 파일(fixtures/16_not-an-image.jpg)은 거르지 못하며 다음 단계에서 걸러집니다.
  */
 
-import { PHOTO_EXTENSIONS } from '@/constants/upload/upload';
+import { PHOTO_EXTENSIONS } from '@/constants/upload';
 
 /**
  * 사진으로 받을 파일인지 이름으로 봅니다.

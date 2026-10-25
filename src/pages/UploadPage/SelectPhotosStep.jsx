@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 
-import { PHOTO_ACCEPT } from '@/constants/upload/upload';
+import { PHOTO_ACCEPT } from '@/constants/upload';
 import { filterPhotoFiles } from '@/utils/upload/photoFiles';
 
-import ExampleTrips from './ExampleTrips';
-import PhotoStack from './PhotoStack';
+import ExampleTripCards from './ExampleTripCards';
+import PolaroidStack from './PolaroidStack';
 
 /**
  * 13a″ 사진 올리기 — 고르기 화면
@@ -13,7 +13,7 @@ import PhotoStack from './PhotoStack';
  * 고른 사진을 들고 있거나 다음 화면을 그리지는 않습니다.
  *
  * 호출: UploadPage가 고른 사진이 없을 때 그립니다.
- * <PickStep onPick={setPhotoFiles} />
+ * <SelectPhotosStep onPick={setPhotoFiles} />
  *
  * 의도: 버튼 두 개와 화면 전체 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onPick 하나로 나갑니다.
  *
@@ -23,7 +23,7 @@ import PhotoStack from './PhotoStack';
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=355-32
  */
-export default function PickStep({ onPick }) {
+export default function SelectPhotosStep({ onPick }) {
   // 파일 창은 input을 눌러야만 열리는데, input은 기본 모양을 바꿀 수 없어서 숨겨 두었습니다.
   // "지금 이 input을 눌러라"는 상태로 표현할 수 없는 명령이라, ref로 실제 input 요소를 잡아 두고
   // 버튼의 onClick에서 .click()을 부릅니다. 화면에 보이는 값이 아니라서 useState가 아닌 useRef입니다.
@@ -99,13 +99,13 @@ export default function PickStep({ onPick }) {
           {/* 꾸밈용이라 휴대폰에서는 숨깁니다. 칸 폭의 88%로 늘고 줄되 피그마 크기(480)를 넘지 않고,
               칸 가운데에 둬서 좁은 화면에서도 오른쪽 끝에 붙지 않게 합니다.
               -mt-6: 피그마처럼 사진이 STEP 글자보다 조금 위에서 시작하게 합니다. */}
-          <PhotoStack className="hidden w-[88%] max-w-120 self-start justify-self-center md:-mt-6 md:block 2xl:max-w-150" />
+          <PolaroidStack className="hidden w-[88%] max-w-120 self-start justify-self-center md:-mt-6 md:block 2xl:max-w-150" />
         </div>
 
         <hr className="mt-6 border-line" />
 
         <div className="mt-5">
-          <ExampleTrips />
+          <ExampleTripCards />
         </div>
       </div>
     </main>
