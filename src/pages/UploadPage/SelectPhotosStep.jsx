@@ -43,7 +43,7 @@ export default function SelectPhotosStep({ onPick }) {
   // 화면이 내용보다 길면 남는 공간을 위아래로 나눠 내용을 가운데에 둡니다.
   // flex 안에서 mx-auto는 폭을 내용만큼 줄여 버려서 w-full을 같이 줍니다.
   return (
-    <main className="flex min-h-screen flex-col justify-center bg-canvas">
+    <main className="flex flex-1 flex-col justify-center bg-canvas">
       <div className="mx-auto w-full max-w-360 px-4 py-10 lg:px-30 lg:pt-14 lg:pb-12 2xl:max-w-400">
         {/* 왼쪽 칸은 글·버튼 폭(auto), 오른쪽 칸은 남는 폭 전부(1fr). 폴라로이드는 오른쪽 칸 가운데에 둡니다. */}
         <div className="md:grid md:grid-cols-[auto_1fr] md:gap-10">

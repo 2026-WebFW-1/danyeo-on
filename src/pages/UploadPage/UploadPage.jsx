@@ -25,7 +25,7 @@ export default function UploadPage() {
 
   // TODO(titanfall7274): 13b′(#23)가 생기면 읽으면서 미리보기 화면으로 바꾸기
   return (
-    <main className="min-h-screen bg-canvas px-4 py-10 lg:px-30 lg:py-18">
+    <main className="flex-1 bg-canvas px-4 py-10 lg:px-30 lg:py-18">
       <p className="text-lg text-ink">사진 {photoFiles.length}장을 골랐어요.</p>
     </main>
   );
