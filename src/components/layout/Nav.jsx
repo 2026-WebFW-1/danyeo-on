@@ -26,7 +26,7 @@ const NAV_ITEMS = [
  */
 export default function Nav({ current }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between bg-nav px-4 lg:h-16 lg:px-16">
+    <header className="flex h-12 shrink-0 items-center justify-between bg-nav px-4 lg:h-14 lg:px-16">
       <a href="/" className="font-serif text-xl font-bold text-white">
         My Journey
       </a>
