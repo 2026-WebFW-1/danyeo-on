@@ -1,11 +1,4 @@
-/**
- * 02 챕터 화면 머리의 `03 / 12`에 쓰는 챕터 하나예요.
- *
- * @typedef {object} ChapterItem
- * @property {import('@/types').Stop} stop 챕터 지점
- * @property {string} no 챕터 순번. 예: '03'
- * @property {string} total 전체 챕터 수. 예: '12'
- */
+import { formatNo } from '@/utils/formatNo';
 
 /**
  * 챕터 지점인지 알려줘요. 경유 지점은 챕터가 될 수 없어서 같이 걸러요.
@@ -22,17 +15,17 @@ function isChapterStop(stop) {
  * journey.stops는 시간 순서로 들어 있어서 그 순서를 그대로 써요.
  *
  * @param {import('@/types').Journey | null | undefined} journey
- * @returns {ChapterItem[]}
+ * @returns {import('@/types').ChapterItem[]}
  */
 export function selectChapters(journey) {
   if (!journey) return [];
 
   const chapters = journey.stops.filter(isChapterStop);
-  const total = String(chapters.length).padStart(2, '0');
+  const total = formatNo(chapters.length);
 
   return chapters.map((stop, index) => ({
     stop,
-    no: String(index + 1).padStart(2, '0'),
+    no: formatNo(index + 1),
     total,
   }));
 }
