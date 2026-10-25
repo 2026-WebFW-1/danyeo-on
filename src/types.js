@@ -74,5 +74,82 @@
  * @property {{ anchor: string, '1y': { from: string, to: string }, '2y': { from: string, to: string }, all: { from: string, to: string } } | null} periods
  */
 
+/**
+ * 한 여행을 목록(03 전체 기록의 탭 줄 등)에 보여 줄 때 필요한 값이에요.
+ *
+ * @typedef {object} TripListItem
+ * @property {string} id 여행 ID
+ * @property {string} no 목록 번호. 예: '01', '14'
+ * @property {string} name 여행 이름. 예: '방콕 · 다낭'
+ * @property {string} from 시작 날짜. 예: '2024-07-11'
+ * @property {string} to 끝 날짜. 예: '2024-07-16'
+ * @property {number} days
+ * @property {boolean} chapter 챕터 지점이 있는 여행이면 true
+ */
+
+/**
+ * 한 여행의 요약 숫자(StatRow에 들어가는 값)예요.
+ *
+ * @typedef {object} TripStats
+ * @property {number} days 여행 일수
+ * @property {number} cities 도시 수. 경유 지점은 안 세고, 이름이 같아도 나라가 다르면 따로 세요
+ * @property {number} km 이동 거리 합. 집을 안 들르고 앞 여행에서 바로 온 구간(gap)도 넣고, 반올림한 정수예요
+ * @property {number} photos 사진 수. 경유 지점의 사진은 빼요
+ */
+
+/**
+ * 전체 여행을 한꺼번에 센 합계예요. 03 머리말과 00 홈의 통계 줄이 같은 값을 써요.
+ *
+ * @typedef {object} JourneyTotals
+ * @property {number} stops 지점 수. 경유 지점은 빼요
+ * @property {number} trips 여행 수
+ * @property {number} cities 도시 수. 같은 도시에 여러 번 가도 한 번만 세요
+ * @property {number} countries 나라 수
+ * @property {number} km 이동 거리 합. 집을 안 들르고 가는 구간(gap)까지 모든 구간을 더하고, 반올림한 정수예요
+ * @property {number} photos 사진 수. 경유 지점의 사진은 빼요
+ * @property {number} flights 비행기로 이동한 구간 수
+ * @property {{ year: number, month: number } | null} firstTripStart 첫 여행을 시작한 연·월. 여행이 없으면 null
+ */
+
+/**
+ * 02 챕터 화면 머리의 `03 / 12`에 쓰는 챕터 하나예요.
+ *
+ * @typedef {object} ChapterItem
+ * @property {Stop} stop 챕터 지점
+ * @property {string} no 챕터 순번. 예: '03'
+ * @property {string} total 전체 챕터 수. 예: '12'
+ */
+
+/**
+ * 지점으로 들어오는 이동 구간이에요. 03 도시 블록 위의 "서울에서 · 3,717km" 한 줄에 쓰는 값이에요.
+ *
+ * @typedef {object} StopInbound
+ * @property {string} fromName 어디서 오는지. 집에서 오면 집의 도시 이름, 아니면 앞 지점의 도시 이름
+ * @property {number} km
+ * @property {'flight' | 'train' | 'car'} mode
+ */
+
+/**
+ * 03 도시 블록 하나에 쓰는 지점이에요. days·photoCount·coverFileKey 같은 값은 stop에서 그대로 써요.
+ *
+ * @typedef {object} TripStopItem
+ * @property {Stop} stop
+ * @property {StopInbound | null} inbound 들어오는 구간이 없으면 null
+ */
+
+/**
+ * 하루에 하나 쓰는 글. 현지 날짜(`date`)에 붙어요.
+ *
+ * @typedef {object} Post
+ * @property {string} id
+ * @property {string} ownerId
+ * @property {string} date 예: '2025-01-12'
+ * @property {string} title
+ * @property {string} body
+ * @property {string[]} tags
+ * @property {string[]} photoIds
+ * @property {string} updatedAt
+ */
+
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
 export {};

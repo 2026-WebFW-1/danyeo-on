@@ -1,49 +1,5 @@
-/**
- * 지점으로 들어오는 이동 구간이에요. 03 도시 블록 위의 "서울에서 · 3,717km" 한 줄에 쓰는 값이에요.
- *
- * @typedef {object} StopInbound
- * @property {string} fromName 어디서 오는지. 집에서 오면 집의 도시 이름, 아니면 앞 지점의 도시 이름
- * @property {number} km
- * @property {'flight' | 'train' | 'car'} mode
- */
-
-/**
- * 03 도시 블록 하나에 쓰는 지점이에요. days·photoCount·coverFileKey 같은 값은 stop에서 그대로 써요.
- *
- * @typedef {object} TripStopItem
- * @property {import('@/types').Stop} stop
- * @property {StopInbound | null} inbound 들어오는 구간이 없으면 null
- */
-
-/**
- * 글 중에서 이 파일이 읽는 값만 적었어요. 전체 모양은 src/data/README.md의 seed `posts`예요.
- *
- * @typedef {{ date: string, title: string, body: string }} PostLike
- */
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/**
- * 시간대가 붙은 시각('2024-07-16T10:00:00+09:00')에서 현지 날짜(앞 10글자)만 남겨요.
- * Date로 바꾸면 브라우저 시간대에 따라 날짜가 밀릴 수 있어서 문자열로 다뤄요.
- *
- * @param {string} iso
- * @returns {string} 예: '2024-07-16'
- */
-function toLocalDate(iso) {
-  return iso.slice(0, 10);
-}
-
-/**
- * 현지 날짜를 UTC 자정의 밀리초로 바꿔요. UTC는 서머타임이 없어서 하루가 항상 24시간이에요.
- *
- * @param {string} iso
- * @returns {number}
- */
-function toUtcDay(iso) {
-  const [year, month, day] = toLocalDate(iso).split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
+import { HOME_ID } from '@/constants/journey';
+import { calcDaysBetween, toLocalDate } from '@/utils/localDate';
 
 /**
  * 한 여행의 지점을 시간 순서대로 돌려줘요. 경유 지점은 줄을 만들지 않아서 빠져요.
@@ -51,7 +7,7 @@ function toUtcDay(iso) {
  *
  * @param {import('@/types').Journey | null | undefined} journey
  * @param {string} tripId
- * @returns {TripStopItem[]}
+ * @returns {import('@/types').TripStopItem[]}
  */
 export function selectTripStops(journey, tripId) {
   const trip = journey?.trips.find((t) => t.id === tripId);
@@ -67,7 +23,7 @@ export function selectTripStops(journey, tripId) {
     .map((stop) => {
       const leg = legsByTo.get(stop.id);
       const fromName =
-        leg && (leg.from === 'home' ? journey.home?.city : stopsById.get(leg.from)?.city);
+        leg && (leg.from === HOME_ID ? journey.home?.city : stopsById.get(leg.from)?.city);
 
       return {
         stop,
@@ -89,7 +45,7 @@ export function getDaysBetweenTrips(journey, tripId) {
   const next = journey?.trips[index + 1];
   if (index === -1 || !next) return null;
 
-  return (toUtcDay(next.from) - toUtcDay(journey.trips[index].to)) / MS_PER_DAY;
+  return calcDaysBetween(journey.trips[index].to, next.from);
 }
 
 /**
@@ -98,9 +54,9 @@ export function getDaysBetweenTrips(journey, tripId) {
  * 경유 지점은 줄이 없어서 글도 받지 않아요.
  *
  * @param {import('@/types').Journey | null | undefined} journey
- * @param {PostLike[] | null | undefined} posts
+ * @param {import('@/types').Post[] | null | undefined} posts
  * @param {string} stopId
- * @returns {PostLike[]}
+ * @returns {import('@/types').Post[]}
  */
 export function selectPostsOfStop(journey, posts, stopId) {
   if (!journey || !posts) return [];
@@ -120,7 +76,7 @@ export function selectPostsOfStop(journey, posts, stopId) {
  * 글을 자르지 않아요. 줄 수 제한은 컴포넌트가 CSS(line-clamp)로 해요.
  * 글이 없으면 null이라서, 그 지점은 줄을 숨기면 돼요.
  *
- * @param {PostLike[] | null | undefined} posts selectPostsOfStop의 결과
+ * @param {import('@/types').Post[] | null | undefined} posts selectPostsOfStop의 결과
  * @returns {string | null}
  */
 export function getOneLiner(posts) {

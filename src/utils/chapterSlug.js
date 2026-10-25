@@ -1,6 +1,4 @@
-// from은 '2025-07-12T10:00:00-07:00'처럼 현지 시간대가 붙은 문자열이에요.
-// Date로 바꾸면 브라우저 시간대에 따라 연말·연초 지점의 연도가 밀릴 수 있어서, 앞 4글자(현지 연도)를 그대로 잘라 써요.
-const YEAR_LENGTH = 'YYYY'.length;
+import { toLocalYear } from '@/utils/localDate';
 
 // 겹친 주소는 두 번째부터 번호를 붙여요. 첫 번째는 번호가 없어요('파리-2025', '파리-2025-2').
 const FIRST_DUPLICATE_NO = 2;
@@ -26,7 +24,7 @@ export function chapterSlug(stop, takenSlugs) {
   if (stop.transit) return null;
 
   const city = stop.city.replace(UNSAFE_CHARS, '-').replace(EDGE_DASHES, '');
-  const base = `${city}-${stop.from.slice(0, YEAR_LENGTH)}`;
+  const base = `${city}-${toLocalYear(stop.from)}`;
 
   // 비어 있는 첫 번호를 써요. 가운데가 비면 그 번호를 먼저 채워요('-1'은 없고 -2부터예요).
   const taken = new Set(takenSlugs);
