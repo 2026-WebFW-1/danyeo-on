@@ -27,7 +27,8 @@ const NAV_ITEMS = [
 export default function Nav({ current }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between bg-nav px-4 lg:h-14 lg:px-16">
-      <a href="/" className="font-serif text-xl font-bold text-white">
+      {/* Playfair는 글자 꼬리(y, J)가 길어서 상자를 가운데 둬도 글자가 2px쯤 아래로 보입니다. 그만큼 올립니다. */}
+      <a href="/" className="-translate-y-0.5 font-serif text-xl font-bold text-white">
         My Journey
       </a>
 
