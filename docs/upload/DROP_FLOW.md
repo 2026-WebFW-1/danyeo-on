@@ -9,16 +9,26 @@ sequenceDiagram
     actor 사용자
     participant 브라우저 as 브라우저(window)
     participant 훅 as usePhotoDrop
+    participant 덮개 as DropOverlay
     participant 펴기 as filesFromEntries
     participant 거르기 as filterPhotoFiles
     participant 페이지 as UploadPage
 
     사용자->>브라우저: 폴더·사진을 끌고 들어옴
-    브라우저->>훅: dragover
-    훅->>브라우저: preventDefault (놓을 수 있다고 알림)
+    브라우저->>훅: dragenter (들어간 수 +1)
+    훅->>덮개: isDragging = true, 항목 N개
+    loop 끄는 동안
+        브라우저->>훅: dragover
+        훅->>브라우저: preventDefault (놓을 수 있다고 알림)
+        브라우저->>훅: 요소를 넘을 때마다 dragenter +1 / dragleave -1
+    end
+    opt 창 밖으로 나감 (들어간 수 0)
+        훅->>덮개: isDragging = false
+    end
     사용자->>브라우저: 놓기
     브라우저->>훅: drop
     훅->>브라우저: preventDefault (새 탭으로 열지 않게)
+    훅->>덮개: isDragging = false (놓으면 dragleave가 안 옴)
     훅->>훅: items에서 webkitGetAsEntry()로 entries를 먼저 꺼냄
 
     훅->>펴기: filesFromEntries(entries)
@@ -67,7 +77,11 @@ sequenceDiagram
 
 ## 코드만 봐서는 알기 어려운 것
 
-- **window에 붙인 이유**: 화면 어디에 놓아도 받아야 해서입니다. `<main>`에만 달면 Nav 위에 놓았을 때 브라우저가 사진을 새 탭으로 엽니다.
+- **window에 붙인 이유**: 덮개 문구가 "화면 아무 곳에나 놓아 주세요"라서 Nav 위에 놓아도 받아야 합니다. `<main>`에만 달면 Nav 위에 놓았을 때 브라우저가 사진을 새 탭으로 엽니다. 덮개 자체는 피그마대로 Nav 아래만 덮습니다.
+- **들어간 수를 세는 이유**: `dragenter`·`dragleave`는 요소를 하나 넘을 때마다 옵니다. `dragleave`만 보고 덮개를 끄면 버튼 위를 지날 때마다 깜빡여서, 들어간 수가 0이 될 때만 창 밖으로 나갔다고 봅니다.
+- **`dragover` + 타이머 방식은 쓰지 않음**: `dragover`는 "아직 끄는 중"만 알려 주고 "멈췄다"는 신호가 없어서, 일정 시간 안 오면 끄는 방식도 가능합니다. 하지만 마우스를 멈추면 `dragover`가 수백 ms 간격으로 와서 0.4초쯤 기다려야 깜빡이지 않고, 그만큼 창 밖으로 나가도 덮개가 늦게 꺼집니다. 타이머 정리 코드까지 더하면 줄 수도 비슷해서, 바로 꺼지는 세기 방식을 골랐습니다.
+- **덮개가 `pointer-events-none`인 이유**: 덮개가 끌기 이벤트를 가로채면 덮개가 뜨자마자 아래 화면에서 `dragleave`가 와서 덮개가 꺼졌다 켜졌다 합니다.
+- **"항목 N개"가 사진 수가 아닌 이유**: 놓기 전에는 폴더 안을 열 수 없어서 맨 위 항목 수(`items.length`)만 압니다.
 - **entries를 먼저 꺼내는 이유**: `dataTransfer.items`는 drop 핸들러가 첫 `await`를 만나면 비워집니다.
 - **`readEntries`를 반복하는 이유**: Chrome은 폴더 안 항목을 한 번에 최대 100개만 줍니다. 한 번만 읽으면 에러 없이 100장에서 멈춥니다.
 - **거르기는 이름만 봅니다**: 확장자만 jpg인 깨진 파일(`16_not-an-image.jpg`)도 통과하고, 다음 단계(`readExif`)에서 걸러집니다.
