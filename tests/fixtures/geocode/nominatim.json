@@ -1,0 +1,356 @@
+{
+  "_설명": "2026-10-29에 Nominatim reverse(format=jsonv2, zoom=10, accept-language=ko)가 실제로 준 응답에서 address 칸만 남긴 거예요(우편번호는 뺐어요). 실제 요청은 한국어 이름이 없을 때 영어를 쓰도록 ko,en으로 보내요. 바다는 이름 붙은 곳이 없다는 응답이에요.",
+  "responses": {
+    "서울": {
+      "address": {
+        "suburb": "서교동",
+        "borough": "마포구",
+        "city": "서울특별시",
+        "ISO3166-2-lvl4": "KR-11",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "부산": {
+      "address": {
+        "borough": "남구",
+        "city": "부산광역시",
+        "ISO3166-2-lvl4": "KR-26",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "강릉": {
+      "address": {
+        "town": "연곡면",
+        "city": "강릉시",
+        "province": "강원특별자치도",
+        "ISO3166-2-lvl4": "KR-42",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "제주": {
+      "address": {
+        "city_district": "이도2동",
+        "city": "제주시",
+        "province": "제주특별자치도",
+        "ISO3166-2-lvl4": "KR-49",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "안동": {
+      "address": {
+        "city": "안동시",
+        "province": "경상북도",
+        "ISO3166-2-lvl4": "KR-47",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "도쿄": {
+      "address": {
+        "city": "지요다구",
+        "ISO3166-2-lvl4": "JP-13",
+        "country": "일본",
+        "country_code": "jp"
+      }
+    },
+    "교토": {
+      "address": {
+        "city": "교토시",
+        "province": "교토부",
+        "ISO3166-2-lvl4": "JP-26",
+        "country": "일본",
+        "country_code": "jp"
+      }
+    },
+    "오사카": {
+      "address": {
+        "city": "오사카시",
+        "province": "오사카부",
+        "ISO3166-2-lvl4": "JP-27",
+        "country": "일본",
+        "country_code": "jp"
+      }
+    },
+    "삿포로": {
+      "address": {
+        "city": "삿포로시",
+        "subprovince": "이시카리 진흥국",
+        "province": "홋카이도",
+        "ISO3166-2-lvl4": "JP-01",
+        "region": "홋카이도 지방",
+        "country": "일본",
+        "country_code": "jp"
+      }
+    },
+    "방콕": {
+      "address": {
+        "quarter": "แขวงคลองมหานาค",
+        "suburb": "เขตป้อมปราบศัตรูพ่าย",
+        "city": "방콕",
+        "ISO3166-2-lvl4": "TH-10",
+        "country": "태국",
+        "country_code": "th"
+      }
+    },
+    "다낭": {
+      "address": {
+        "suburb": "Phường An Khê",
+        "city": "다낭",
+        "ISO3166-2-lvl4": "VN-DN",
+        "country": "베트남",
+        "country_code": "vn"
+      }
+    },
+    "싱가포르": {
+      "address": {
+        "city": "싱가포르",
+        "country": "싱가포르",
+        "country_code": "sg"
+      }
+    },
+    "홍콩": {
+      "address": {
+        "suburb": "야우짐웡구",
+        "region": "가우룽",
+        "city": "홍콩",
+        "ISO3166-2-lvl3": "CN-HK",
+        "country": "중국",
+        "country_code": "cn"
+      }
+    },
+    "마카오": {
+      "address": {
+        "suburb": "산투안토니우",
+        "city": "마카오",
+        "state": "마카오",
+        "ISO3166-2-lvl3": "CN-MO",
+        "country": "중국",
+        "country_code": "cn"
+      }
+    },
+    "타이베이": {
+      "address": {
+        "suburb": "신이구",
+        "village": "信義商圈",
+        "city": "타이베이시",
+        "ISO3166-2-lvl4": "TW-TPE",
+        "country": "대만",
+        "country_code": "tw"
+      }
+    },
+    "파리": {
+      "address": {
+        "suburb": "파리",
+        "city_district": "파리",
+        "city": "파리",
+        "ISO3166-2-lvl6": "FR-75C",
+        "state": "일드프랑스",
+        "ISO3166-2-lvl4": "FR-IDF",
+        "region": "프랑스 본토",
+        "country": "프랑스",
+        "country_code": "fr"
+      }
+    },
+    "런던": {
+      "address": {
+        "city": "시티오브웨스트민스터",
+        "ISO3166-2-lvl8": "GB-WSM",
+        "state": "잉글랜드",
+        "ISO3166-2-lvl4": "GB-ENG",
+        "country": "영국",
+        "country_code": "gb"
+      }
+    },
+    "바르셀로나": {
+      "address": {
+        "city": "바르셀로나",
+        "county": "Barcelonès",
+        "province": "Barcelona",
+        "ISO3166-2-lvl6": "ES-B",
+        "state": "카탈루냐",
+        "ISO3166-2-lvl4": "ES-CT",
+        "country": "스페인",
+        "country_code": "es"
+      }
+    },
+    "로마": {
+      "address": {
+        "city": "로마",
+        "county": "로마 수도광역시",
+        "ISO3166-2-lvl6": "IT-RM",
+        "state": "라치오",
+        "ISO3166-2-lvl4": "IT-62",
+        "country": "이탈리아",
+        "country_code": "it"
+      }
+    },
+    "인터라켄": {
+      "address": {
+        "town": "인터라켄",
+        "county": "Verwaltungskreis Interlaken-Oberhasli",
+        "state_district": "Verwaltungsregion Oberland",
+        "state": "베른",
+        "ISO3166-2-lvl4": "CH-BE",
+        "country": "스위스",
+        "country_code": "ch"
+      }
+    },
+    "이스탄불": {
+      "address": {
+        "suburb": "Hocapaşa Mahallesi",
+        "city": "이스탄불",
+        "town": "Fatih",
+        "province": "이스탄불",
+        "ISO3166-2-lvl4": "TR-34",
+        "region": "Marmara Bölgesi",
+        "country": "튀르키예",
+        "country_code": "tr"
+      }
+    },
+    "도하": {
+      "address": {
+        "city": "도하",
+        "state": "도하",
+        "ISO3166-2-lvl4": "QA-DA",
+        "country": "카타르",
+        "country_code": "qa"
+      }
+    },
+    "뉴욕": {
+      "address": {
+        "suburb": "맨해튼",
+        "city_district": "뉴욕 카운티",
+        "city": "뉴욕",
+        "state": "뉴욕",
+        "ISO3166-2-lvl4": "US-NY",
+        "country": "미국",
+        "country_code": "us"
+      }
+    },
+    "호놀룰루": {
+      "address": {
+        "city": "호놀룰루",
+        "county": "호놀룰루군",
+        "state": "하와이",
+        "ISO3166-2-lvl4": "US-HI",
+        "country": "미국",
+        "country_code": "us"
+      }
+    },
+    "밴쿠버": {
+      "address": {
+        "town": "District of North Vancouver",
+        "county": "Metro Vancouver Regional District",
+        "state": "브리티시컬럼비아주",
+        "ISO3166-2-lvl4": "CA-BC",
+        "country": "캐나다",
+        "country_code": "ca"
+      }
+    },
+    "밴프": {
+      "address": {
+        "county": "Improvement District No. 9",
+        "state": "앨버타주",
+        "ISO3166-2-lvl4": "CA-AB",
+        "country": "캐나다",
+        "country_code": "ca"
+      }
+    },
+    "나이아가라 폴스": {
+      "address": {
+        "city": "Niagara Falls",
+        "county": "Niagara Region",
+        "state": "온타리오주",
+        "ISO3166-2-lvl4": "CA-ON",
+        "country": "캐나다",
+        "country_code": "ca"
+      }
+    },
+    "시드니": {
+      "address": {
+        "city": "시드니",
+        "state": "New South Wales",
+        "ISO3166-2-lvl4": "AU-NSW",
+        "country": "오스트레일리아",
+        "country_code": "au"
+      }
+    },
+    "발리": {
+      "address": {
+        "village": "웡가야 게데",
+        "town": "페네벨",
+        "region": "타바난",
+        "state": "발리주",
+        "ISO3166-2-lvl4": "ID-BA",
+        "country": "인도네시아",
+        "country_code": "id"
+      }
+    },
+    "바다": {
+      "error": "Unable to geocode"
+    },
+    "후쿠오카": {
+      "address": {
+        "city": "후쿠오카",
+        "province": "후쿠오카현",
+        "ISO3166-2-lvl4": "JP-40",
+        "country": "일본",
+        "country_code": "jp"
+      }
+    },
+    "경주": {
+      "address": {
+        "city_district": "보덕동",
+        "city": "경주시",
+        "province": "경상북도",
+        "ISO3166-2-lvl4": "KR-47",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "전주": {
+      "address": {
+        "borough": "완산구",
+        "city": "전주시",
+        "province": "전북특별자치도",
+        "ISO3166-2-lvl4": "KR-45",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "여수": {
+      "address": {
+        "city": "여수시",
+        "state": "전남광주통합특별시",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "속초": {
+      "address": {
+        "quarter": "노학동",
+        "city": "속초시",
+        "province": "강원특별자치도",
+        "ISO3166-2-lvl4": "KR-42",
+        "country": "대한민국",
+        "country_code": "kr"
+      }
+    },
+    "치앙마이": {
+      "address": {
+        "city_district": "ตำบลสุเทพ",
+        "town": "เทศบาลเมืองสุเทพ",
+        "municipality": "ป่าแดด",
+        "county": "อำเภอเมืองเชียงใหม่",
+        "province": "치앙마이주",
+        "ISO3166-2-lvl4": "TH-50",
+        "country": "태국",
+        "country_code": "th"
+      }
+    }
+  }
+}
