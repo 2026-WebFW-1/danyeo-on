@@ -82,7 +82,9 @@ export default function SelectPhotosStep({ onPick }) {
               </button>
             </div>
 
-            <p className="mt-5 text-md text-muted">jpg · heic 등 사진 파일</p>
+            <p className="mt-5 text-md text-muted">
+              폴더나 사진을 화면에 끌어다 놓아도 돼요 · jpg · heic 등
+            </p>
 
             {/* 숨은 input 2개 */}
             <input
