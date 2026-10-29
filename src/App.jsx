@@ -1,13 +1,20 @@
-import Nav from '@/components/layout/Nav';
+import { Navigate, Route, Routes } from 'react-router';
+
+import AppLayout from '@/components/layout/AppLayout';
+import NotFoundPage from '@/pages/NotFoundPage/NotFoundPage';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 
-// Nav 아래 화면이 남은 높이를 채우도록 세로 flex로 둡니다. 화면의 main은 min-h-screen 대신 flex-1을 씁니다.
-// min-h-screen을 쓰면 Nav 높이만큼 항상 스크롤이 생깁니다.
+// 주소 하나 = 페이지 하나. 모든 페이지는 AppLayout(Nav + 남은 높이) 안에 그립니다.
+// 아직 없는 페이지(/map, /places, /passport, /chapter/:slug)는 *로 떨어져 NotFoundPage를 봅니다.
 export default function App() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Nav />
-      <UploadPage />
-    </div>
+    <Routes>
+      <Route element={<AppLayout />}>
+        {/* TODO(endl24): 00 홈(입구)이 생기면 HomePage로 바꾸기. 지금은 있는 화면이 사진 올리기뿐이라 보냅니다. */}
+        <Route index element={<Navigate to="/upload" replace />} />
+        <Route path="upload" element={<UploadPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   );
 }
