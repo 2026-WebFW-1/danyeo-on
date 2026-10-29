@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 
 import { PHOTO_ACCEPT } from '@/constants/upload';
+import { usePhotoDrop } from '@/hooks/upload/usePhotoDrop';
 import { filterPhotoFiles } from '@/utils/upload/photoFiles';
 
 import ExampleTripCards from './ExampleTripCards';
@@ -29,6 +30,7 @@ export default function SelectPhotosStep({ onPick }) {
   // 버튼의 onClick에서 .click()을 부릅니다. 화면에 보이는 값이 아니라서 useState가 아닌 useRef입니다.
   const folderInputRef = useRef(null);
   const photoInputRef = useRef(null);
+  usePhotoDrop(onPick);
 
   const handleInputChange = (event) => {
     const photos = filterPhotoFiles(event.target.files);
