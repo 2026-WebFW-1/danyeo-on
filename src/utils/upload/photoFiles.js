@@ -35,3 +35,63 @@ export function isPhotoFile(file) {
 export function filterPhotoFiles(files) {
   return Array.from(files).filter(isPhotoFile);
 }
+
+/**
+ * 파일 항목에서 File을 꺼냅니다.
+ * file()은 콜백 방식이라 Promise로 감쌉니다.
+ * @param {FileSystemFileEntry} fileEntry
+ * @returns {Promise<File>}
+ */
+function readFile(fileEntry) {
+  return new Promise((resolve, reject) => {
+    fileEntry.file(resolve, reject);
+  });
+}
+
+/**
+ * 폴더 바로 안의 항목을 전부 꺼냅니다. 하위 폴더 안까지는 들어가지 않습니다.
+ * readEntries는 한 번에 최대 100개라 빈 배열이 올 때까지 같은 reader로 다시 부릅니다.
+ * @param {FileSystemDirectoryEntry} directoryEntry
+ * @returns {Promise<FileSystemEntry[]>}
+ */
+async function readChildren(directoryEntry) {
+  const reader = directoryEntry.createReader();
+  const children = [];
+
+  while (true) {
+    const batch = await new Promise((resolve, reject) => {
+      reader.readEntries(resolve, reject);
+    });
+    if (batch.length === 0) {
+      break;
+    }
+    children.push(...batch);
+  }
+
+  return children;
+}
+
+/**
+ * 끌어다 놓은 항목(파일·폴더)을 파일 목록으로 펼칩니다. 폴더는 하위 폴더까지 내려갑니다.
+ * 사진인지는 보지 않습니다. > filterPhotoFiles
+ * @param {FileSystemEntry[]} entries drop 이벤트에서 webkitGetAsEntry()로 꺼낸 항목
+ * @returns {Promise<File[]>}
+ */
+export async function filesFromEntries(entries) {
+  const files = [];
+
+  for (const entry of entries) {
+    if (entry.isFile) {
+      const file = await readFile(entry);
+      files.push(file);
+    }
+
+    if (entry.isDirectory) {
+      const children = await readChildren(entry);
+      const childFiles = await filesFromEntries(children);
+      files.push(...childFiles);
+    }
+  }
+
+  return files;
+}

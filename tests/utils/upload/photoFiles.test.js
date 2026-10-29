@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { filterPhotoFiles, isPhotoFile } from '@/utils/upload/photoFiles';
+import { filesFromEntries, filterPhotoFiles, isPhotoFile } from '@/utils/upload/photoFiles';
 
 /**
  * 이름만 있는 빈 File을 만듭니다.
@@ -124,5 +124,113 @@ describe('filterPhotoFiles', () => {
 
     // then
     expect(photos.map((file) => file.name)).toEqual(['b.jpg', 'a.png']);
+  });
+});
+
+/**
+ * 끌어다 놓은 파일 항목(FileSystemFileEntry)을 흉내 냅니다.
+ * 진짜 entry는 브라우저가 실제로 끌어다 놓을 때만 만들어서, filesFromEntries가 쓰는 것만 갖춥니다.
+ */
+function fileEntry(name) {
+  return {
+    isFile: true,
+    isDirectory: false,
+    file: (resolve) => resolve(makeFile(name)),
+  };
+}
+
+/**
+ * 끌어다 놓은 폴더 항목(FileSystemDirectoryEntry)을 흉내 냅니다.
+ * 브라우저(Chrome)처럼 readEntries가 한 번에 최대 100개씩 주고, 다 주면 빈 배열을 줍니다.
+ */
+function directoryEntry(children) {
+  return {
+    isFile: false,
+    isDirectory: true,
+    createReader: () => {
+      let start = 0;
+      return {
+        readEntries: (resolve) => {
+          const batch = children.slice(start, start + 100);
+          start += batch.length;
+          resolve(batch);
+        },
+      };
+    },
+  };
+}
+
+describe('filesFromEntries', () => {
+  test('파일만 놓으면 놓은 순서대로 돌려줍니다.', async () => {
+    // given
+    const entries = [fileEntry('b.jpg'), fileEntry('a.jpg')];
+
+    // when
+    const files = await filesFromEntries(entries);
+
+    // then
+    const names = files.map((file) => file.name);
+    expect(names).toEqual(['b.jpg', 'a.jpg']);
+  });
+
+  test('폴더를 놓으면 하위 폴더(dup/)까지 펼칩니다.', async () => {
+    // given
+    const dup = directoryEntry([fileEntry('IMG_0098.JPG'), fileEntry('IMG_0098 (1).JPG')]);
+    const entries = [directoryEntry([fileEntry('01_full-exif.jpg'), dup])];
+
+    // when - entries[*.jpg, dup(dir)]
+    const files = await filesFromEntries(entries);
+
+    // then - dir 을 펼쳐서 파일 형태로 제공합니다.
+    const names = files.map((file) => file.name);
+    expect(names).toEqual(['01_full-exif.jpg', 'IMG_0098.JPG', 'IMG_0098 (1).JPG']);
+  });
+
+  test('파일과 폴더를 섞어 놓아도 놓은 순서를 지킵니다.', async () => {
+    // given - [a.jpg, dir([b.jpg, c.jpg])]
+    const entries = [fileEntry('a.jpg'), directoryEntry([fileEntry('b.jpg')]), fileEntry('c.jpg')];
+
+    // when - [a.jpg, b.jpg, c.jpg]
+    const files = await filesFromEntries(entries);
+
+    // then
+    const names = files.map((file) => file.name);
+    expect(names).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+  });
+
+  test('readEntries가 100개씩 나눠 줘도 폴더 안 파일을 다 모읍니다.', async () => {
+    // given - readEntries는 폴더 안 항목을 한 번에 다 주는 대신, 최대 100개씩 끊어서 줍니다.
+    // 한 번만 부르면 사진이 300장 든 폴더를 놓아도 100장만 넘어가고 에러도 나지 않아 확인해야합니다.
+    const children = Array.from({ length: 103 }, (_, index) => fileEntry(`${index}.jpg`));
+    const entries = [directoryEntry(children)];
+
+    // when
+    const files = await filesFromEntries(entries);
+
+    // then
+    expect(files).toHaveLength(103);
+    expect(files.at(-1).name).toBe('102.jpg');
+  });
+
+  test('빈 폴더를 놓으면 빈 배열을 돌려줍니다.', async () => {
+    // given
+    const entries = [directoryEntry([])];
+
+    // when
+    const files = await filesFromEntries(entries);
+
+    // then
+    expect(files).toEqual([]);
+  });
+
+  test('사진이 아닌 파일도 거르지 않고 돌려줍니다. 거르기는 filterPhotoFiles 몫입니다.', async () => {
+    // given
+    const entries = [fileEntry('clip.mov'), fileEntry('a.jpg')];
+
+    // when
+    const files = await filesFromEntries(entries);
+
+    // then
+    expect(files.map((file) => file.name)).toEqual(['clip.mov', 'a.jpg']);
   });
 });
