@@ -151,5 +151,14 @@
  * @property {string} updatedAt
  */
 
+/**
+ * 사진 한 장을 화면에 보여 줄 때 필요한 값이에요(PhotoGrid, Lightbox).
+ * seed의 photos 한 줄에서 이 둘만 있으면 돼요.
+ *
+ * @typedef {object} PhotoRef
+ * @property {string} id
+ * @property {string | null} fileKey 이미지가 없는 사진이면 null이에요(회색 칸으로 그려요)
+ */
+
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
 export {};
