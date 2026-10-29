@@ -5,9 +5,9 @@ import { cn } from '@/utils/cn';
  * 사진을 작은 그림(thumb) 격자로 보여 주는 부품. 이미지가 없는 사진은 회색 칸이에요.
  * 크게 보는 건 Lightbox가 해요. onSelect를 안 주면 누를 수 없는 그림 모음이에요.
  *
- * 호출: 칸 수·폭은 className으로 바꿔요. 기본은 96px 이상으로 폭을 채워요(00b 사진 크기).
+ * 호출: 기본은 칸이 96px 이상이고 폭을 채워요. 칸 크기를 고정하려면 grid-cols로 바꿔요(00b 사진은 96px 네 칸).
  * <PhotoGrid photos={photos} onSelect={setOpenIndex} />
- * <PhotoGrid photos={photos} className="w-fit grid-cols-4" />
+ * <PhotoGrid photos={photos} className="grid-cols-[repeat(4,6rem)]" />
  *
  * @param {object} props
  * @param {import('@/types').PhotoRef[]} props.photos
