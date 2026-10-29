@@ -27,7 +27,8 @@ export function selectJourneyTotals(journey) {
 
   // 도시 이름만 보면 다른 나라의 같은 이름을 하나로 세므로 나라 코드를 같이 묶어요.
   const cities = new Set(stops.map(getCityKey));
-  const countries = new Set(stops.map((stop) => stop.cc));
+  // 나라 코드가 빈 지점(이름을 못 찾은 곳)은 나라가 아니라서 빼요.
+  const countries = new Set(stops.map((stop) => stop.cc).filter(Boolean));
 
   const km = journey.legs.reduce((sum, leg) => sum + leg.km, 0);
 

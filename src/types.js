@@ -25,6 +25,12 @@
  */
 
 /**
+ * 좌표로 찾은 장소 이름이에요. `Stop`의 이름 칸(`city`, `country`, `cc`)만 뽑은 모양이고, `reverseCity`가 돌려줘요.
+ *
+ * @typedef {Pick<Stop, 'city' | 'country' | 'cc'>} Place
+ */
+
+/**
  * 지점과 지점 사이의 이동 구간 하나.
  *
  * @typedef {object} Leg
