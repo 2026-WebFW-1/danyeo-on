@@ -251,12 +251,6 @@ export default function TripCard({ trip }) {
 - 새 크기·줄 높이·모서리 이름을 `tokens.css`에 더하면, Tailwind 기본에 없는 이름은 `utils/cn.js`의 `extendTailwindMerge`에도 등록합니다. 등록하지 않으면 `cn`이 같이 쓴 클래스를 지울 수 있습니다.
 
 - 간격은 Tailwind 기본 단위(`p-4` = 16px)를 씁니다. `p-[13px]`처럼 대괄호 값은 피그마 수치를 맞추려고 꼭 필요할 때만 씁니다.
-- 화면 크기는 **모바일을 기본**으로 쓰고, 웹은 `lg:`(1024px 이상)를 붙여 덮어씁니다.
-
-  ```jsx
-  <div className="flex flex-col gap-4 lg:flex-row">
-  ```
-
 - 여러 클래스를 조건에 따라 붙일 때는 `@/utils/cn`의 `cn`을 씁니다. 같은 종류 클래스가 겹치면 뒤의 것이 이깁니다.
 
   ```jsx
