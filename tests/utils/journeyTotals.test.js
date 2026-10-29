@@ -64,6 +64,43 @@ describe('selectJourneyTotals', () => {
     expect(totals.photos).toBe(41);
   });
 
+  describe('나라 코드가 빈 지점(이름을 못 찾은 곳)', () => {
+    const withoutCountry = (stop) => ({ ...stop, cc: '', country: '', city: '이름 없는 곳' });
+    const stopsOf = (journey) => journey.stops.filter((stop) => !stop.transit);
+
+    test('나라가 겹치는 지점이 비어도 나라 수는 그대로예요', () => {
+      const ccs = stopsOf(seojin).map((stop) => stop.cc);
+      const repeated = stopsOf(seojin).find(
+        (stop) => ccs.filter((cc) => cc === stop.cc).length > 1,
+      );
+      const journey = {
+        ...seojin,
+        stops: seojin.stops.map((stop) => (stop === repeated ? withoutCountry(stop) : stop)),
+      };
+
+      expect(selectJourneyTotals(journey).countries).toBe(selectJourneyTotals(seojin).countries);
+    });
+
+    test('나라가 하나뿐인 지점이 비면 나라 수가 하나 줄어요', () => {
+      const ccs = stopsOf(seojin).map((stop) => stop.cc);
+      const only = stopsOf(seojin).find((stop) => ccs.filter((cc) => cc === stop.cc).length === 1);
+      const journey = {
+        ...seojin,
+        stops: seojin.stops.map((stop) => (stop === only ? withoutCountry(stop) : stop)),
+      };
+
+      expect(selectJourneyTotals(journey).countries).toBe(
+        selectJourneyTotals(seojin).countries - 1,
+      );
+    });
+
+    test('모든 지점이 비면 나라는 0개예요', () => {
+      const journey = { ...seojin, stops: seojin.stops.map(withoutCountry) };
+
+      expect(selectJourneyTotals(journey).countries).toBe(0);
+    });
+  });
+
   test('여행이 없으면 전부 0이고 첫 여행 시작은 null이에요', () => {
     expect(selectJourneyTotals(empty)).toEqual({
       stops: 0,
