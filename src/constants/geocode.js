@@ -23,3 +23,25 @@ export const CITY_BY_REGION_CODE = {
 
 // 홍콩·마카오는 나라 코드가 CN으로 와서 행정 코드로 따로 알아봐요.
 export const COUNTRY_BY_REGION_CODE = { 'CN-HK': 'HK', 'CN-MO': 'MO' };
+
+// OpenStreetMap의 공개 Nominatim 서버예요. 키 없이 브라우저에서 바로 부를 수 있어요.
+export const GEOCODE_URL = 'https://nominatim.openstreetmap.org/reverse';
+// zoom 10은 도시 단위예요. 한국어 이름이 없는 곳은 영어 이름이 와요.
+export const GEOCODE_QUERY = Object.freeze({
+  format: 'jsonv2',
+  zoom: '10',
+  addressdetails: '1',
+  'accept-language': 'ko,en',
+});
+
+// 서비스로 보내는 좌표의 소수 자릿수예요. 3자리는 약 100m라서 도시 이름은 그대로고, 집 같은 정확한 위치는 밖으로 나가지 않아요.
+export const COORDINATE_DIGITS = 3;
+
+// 이 거리 안의 좌표는 같은 곳으로 보고 이전 결과를 다시 써요.
+export const CACHE_RADIUS_KM = 1;
+export const REQUEST_TIMEOUT_MS = 8000;
+// 공개 서버는 1초에 한 번까지만 받아서, 요청을 시작하는 시각 사이를 1초보다 조금 더 띄워요.
+export const REQUEST_INTERVAL_MS = 1100;
+// 연달아 이만큼 실패하면 COOLDOWN_MS 동안은 요청하지 않아요. 서비스가 막았을 때 계속 두드리지 않게 해요.
+export const FAILURE_LIMIT = 3;
+export const COOLDOWN_MS = 30_000;
