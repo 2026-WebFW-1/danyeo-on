@@ -4,6 +4,7 @@ import { PHOTO_ACCEPT } from '@/constants/upload';
 import { usePhotoDrop } from '@/hooks/upload/usePhotoDrop';
 import { filterPhotoFiles } from '@/utils/upload/photoFiles';
 
+import DropOverlay from './DropOverlay';
 import ExampleTripCards from './ExampleTripCards';
 import PolaroidStack from './PolaroidStack';
 
@@ -30,7 +31,7 @@ export default function SelectPhotosStep({ onPick }) {
   // 버튼의 onClick에서 .click()을 부릅니다. 화면에 보이는 값이 아니라서 useState가 아닌 useRef입니다.
   const folderInputRef = useRef(null);
   const photoInputRef = useRef(null);
-  usePhotoDrop(onPick);
+  const { isDragging, itemCount } = usePhotoDrop(onPick);
 
   const handleInputChange = (event) => {
     const photos = filterPhotoFiles(event.target.files);
@@ -45,8 +46,9 @@ export default function SelectPhotosStep({ onPick }) {
   // 휴대폰: 화면이 내용보다 길면 남는 공간을 위아래로 나눠 내용을 가운데에 둡니다.
   // md 이상: 남는 높이를 전부 위쪽 줄(글·폴라로이드)에 줘서 Nav와 구분선 사이를 채우고, 그 안에서 각자 세로 가운데에 둡니다.
   // flex 안에서 mx-auto는 폭을 내용만큼 줄여 버려서 w-full을 같이 줍니다.
+  // relative: 끌어오는 중 덮개가 Nav는 남기고 이 main만 덮도록 기준을 잡습니다.
   return (
-    <main className="flex flex-1 flex-col justify-center bg-canvas">
+    <main className="relative flex flex-1 flex-col justify-center bg-canvas">
       <div className="mx-auto flex w-full max-w-360 flex-col px-4 py-10 md:flex-1 lg:px-30 lg:pt-14 lg:pb-12 2xl:max-w-400">
         {/* 왼쪽 칸은 글·버튼 폭(auto), 오른쪽 칸은 남는 폭 전부(1fr). */}
         <div className="md:grid md:flex-1 md:grid-cols-[auto_1fr] md:gap-10">
@@ -114,6 +116,8 @@ export default function SelectPhotosStep({ onPick }) {
           <ExampleTripCards />
         </div>
       </div>
+
+      {isDragging && <DropOverlay itemCount={itemCount} />}
     </main>
   );
 }
