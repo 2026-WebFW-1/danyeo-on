@@ -1,4 +1,3 @@
-import { usePhotoAssembly } from '@/hooks/upload/usePhotoAssembly';
 import { usePhotoThumbnails } from '@/hooks/upload/usePhotoThumbnails';
 
 import PhotoPile from './PhotoPile';
@@ -18,10 +17,8 @@ import PhotoPile from './PhotoPile';
  */
 export default function PilePhotosStep({ files }) {
   const { photos, failedCount, isDone } = usePhotoThumbnails(files);
-  const count = usePhotoAssembly(photos.length);
-  const isPiled = isDone && count >= photos.length;
 
-  // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isPiled일 때 넘어가기
+  // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가기
   return (
     <main className="flex flex-1 flex-col justify-center bg-canvas">
       <div className="mx-auto grid w-full max-w-360 items-center gap-10 px-4 py-10 md:grid-cols-[auto_1fr] lg:px-30 lg:py-14 2xl:max-w-400">
@@ -30,10 +27,10 @@ export default function PilePhotosStep({ files }) {
             STEP 2 / 2 · 모으기
           </p>
           <h1 className="mt-3 text-6xl font-bold text-ink 2xl:text-7xl">
-            {isPiled ? '사진을 다 모았어요' : '사진을 모으고 있어요'}
+            {isDone ? '사진을 다 모았어요' : '사진을 모으고 있어요'}
           </h1>
           <p className="mt-8 flex items-baseline gap-4" role="status">
-            <strong className="font-serif text-8xl font-bold text-ink">{count}</strong>
+            <strong className="font-serif text-8xl font-bold text-ink">{photos.length}</strong>
             <span className="text-xl text-muted">/ {files.length}장</span>
           </p>
           {failedCount > 0 && (
@@ -42,7 +39,7 @@ export default function PilePhotosStep({ files }) {
             </p>
           )}
         </header>
-        <PhotoPile photos={photos.slice(0, count)} />
+        <PhotoPile photos={photos} />
       </div>
     </main>
   );

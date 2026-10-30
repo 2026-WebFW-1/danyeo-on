@@ -172,6 +172,7 @@
  *
  * @typedef {object} PilePhoto
  * @property {string} id 고른 순서와 파일 이름으로 만든 값이에요. 예: '3-IMG_0214.jpg'
+ * @property {number} order 고른 순서(0부터)예요. 더미에서 놓일 자리를 정할 때 써요(PhotoPile)
  * @property {string} filename 원본 파일 이름이에요. 예: 'IMG_0214.jpg'
  * @property {string} src 썸네일의 blob: 주소예요. 화면이 사라지면 해제돼요
  */

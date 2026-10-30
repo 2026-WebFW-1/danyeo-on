@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import uploadEdge from '@/data/fixtures/upload-edge.json';
-import { readExif } from '@/utils/readExif';
+import { readExif } from '@/utils/upload/readExif';
 
 const FIELDS = ['readable', 'takenAt', 'offset', 'timeUncertain', 'lat', 'lng', 'camera'];
 
