@@ -160,5 +160,14 @@
  * @property {string | null} fileKey 이미지가 없는 사진이면 null이에요(회색 칸으로 그려요)
  */
 
+/**
+ * 로그인한 사람(useAuthStore의 user).
+ *
+ * @typedef {object} AuthUser
+ * @property {string} id Supabase uuid. 사진·글·보정의 owner_id예요(seed의 'u_seojin'이 아니에요)
+ * @property {string} email
+ * @property {string} name 화면에 보일 이름. 예: '윤서진'
+ */
+
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
 export {};
