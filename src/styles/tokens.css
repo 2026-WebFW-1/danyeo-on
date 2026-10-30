@@ -9,6 +9,20 @@
  * 그래서 이 프로젝트의 text-sm은 13px이에요 (Tailwind 문서의 14px과 달라요).
  */
 @theme {
+  /* 고른 사진이 더미에 내려앉는 움직임(#87). 놓일 자리는 PhotoPile이 --pile-* 변수로 넘겨요 */
+  --animate-photo-pile: photo-pile 320ms cubic-bezier(0.2, 0.65, 0.3, 1) backwards;
+  @keyframes photo-pile {
+    from {
+      opacity: 0.45;
+      transform: translate(calc(-50% + var(--pile-x)), calc(-50% + var(--pile-y) - 3cqw))
+        rotate(calc(var(--pile-r) - 1deg)) scale(1.015);
+    }
+    to {
+      opacity: 1;
+      transform: translate(calc(-50% + var(--pile-x)), calc(-50% + var(--pile-y)))
+        rotate(var(--pile-r)) scale(1);
+    }
+  }
   /* 색. 피그마 color/* 이름을 그대로 씁니다 */
   --color-canvas: #f8f6f0; /* 페이지 바탕 */
   --color-paper: #efebe2; /* 카드 안쪽 바탕 */
