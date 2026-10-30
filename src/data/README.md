@@ -55,7 +55,11 @@ src/data/
   | `split`   | `{ beforePhotoId }` 여행 나누기          |
   | `merge`   | `{ photoIds: [a, b] }` 여행 합치기       |
 
-- **글(posts)** 은 하루에 하나, 날짜(`date`, 현지 날짜)로 붙어요.
+- **글(posts)** 은 날짜(`date`, 현지 날짜)로 붙고, 같은 날 여러 개도 가능해요. 현재 서진 14개·하람 9개이며 빈 본문은 없어요. Chapter 사진에 글이 없던 날짜도 보충했어요.
+- **사진별 글**은 Supabase `photo_notes`에 사진 ID(`photo_id`)로 연결해요. 기존 `my_data()` 응답 모양은 유지했으며 이 테이블은 별도로 조회해요. 서진 333개·하람 263개이고, 이미지가 없는 2개는 미연결 안내만 들어 있어요.
+  - `title`, `body`, `tags`가 표시용 글이에요. 합성 데모용으로 작성했으며 실제 사진 촬영자의 기록은 아니에요.
+  - `source.editorial`에 같은 이미지 파일로 연결된 02 시안의 제목·문단·부제·메모·큰 글자·태그·원래 날짜를 보존했어요. 현재 데모와 계절이 다른 원문은 그대로 표시하지 마세요.
+  - 재료와 반영 절차는 BE의 `data/photo-writing-editorial.json`, `data/demo-photo-writing.json`, `docs/DEMO_PHOTO_WRITING.md`에서 관리해요. seed를 재생성하면 BE의 글 반영 스크립트도 다시 실행해야 해요.
 
 ## fixtures/
 
