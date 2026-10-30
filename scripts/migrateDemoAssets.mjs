@@ -94,5 +94,5 @@ for (const persona of personas) {
   }
 
   console.log(`${persona.name}: 이미지 ${oldKeys.length * 2}개, Journey 1건 이관`);
-  await client.auth.signOut();
+  await client.auth.signOut({ scope: 'local' });
 }
