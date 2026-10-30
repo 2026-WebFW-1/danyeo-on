@@ -9,10 +9,36 @@ const QUALITY = 0.8;
  *
  * <p>결과에는 EXIF를 남기지 않을 예정이고, 촬영 정보는 이전에 처리되어야합니다.
  * @param {File} file
- * @returns {Promise< full : Blob, thumb: Blob>} | null}
+ * @returns {Promise<{ full: Blob, thumb: Blob } | null>}
  */
 export async function resizePhoto(file) {
-  let bitmap; // Promise<ImageBitmap>
+  return withBitmap(file, async (bitmap) => ({
+    full: await drawToBlob(bitmap, FULL_EDGE),
+    thumb: await drawToBlob(bitmap, THUMB_EDGE),
+  }));
+}
+
+/**
+ * <p>썸네일 한 장만 만듭니다.
+ * <p>화면에 바로 보여 줄 때(#87 사진 쌓기)는 썸네일만 쓰는데, resizePhoto로 만들면
+ * 2048px 보기용까지 만들고 버리게 됩니다. 사진 한 장에서 가장 오래 걸리는 일이라 나눴습니다.
+ * @param {File} file
+ * @returns {Promise<Blob | null>} 브라우저가 열지 못하는 파일(HEIC, 깨진 파일)은 null
+ */
+export async function resizeThumbnail(file) {
+  return withBitmap(file, (bitmap) => drawToBlob(bitmap, THUMB_EDGE));
+}
+
+/**
+ * <p>파일을 비트맵으로 풀어 draw에 넘기고, 다 쓰면 바로 해제합니다.
+ * <p>resizePhoto와 resizeThumbnail이 여는 방법·실패 처리·해제를 같이 씁니다.
+ * @template T
+ * @param {File} file
+ * @param {(bitmap: ImageBitmap) => Promise<T>} draw
+ * @returns {Promise<T | null>} 열거나 그리다 실패하면 null
+ */
+async function withBitmap(file, draw) {
+  let bitmap; // ImageBitmap (createImageBitmap을 await한 결과)
 
   try {
     // 브라우저 내장 함수: createImageBitmap을 사용합니다.
@@ -25,9 +51,7 @@ export async function resizePhoto(file) {
   }
 
   try {
-    const full = await drawToBlob(bitmap, FULL_EDGE);
-    const thumb = await drawToBlob(bitmap, THUMB_EDGE);
-    return { full, thumb };
+    return await draw(bitmap);
   } catch {
     return null;
   } finally {
