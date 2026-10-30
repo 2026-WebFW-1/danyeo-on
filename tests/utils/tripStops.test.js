@@ -159,7 +159,7 @@ describe('selectPostsOfStop', () => {
 
     expect(seedPostTitles(owned).sort()).toEqual(seedPostTitles(seojinSeed.posts).sort());
     expect(selectPostsOfStop(seojin, seojinSeed.posts, findStop(seojin, '밴쿠버').id)).toHaveLength(
-      6,
+      7,
     );
   });
 
@@ -205,11 +205,13 @@ describe('getOneLiner', () => {
     expect(getOneLiner([makePost('2025-06-28', '제목', body)])).toBe(body);
   });
 
-  test('seed 글은 본문이 비어 있어서 제목이 나와요', () => {
+  test('seed에 채운 여행 글의 본문을 보여줘요', () => {
     const kyoto = findStop(seojin, '교토');
     const posts = selectPostsOfStop(seojin, seojinSeed.posts, kyoto.id);
 
-    expect(getOneLiner(posts)).toBe('기요미즈데라 단풍');
+    expect(getOneLiner(posts)).toBe(
+      '기요미즈데라에 아침 일찍 올라갔다. 단풍 사이로 보이는 교토를 한참 바라봤다.\n\n내려오는 길에도 자꾸 뒤를 돌아봤다. 사진을 찍을 때마다 조금씩 다른 풍경이었다.',
+    );
   });
 
   test('글이 없으면 null이에요', () => {
