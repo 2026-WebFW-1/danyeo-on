@@ -174,7 +174,8 @@
  * @property {string} id 고른 순서와 파일 이름으로 만든 값이에요. 예: '3-IMG_0214.jpg'
  * @property {number} order 고른 순서(0부터)예요. 더미에서 놓일 자리를 정할 때 써요(PhotoPile)
  * @property {string} filename 원본 파일 이름이에요. 예: 'IMG_0214.jpg'
- * @property {string} src 썸네일의 blob: 주소예요. 화면이 사라지면 해제돼요
+ * @property {string | null} src 썸네일의 blob: 주소예요. 화면이 사라지면 해제돼요.
+ *   브라우저가 못 그리는 사진(Chrome·Windows의 HEIC 등)이면 null이고 회색 칸으로 그려요
  */
 
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.

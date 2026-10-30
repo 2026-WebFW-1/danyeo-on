@@ -9,7 +9,7 @@ const QUALITY = 0.8;
  *
  * <p>결과에는 EXIF를 남기지 않을 예정이고, 촬영 정보는 이전에 처리되어야합니다.
  * @param {File} file
- * @returns {Promise< full : Blob, thumb: Blob>} | null}
+ * @returns {Promise<{ full: Blob, thumb: Blob } | null>}
  */
 export async function resizePhoto(file) {
   return withBitmap(file, async (bitmap) => ({
@@ -38,7 +38,7 @@ export async function resizeThumbnail(file) {
  * @returns {Promise<T | null>} 열거나 그리다 실패하면 null
  */
 async function withBitmap(file, draw) {
-  let bitmap; // Promise<ImageBitmap>
+  let bitmap; // ImageBitmap (createImageBitmap을 await한 결과)
 
   try {
     // 브라우저 내장 함수: createImageBitmap을 사용합니다.

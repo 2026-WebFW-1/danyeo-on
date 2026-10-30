@@ -37,8 +37,23 @@ export default function PhotoPile({ photos }) {
               'translate(calc(-50% + var(--pile-x)), calc(-50% + var(--pile-y))) rotate(var(--pile-r))',
           }}
         >
-          <img src={photo.src} alt={photo.filename} className="aspect-square w-full object-cover" />
-          <figcaption className="mt-[3cqw] truncate font-mono text-2xs text-body">
+          {/* 브라우저가 못 그린 사진(src: null)은 회색 칸으로 둡니다. 회색은 PhotoGridCell과 같은 bg-line입니다. */}
+          {photo.src ? (
+            <img
+              src={photo.src}
+              alt={photo.filename}
+              className="aspect-square w-full object-cover"
+            />
+          ) : (
+            <div
+              role="img"
+              aria-label={`${photo.filename} · 미리 볼 수 없는 사진`}
+              className="aspect-square w-full bg-line"
+            />
+          )}
+          {/* 글자 크기도 카드처럼 상자 폭(cqw)을 따라갑니다. 2.29cqw는 PolaroidStack(13a″)과 같은 값으로, 상자 480px일 때 11px.
+              PolaroidStack은 휴대폰에서 숨지만 이 더미는 보여서, 너무 작아지지 않게 10px 아래로는 안 줄입니다. */}
+          <figcaption className="mt-[3cqw] truncate font-mono text-[max(10px,2.29cqw)] leading-normal text-body">
             {photo.filename.replace(/\.[^.]+$/, '')}
           </figcaption>
         </figure>

@@ -25,5 +25,6 @@ export default function UploadPage() {
     return <SelectPhotosStep onPick={setPhotoFiles} />;
   }
 
-  return <PilePhotosStep files={photoFiles} />;
+  // 빈 배열로 돌리면 위 조건에 걸려 13a″로 돌아갑니다. PilePhotosStep은 사라지면서 썸네일 주소를 해제합니다.
+  return <PilePhotosStep files={photoFiles} onReset={() => setPhotoFiles([])} />;
 }
