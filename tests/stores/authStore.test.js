@@ -9,7 +9,7 @@ vi.mock('@/services/authService', () => ({
   getSessionUser: vi.fn(),
   signInWithPassword: vi.fn(),
   signOut: vi.fn(),
-  onSessionEnd: vi.fn(),
+  onSessionChange: vi.fn(),
 }));
 
 const SEOJIN = {
@@ -17,16 +17,18 @@ const SEOJIN = {
   email: 'seojin@demo.local',
   name: '윤서진',
 };
+const EDGE = { id: 'd0000000-0000-4000-8000-000000000002', email: 'edge@demo.local', name: 'edge' };
 
-let endSession;
+let changeSession;
+const endSession = () => changeSession(null);
 let stopWatching;
 
 // 스토어는 모듈 하나를 같이 써서, 테스트마다 reset()으로 처음 상태와 init 표시를 되돌려요.
 beforeEach(() => {
   useAuthStore.getState().reset();
   stopWatching = vi.fn();
-  vi.mocked(authService.onSessionEnd).mockImplementation((callback) => {
-    endSession = callback;
+  vi.mocked(authService.onSessionChange).mockImplementation((callback) => {
+    changeSession = callback;
     return stopWatching;
   });
 });
@@ -87,7 +89,7 @@ describe('init', () => {
 
     expect(first).toBe(second);
     expect(authService.getSessionUser).toHaveBeenCalledTimes(1);
-    expect(authService.onSessionEnd).toHaveBeenCalledTimes(1);
+    expect(authService.onSessionChange).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -164,6 +166,37 @@ describe('signOut', () => {
     expect(useAuthStore.getState().status).toBe('anonymous');
   });
 
+  test('로그아웃 요청이 끝나기 전에 다시 로그인하면, 로그아웃이 끝난 뒤에 로그인해요', async () => {
+    // 늦게 끝난 로그아웃이 방금 만든 새 세션을 지우지 않게 해요(#85 리뷰).
+    let finishSignOut;
+    vi.mocked(authService.signOut).mockReturnValue(
+      new Promise((resolve) => {
+        finishSignOut = resolve;
+      }),
+    );
+    vi.mocked(authService.signInWithPassword).mockResolvedValue(SEOJIN);
+
+    useAuthStore.getState().signOut();
+    const signingIn = useAuthStore.getState().signIn('seojin@demo.local', 'demo1234');
+    await Promise.resolve();
+    expect(authService.signInWithPassword).not.toHaveBeenCalled();
+
+    finishSignOut();
+    await signingIn;
+    expect(authService.signInWithPassword).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({ user: SEOJIN, status: 'authenticated' });
+  });
+
+  test('로그아웃 요청이 실패해도 그다음 로그인은 돼요', async () => {
+    vi.mocked(authService.signOut).mockRejectedValue(new Error('Failed to fetch'));
+    vi.mocked(authService.signInWithPassword).mockResolvedValue(SEOJIN);
+
+    useAuthStore.getState().signOut();
+    await useAuthStore.getState().signIn('seojin@demo.local', 'demo1234');
+
+    expect(useAuthStore.getState()).toMatchObject({ user: SEOJIN, status: 'authenticated' });
+  });
+
   test('서버 요청이 실패해도 던지지 않고 anonymous예요', async () => {
     vi.mocked(authService.signOut).mockRejectedValue(new Error('Failed to fetch'));
 
@@ -200,5 +233,35 @@ describe('세션 만료', () => {
       status: 'anonymous',
       isSignedOutByUser: false,
     });
+  });
+});
+
+describe('다른 탭에서 계정이 바뀜', () => {
+  test('로그인한 채 다른 계정 세션이 오면 그 사람으로 바뀌어요', async () => {
+    vi.mocked(authService.getSessionUser).mockResolvedValue(SEOJIN);
+    await useAuthStore.getState().init();
+
+    changeSession(EDGE);
+
+    expect(useAuthStore.getState()).toMatchObject({ user: EDGE, status: 'authenticated' });
+  });
+
+  test('같은 사람의 세션(토큰 갱신 등)이면 user 객체를 바꾸지 않아요', async () => {
+    vi.mocked(authService.getSessionUser).mockResolvedValue(SEOJIN);
+    await useAuthStore.getState().init();
+    const before = useAuthStore.getState().user;
+
+    changeSession({ ...SEOJIN });
+
+    expect(useAuthStore.getState().user).toBe(before);
+  });
+
+  test('로그인 전(로그인 화면)이어도 다른 탭이 로그인하면 따라가요', async () => {
+    vi.mocked(authService.getSessionUser).mockResolvedValue(null);
+    await useAuthStore.getState().init();
+
+    changeSession(EDGE);
+
+    expect(useAuthStore.getState()).toMatchObject({ user: EDGE, status: 'authenticated' });
   });
 });

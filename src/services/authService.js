@@ -1,13 +1,15 @@
 // supabase.js는 주소·키(.env.local)가 없으면 불러오는 순간 오류를 던져요.
 // 맨 위에서 import하면 .env.local이 없는 PC에서 앱 전체가 흰 화면이 돼서, 처음 쓸 때 불러와요.
 // 실패하면 각 함수가 오류를 던지고, init()은 로그인 화면을, 로그인은 "서버에 연결하지 못했어요"를 보여 줘요.
-// 원인(".env.local을 확인해 주세요")은 콘솔에 한 번 남겨요.
+// 원인(".env.local을 확인해 주세요")은 콘솔에 남겨요.
+// 실패하면 기억을 지워서, 네트워크가 잠깐 끊겼던 경우에도 다음 요청 때 다시 불러와요.
 let clientPromise = null;
 
 function getClient() {
   clientPromise ??= import('@/services/supabase').then(
     (module) => module.supabase,
     (error) => {
+      clientPromise = null;
       console.error(error);
       throw error;
     },
@@ -65,13 +67,13 @@ export async function signOut() {
 }
 
 /**
- * 세션이 끊길 때(만료, 다른 탭에서 로그아웃) 부를 함수를 걸어요.
+ * 세션이 바뀔 때 부를 함수를 걸어요. 세션이 있으면 그 사람을, 끊기면(만료, 다른 탭에서 로그아웃) null을 넘겨요.
  * 콜백 안에서 Supabase를 다시 부르면 멈출 수 있어서(supabase-js 안내), 상태만 바꾸는 함수를 넘겨요.
  * Supabase를 못 불러오면 걸지 않아요. 그때는 애초에 로그인할 수 없어요.
- * @param {() => void} callback
+ * @param {(user: import('@/types').AuthUser | null) => void} callback
  * @returns {() => void} 걸어 둔 것을 떼는 함수
  */
-export function onSessionEnd(callback) {
+export function onSessionChange(callback) {
   let subscription = null;
   let isStopped = false;
 
@@ -79,7 +81,7 @@ export function onSessionEnd(callback) {
     .then((supabase) => {
       if (isStopped) return;
       ({ subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (!session) callback();
+        callback(session ? toAuthUser(session.user) : null);
       }).data);
     })
     .catch(() => {});

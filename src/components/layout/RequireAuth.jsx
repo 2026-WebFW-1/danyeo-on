@@ -1,7 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 
+import SessionCheckScreen from '@/components/layout/SessionCheckScreen';
 import { LOGIN_PATH, REDIRECT_PARAM } from '@/constants/auth';
 import { useAuthStore } from '@/stores/authStore';
+
+const HOME_PATH = '/';
 
 /**
  * 로그인한 사람만 안쪽 화면을 보게 막는 문
@@ -12,7 +15,8 @@ import { useAuthStore } from '@/stores/authStore';
  * <Route element={<RequireAuth />}>…</Route>
  *
  * 의도:
- *  - 보던 주소(경로 + 쿼리)를 ?redirect=에 실어 보내서, 로그인하면 그 화면으로 돌아옵니다(기능 정의서 L104).
+ *  - 보던 주소(경로 + 쿼리 + #)를 ?redirect=에 실어 보내서, 로그인하면 그 화면으로 돌아옵니다(기능 정의서 L104).
+ *  - 입구('/')로 처음 들어온 건 보던 화면이 없어서 12b 알림 없이 12a로 보냅니다(피그마 12b는 "401로 돌아온 경우").
  *  - 세션이 만료돼 로그아웃 상태가 되면 여기서 같은 길로 로그인 화면에 갑니다(L106).
  *  - 본인이 [로그아웃]을 눌렀으면(isSignedOutByUser) 돌아올 곳 없이 /login으로만 보냅니다(L105).
  *
@@ -27,19 +31,13 @@ export default function RequireAuth() {
   const isSignedOutByUser = useAuthStore((state) => state.isSignedOutByUser);
   const location = useLocation();
 
-  if (status === 'unknown') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas">
-        <p className="text-md text-muted">로그인 상태를 확인하는 중…</p>
-      </main>
-    );
-  }
+  if (status === 'unknown') return <SessionCheckScreen />;
 
   if (status === 'anonymous') {
-    if (isSignedOutByUser) return <Navigate to={LOGIN_PATH} replace />;
+    const from = location.pathname + location.search + location.hash;
+    if (isSignedOutByUser || from === HOME_PATH) return <Navigate to={LOGIN_PATH} replace />;
 
-    const redirect = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`${LOGIN_PATH}?${REDIRECT_PARAM}=${redirect}`} replace />;
+    return <Navigate to={`${LOGIN_PATH}?${REDIRECT_PARAM}=${encodeURIComponent(from)}`} replace />;
   }
 
   return <Outlet />;

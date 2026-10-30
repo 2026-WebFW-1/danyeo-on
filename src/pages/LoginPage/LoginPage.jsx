@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 
+import SessionCheckScreen from '@/components/layout/SessionCheckScreen';
 import { DEMO_PASSWORD, REDIRECT_PARAM } from '@/constants/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { getSafeRedirect, getScreenName, getSignInErrorMessage } from '@/utils/authForm';
@@ -46,13 +47,7 @@ export default function LoginPage() {
   const hasReturnTarget = redirectParam !== null && redirectTo === redirectParam;
 
   // 세션 확인 중에 폼을 그리면, 이미 로그인한 사람에게 폼이 잠깐 보였다가 사라져요.
-  if (status === 'unknown') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas">
-        <p className="text-md text-muted">로그인 상태를 확인하는 중…</p>
-      </main>
-    );
-  }
+  if (status === 'unknown') return <SessionCheckScreen />;
 
   if (status === 'authenticated') {
     return <Navigate to={redirectTo} replace />;

@@ -6,6 +6,9 @@ import * as authService from '@/services/authService';
 // init()은 앱에서 한 번만 돌아야 해요. StrictMode가 effect를 두 번 불러도 세션 구독이 겹치지 않게 막아요.
 let initPromise = null;
 let stopSessionWatch = null;
+// 진행 중인 로그아웃 요청. supabase-js는 로그아웃 요청이 끝난 뒤에 브라우저 세션을 지우는데, 로그인은 그걸 기다리지 않아요.
+// 그 사이에 다시 로그인하면 늦게 끝난 로그아웃이 새 세션을 지워서 12b로 튕기므로, 로그인이 이걸 먼저 기다려요(#85 리뷰).
+let signOutPromise = null;
 
 const INITIAL_STATE = { user: null, status: 'unknown', isSignedOutByUser: false };
 const ANONYMOUS = { user: null, status: 'anonymous', isSignedOutByUser: false };
@@ -47,9 +50,15 @@ export const useAuthStore = create((set) => ({
   init: () => {
     if (initPromise) return initPromise;
 
-    // 본인이 로그아웃할 때도 세션이 끊겨 여기가 불려요. 그때는 이미 anonymous라 표시를 덮지 않게 그대로 둬요.
-    stopSessionWatch = authService.onSessionEnd(() =>
-      set((state) => (state.status === 'anonymous' ? state : ANONYMOUS)),
+    stopSessionWatch = authService.onSessionChange((user) =>
+      set((state) => {
+        // 본인이 로그아웃할 때도 세션이 끊겨 여기가 불려요. 그때는 이미 anonymous라 표시를 덮지 않게 그대로 둬요.
+        if (!user) return state.status === 'anonymous' ? state : ANONYMOUS;
+        // 세션은 탭끼리 같이 써서, 다른 탭에서 로그인하면 그 사람으로 맞춰요. 로그아웃 중이면 무시해요.
+        // TODO(jihyo0517): 스토어 규칙 이슈에서 계정이 바뀔 때 resetStores()도 부르기(D 문서 3장 스토어 규칙 5).
+        if (signOutPromise || state.user?.id === user.id) return state;
+        return { user, status: 'authenticated', isSignedOutByUser: false };
+      }),
     );
     initPromise = (async () => {
       try {
@@ -68,6 +77,7 @@ export const useAuthStore = create((set) => ({
    * @param {string} password
    */
   signIn: async (email, password) => {
+    await signOutPromise;
     const user = await authService.signInWithPassword(email, password);
     set({ user, status: 'authenticated', isSignedOutByUser: false });
     return user;
@@ -79,11 +89,16 @@ export const useAuthStore = create((set) => ({
    */
   signOut: async () => {
     set({ user: null, status: 'anonymous', isSignedOutByUser: true });
-    try {
-      await authService.signOut();
-    } catch {
-      // 브라우저의 세션은 이미 지워졌어요. 서버가 못 받아도 다시 로그인하면 새 세션이라 그냥 둬요.
-    }
+    const request = authService
+      .signOut()
+      .catch(() => {
+        // 브라우저의 세션은 이미 지워졌어요. 서버가 못 받아도 다시 로그인하면 새 세션이라 그냥 둬요.
+      })
+      .finally(() => {
+        if (signOutPromise === request) signOutPromise = null;
+      });
+    signOutPromise = request;
+    await request;
   },
 
   /**
@@ -95,6 +110,7 @@ export const useAuthStore = create((set) => ({
     stopSessionWatch?.();
     stopSessionWatch = null;
     initPromise = null;
+    signOutPromise = null;
     set(INITIAL_STATE);
   },
 }));
