@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 
 import { LOGIN_PATH, REDIRECT_PARAM } from '@/constants/auth';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/authStore';
 
 /**
  * 로그인한 사람만 안쪽 화면을 보게 막는 문

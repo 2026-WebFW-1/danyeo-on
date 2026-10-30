@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { SESSION_CHECK_TIMEOUT_MS } from '@/constants/auth';
 import * as authService from '@/services/authService';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/authStore';
 
 // 진짜 Supabase를 부르지 않게 authService를 가짜로 바꿔요. 모양은 진짜와 같아요.
 vi.mock('@/services/authService', () => ({

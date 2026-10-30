@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 
 import { DEMO_PASSWORD, REDIRECT_PARAM } from '@/constants/auth';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/authStore';
 import { getSafeRedirect, getScreenName, getSignInErrorMessage } from '@/utils/authForm';
 
 import DemoLoginButtons from './DemoLoginButtons';

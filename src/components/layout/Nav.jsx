@@ -1,6 +1,6 @@
 import { Link, NavLink } from 'react-router';
 
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
 const HOME_PATH = '/';
