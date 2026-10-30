@@ -14,14 +14,16 @@ import { resizePhoto } from '@/utils/resizePhoto';
  * 주의할 점:
  *  - 같은 배열을 계속 넘겨야 합니다. 새 사진 묶음은 쓰는 쪽이 key를 바꿔 새로 그려 주세요.
  *  - 화면이 사라지면 남은 사진은 줄이지 않고, 만든 주소는 모두 해제합니다.
- * @param {File[]} files
- * @returns {{ photos: { id: string, filename: string, src: string }[], failedCount: number, isDone: boolean }}
+ * @param {File[]} files 13a″에서 고르고 거른 사진 파일 목록
+ * @returns {{ photos: import('@/types').PilePhoto[], failedCount: number, isDone: boolean }}
+ *   photos는 줄이기에 성공한 사진만 고른 순서대로 담겨요. failedCount는 열지 못해 건너뛴 수예요
  */
 export function usePhotoThumbnails(files) {
   const [state, setState] = useState({ photos: [], failedCount: 0, isDone: false });
 
   useEffect(() => {
     let isCancelled = false;
+    /** @type {string[]} 이번에 만든 blob: 주소. 정리할 때 모두 해제해요 */
     const urls = [];
 
     async function run() {

@@ -166,5 +166,15 @@
  * @property {string | null} fileKey 이미지가 없는 사진이면 null이에요(회색 칸으로 그려요)
  */
 
+/**
+ * 사진 올리기에서 고른 사진을 썸네일로 줄인 한 장이에요(usePhotoThumbnails, PhotoPile).
+ * 아직 저장 전이라 브라우저 메모리에만 있어요.
+ *
+ * @typedef {object} PilePhoto
+ * @property {string} id 고른 순서와 파일 이름으로 만든 값이에요. 예: '3-IMG_0214.jpg'
+ * @property {string} filename 원본 파일 이름이에요. 예: 'IMG_0214.jpg'
+ * @property {string} src 썸네일의 blob: 주소예요. 화면이 사라지면 해제돼요
+ */
+
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
 export {};

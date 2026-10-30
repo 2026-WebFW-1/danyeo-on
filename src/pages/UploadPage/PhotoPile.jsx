@@ -10,6 +10,8 @@
  *
  * 주의할 점:
  *  - 들어오는 움직임(animate-photo-pile)은 transform을 덮어써서, 같은 위치를 --pile-* 변수로 넘겨 tokens.css의 keyframes와 맞춥니다.
+ * @param {object} props
+ * @param {import('@/types').PilePhoto[]} props.photos 그릴 사진 목록. 앞쪽이 맨 아래에 깔려요
  */
 export default function PhotoPile({ photos }) {
   return (

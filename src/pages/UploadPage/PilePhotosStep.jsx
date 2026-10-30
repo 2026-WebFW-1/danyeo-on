@@ -13,6 +13,8 @@ import PhotoPile from './PhotoPile';
  * <PilePhotosStep files={photoFiles} />
  *
  * 의도: 13b″(읽으면서 미리보기)·13c″(다 읽음)를 없애고 이 화면 하나로 대신합니다.
+ * @param {object} props
+ * @param {File[]} props.files 13a″에서 고르고 거른 사진 파일 목록. 바뀌지 않는 같은 배열이어야 해요
  */
 export default function PilePhotosStep({ files }) {
   const { photos, failedCount, isDone } = usePhotoThumbnails(files);
