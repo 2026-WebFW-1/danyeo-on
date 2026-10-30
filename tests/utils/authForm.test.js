@@ -95,8 +95,8 @@ describe('getSignInErrorMessage', () => {
     ['403', { status: 403 }],
     ['404', { status: 404 }],
     ['422', { status: 422 }],
-  ])('%s처럼 400이 아닌 4xx는 연결 문제가 아니라 로그인 실패로 안내해요', (_name, error) => {
-    expect(getSignInErrorMessage(error)).toBe('로그인하지 못했어요. 잠시 후 다시 시도해 주세요');
+  ])('%s처럼 400이 아닌 4xx는 연결 문제가 아니라 클라이언트 오류로 안내해요', (_name, error) => {
+    expect(getSignInErrorMessage(error)).toBe('클라이언트 오류');
   });
 
   test.each([

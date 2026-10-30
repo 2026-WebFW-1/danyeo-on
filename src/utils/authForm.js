@@ -69,7 +69,7 @@ export function getSignInErrorMessage(error) {
     return '이메일 또는 비밀번호가 맞지 않아요';
   }
   if (error?.status >= 400 && error?.status < 500) {
-    return '로그인하지 못했어요. 잠시 후 다시 시도해 주세요';
+    return '클라이언트 오류';
   }
   return '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요';
 }
