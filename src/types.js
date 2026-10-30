@@ -21,7 +21,7 @@
  * @property {boolean} transit 경유지면 true. 선·통계에서 빠져요
  * @property {string[]} photoIds
  * @property {number} photoCount
- * @property {string | null} coverFileKey 대표 사진. 예: 'public:/photos/tokyo-1.webp'
+ * @property {string | null} coverFileKey 대표 사진. public: 로컬 키 또는 demo:<uuid>/<인물>/<파일명>.webp
  */
 
 /**
