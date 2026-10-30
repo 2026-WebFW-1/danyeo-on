@@ -1,12 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/constants/auth';
+import { DEMO_ACCOUNTS } from '@/constants/auth';
 import {
   getSafeRedirect,
   getScreenName,
   getSignInErrorMessage,
   isValidEmail,
-  isValidPassword,
 } from '@/utils/authForm';
 
 describe('isValidEmail', () => {
@@ -26,21 +25,6 @@ describe('isValidEmail', () => {
 
   test('데모 계정은 모두 이메일 형식이에요', () => {
     expect(DEMO_ACCOUNTS.every((account) => isValidEmail(account.email))).toBe(true);
-  });
-});
-
-describe('isValidPassword', () => {
-  test('8자부터 통과해요', () => {
-    expect(isValidPassword('1234567')).toBe(false);
-    expect(isValidPassword('12345678')).toBe(true);
-  });
-
-  test('빈 칸은 통과하지 못해요', () => {
-    expect(isValidPassword('')).toBe(false);
-  });
-
-  test('데모 비밀번호는 통과해요', () => {
-    expect(isValidPassword(DEMO_PASSWORD)).toBe(true);
   });
 });
 
@@ -97,6 +81,22 @@ describe('getSignInErrorMessage', () => {
 
   test('code가 없는 400도 같은 문장이에요', () => {
     expect(getSignInErrorMessage({ status: 400 })).toBe('이메일 또는 비밀번호가 맞지 않아요');
+  });
+
+  test('비밀번호는 맞았는데 메일 인증 전(email_not_confirmed, 400)이면 그렇게 알려요', () => {
+    expect(getSignInErrorMessage({ code: 'email_not_confirmed', status: 400 })).toBe(
+      '이메일 인증이 아직 안 된 계정이에요',
+    );
+  });
+
+  test.each([
+    ['요청이 너무 많음', { code: 'over_request_rate_limit', status: 429 }],
+    ['401', { status: 401 }],
+    ['403', { status: 403 }],
+    ['404', { status: 404 }],
+    ['422', { status: 422 }],
+  ])('%s처럼 400이 아닌 4xx는 연결 문제가 아니라 로그인 실패로 안내해요', (_name, error) => {
+    expect(getSignInErrorMessage(error)).toBe('로그인하지 못했어요. 잠시 후 다시 시도해 주세요');
   });
 
   test.each([

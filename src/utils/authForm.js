@@ -1,4 +1,4 @@
-import { LOGIN_PATH, MIN_PASSWORD_LENGTH, SCREEN_NAMES } from '@/constants/auth';
+import { LOGIN_PATH, SCREEN_NAMES } from '@/constants/auth';
 
 // 골뱅이 앞뒤에 공백·골뱅이가 아닌 글자가 있고, 도메인에 점이 하나 이상 있으면 이메일로 봐요.
 // 실제로 있는 주소인지는 서버가 판단해요. 여기선 오타(골뱅이 빠짐, 공백)만 먼저 막아요.
@@ -8,6 +8,8 @@ const HOME_PATH = '/';
 
 // Supabase가 이메일·비밀번호가 틀렸을 때 주는 코드예요. 옛 버전은 code 없이 400만 줘요.
 const INVALID_CREDENTIALS_CODE = 'invalid_credentials';
+// 비밀번호까지 맞았는데 메일 인증 링크를 아직 안 누른 계정이에요. 이것도 400이라 code로 먼저 가려요.
+const EMAIL_NOT_CONFIRMED_CODE = 'email_not_confirmed';
 const BAD_REQUEST_STATUS = 400;
 
 /**
@@ -17,15 +19,6 @@ const BAD_REQUEST_STATUS = 400;
  */
 export function isValidEmail(email) {
   return EMAIL_PATTERN.test(email.trim());
-}
-
-/**
- * 비밀번호가 최소 길이(8자) 이상인지 봐요.
- * @param {string} password
- * @returns {boolean}
- */
-export function isValidPassword(password) {
-  return password.length >= MIN_PASSWORD_LENGTH;
 }
 
 /**
@@ -62,13 +55,21 @@ export function getScreenName(path) {
 
 /**
  * 로그인 실패를 화면에 보여 줄 문장으로 바꿔요.
- * 서버의 원문은 영어 개발자용이라 보여 주지 않아요.
+ * 서버의 원문은 영어 개발자용이라 보여 주지 않아요. 상태 코드는 개발자 도구 Network 탭에서 봐요.
+ *  - 이메일과 비밀번호 중 무엇이 틀렸는지는 나누지 않아요. 나누면 가입된 이메일을 알아낼 수 있어요.
+ *  - 400이 아닌 4xx(429 등)는 서버가 답한 것이라 "연결하지 못했어요"가 아니에요.
  * @param {{ code?: string, status?: number } | null | undefined} error Supabase AuthError
  * @returns {string}
  */
 export function getSignInErrorMessage(error) {
+  if (error?.code === EMAIL_NOT_CONFIRMED_CODE) {
+    return '이메일 인증이 아직 안 된 계정이에요';
+  }
   if (error?.code === INVALID_CREDENTIALS_CODE || error?.status === BAD_REQUEST_STATUS) {
     return '이메일 또는 비밀번호가 맞지 않아요';
+  }
+  if (error?.status >= 400 && error?.status < 500) {
+    return '로그인하지 못했어요. 잠시 후 다시 시도해 주세요';
   }
   return '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요';
 }

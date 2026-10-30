@@ -2,10 +2,6 @@
 export const LOGIN_PATH = '/login';
 export const REDIRECT_PARAM = 'redirect';
 
-// 개발-계획의 가입 규칙(비밀번호 8자 이상)을 로그인 칸에도 똑같이 걸어요.
-// Supabase 설정의 최소 길이(6)보다 길어서, 이 검사를 통과하면 서버 규칙도 통과해요.
-export const MIN_PASSWORD_LENGTH = 8;
-
 // 세션 확인이 이보다 오래 걸리면(Supabase 응답 없음) 로딩에 멈추지 않고 로그인 화면을 보여 줘요.
 export const SESSION_CHECK_TIMEOUT_MS = 8000;
 

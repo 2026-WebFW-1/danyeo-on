@@ -1,12 +1,11 @@
 import { useState } from 'react';
 
-import { MIN_PASSWORD_LENGTH } from '@/constants/auth';
-import { isValidEmail, isValidPassword } from '@/utils/authForm';
+import { isValidEmail } from '@/utils/authForm';
 
 /**
  * 이메일·비밀번호 로그인 칸
  *
- * 책임: 입력을 받고, 형식이 틀리면 서버에 보내기 전에 칸 아래에 알려 줍니다. 맞으면 onSubmit으로 넘깁니다.
+ * 책임: 입력을 받고, 이메일 형식이 틀리면 서버에 보내기 전에 칸 아래에 알려 줍니다. 맞으면 onSubmit으로 넘깁니다.
  * 로그인 요청과 서버 오류 문구는 LoginPage가 맡습니다.
  *
  * 호출: LoginPage
@@ -16,6 +15,8 @@ import { isValidEmail, isValidPassword } from '@/utils/authForm';
  *
  * 주의할 것들:
  *  - 형식 문구는 처음엔 숨기고, [로그인]을 한 번 누른 뒤부터 입력할 때마다 다시 봅니다. 치는 중에 빨간 글이 뜨지 않게 합니다.
+ *  - 비밀번호는 길이를 미리 막지 않고 그대로 보냅니다(#85 리뷰). 앱 밖에서 만든 짧은 비밀번호 계정도 들어올 수 있고,
+ *    빈 칸이나 짧은 값은 서버가 틀린 비밀번호로 답해서 LoginPage가 "이메일 또는 비밀번호가 맞지 않아요"를 보여 줍니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=194-603
  */
@@ -25,15 +26,11 @@ export default function LoginForm({ isPending, isDisabled, onSubmit }) {
   const [hasTried, setHasTried] = useState(false);
 
   const emailError = hasTried && !isValidEmail(email) ? '이메일 형식이 아니에요' : null;
-  const passwordError =
-    hasTried && !isValidPassword(password)
-      ? `비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이에요`
-      : null;
 
   const handleSubmit = (event) => {
     event.preventDefault();
     setHasTried(true);
-    if (!isValidEmail(email) || !isValidPassword(password)) return;
+    if (!isValidEmail(email)) return;
     onSubmit(email, password);
   };
 
@@ -73,15 +70,8 @@ export default function LoginForm({ isPending, isDisabled, onSubmit }) {
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          aria-invalid={passwordError !== null}
-          aria-describedby={passwordError ? 'login-password-error' : undefined}
           className="h-12 border border-line bg-white px-4 text-lg text-ink"
         />
-        {passwordError && (
-          <span id="login-password-error" className="text-sm text-accent">
-            {passwordError}
-          </span>
-        )}
       </div>
 
       <button
