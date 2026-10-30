@@ -40,6 +40,9 @@ src/data/
 ```
 
 - **사진 이미지:** `fileKey`를 직접 주소로 쓰지 말고 `usePhoto(fileKey, 'thumb' | 'full')`로 바꿔요. `public:/photos/tokyo-1.webp` → `/photos/full/tokyo-1.webp`(긴 변 2048, 500KB 이하) 또는 `/photos/thumb/tokyo-1.webp`(긴 변 400).
+  - 추가 확보한 도시 사진은 `demo:<uuid>/<인물>/<파일명>.webp` 키로 Supabase `demo-assets`를 가리켜요. `usePhoto`가 `VITE_SUPABASE_URL`을 사용해 공개 이미지 주소를 만들어요. 이 키를 `/photos/`에 직접 붙이지 마세요.
+  - 서진 333장 전부, 하람 263장 중 261장에 이미지가 있어요. 위치를 판단할 근거가 없는 하람 사진 2장은 `fileKey: null`로 남겨요. 사진 ID·촬영 시각·좌표·보정·글·여행 묶음은 유지했어요. 공개 사진과 촬영 정보는 합성 데모이며 실제 사진의 EXIF와 일치하지 않아요.
+  - 추가 이미지의 저작자·라이선스·연결 목록은 BE 저장소의 `data/demo-photo-coverage.json`과 Storage의 `<uuid>/<인물>/coverage-credits.json`에서 확인해요. 재배포할 때 출처·라이선스 표시도 유지해 주세요.
   - 이 두 벌은 my-journey의 JPG를 이 저장소에서 따로 변환해 넣은 거예요(#15). my-journey `mock/export-danyeo.py`는 아직 한 벌짜리 WebP와 다른 폴더 구조를 만들어서, 다시 돌리면 이 구조와 어긋나요.
 - **보정(corrections)** 은 사용자가 자동 결과를 고친 기록이에요. 항상 사진 ID로 가리킵니다.
 
