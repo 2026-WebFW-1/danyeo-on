@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-import PilePhotosStep from './PilePhotosStep';
-import SelectPhotosStep from './SelectPhotosStep';
+import PilePhotosStep from './pile/PilePhotosStep';
+import SelectPhotosStep from './select/SelectPhotosStep';
 
 /**
  * 사진 올리기 페이지. 13a″ 고르기 > 포개지며 쌓이기(#87) > 13h″ 지나가며 정리
