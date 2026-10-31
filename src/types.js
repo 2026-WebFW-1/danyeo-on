@@ -167,14 +167,15 @@
  */
 
 /**
- * 사진 올리기에서 고른 사진을 썸네일로 줄인 한 장이에요(usePhotoThumbnails, PhotoPile).
+ * 사진 올리기에서 고른 사진을 썸네일로 줄인 한 장이에요(useUploadStore, PhotoPile).
  * 아직 저장 전이라 브라우저 메모리에만 있어요.
  *
  * @typedef {object} PilePhoto
  * @property {string} id 고른 순서와 파일 이름으로 만든 값이에요. 예: '3-IMG_0214.jpg'
  * @property {number} order 고른 순서(0부터)예요. 더미에서 놓일 자리를 정할 때 써요(PhotoPile)
  * @property {string} filename 원본 파일 이름이에요. 예: 'IMG_0214.jpg'
- * @property {string | null} src 썸네일의 blob: 주소예요. 화면이 사라지면 해제돼요.
+ * @property {Blob | null} thumb 저장할 때 다시 줄이지 않고 올릴 썸네일이에요
+ * @property {string | null} src 썸네일의 blob: 주소예요. useUploadStore.reset()이 해제해요.
  *   브라우저가 못 그리는 사진(Chrome·Windows의 HEIC 등)이면 null이고 회색 칸으로 그려요
  */
 
