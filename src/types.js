@@ -180,6 +180,33 @@
  */
 
 /**
+ * 고른 원본에서 촬영 정보를 읽은 한 장이에요(readPhotos).
+ * seed photos 한 줄에서 저장할 때 정해지는 id·ownerId·fileKey·uploadedAt을 뺀 모양이에요.
+ *
+ * @typedef {object} ReadPhoto
+ * @property {number} order 고른 순서(0부터)예요. PilePhoto.order와 같아서 썸네일과 짝지을 수 있어요
+ * @property {string} fileName 원본 파일 이름이에요. 폴더 경로는 빼요. 예: 'IMG_0214.jpg'
+ * @property {string | null} takenAt 현지 시각, 시간대 없음. 예: '2024-11-24T08:30:49'
+ * @property {string | null} offset 예: '+09:00'
+ * @property {boolean} timeUncertain offset이 없으면 true예요
+ * @property {number | null} lat
+ * @property {number | null} lng
+ * @property {{ make, model, focal, aperture, shutter, iso } | null} camera
+ * @property {string | null} dedupeKey 이미 올린 사진인지 가리는 키예요(#24와 같은 규칙).
+ *   촬영 시각이 없으면 이름만으로는 다른 사진과 구분할 수 없어서 null이고, 늘 새 사진으로 올려요
+ */
+
+/**
+ * 사진 목록에서 빠진 파일과 그 이유예요(filterPhotoFiles, readPhotos).
+ * 두 곳이 같은 모양이라 화면은 이어 붙여 한 목록으로 보여 줘요.
+ *
+ * @typedef {object} SkippedFile
+ * @property {string} fileName
+ * @property {'hidden' | 'unsupported' | 'unreadable'} reason
+ *   hidden: 숨김 파일(._IMG_0001.jpg, .DS_Store) · unsupported: 받지 않는 형식 · unreadable: 열어 보니 사진이 아님
+ */
+
+/**
  * 로그인한 사람(useAuthStore의 user).
  *
  * @typedef {object} AuthUser
