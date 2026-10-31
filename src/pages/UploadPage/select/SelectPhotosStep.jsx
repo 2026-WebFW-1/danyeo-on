@@ -14,8 +14,8 @@ import PolaroidStack from './PolaroidStack';
  * 책임: 사진을 고르게 하고, 사진 파일만 걸러 onPick으로 보냅니다.
  * 고른 사진을 들고 있거나 다음 화면을 그리지는 않습니다.
  *
- * 호출: UploadPage가 고른 사진이 없을 때 그립니다.
- * <SelectPhotosStep onPick={setPhotoFiles} />
+ * 호출: UploadPage의 고르기 단계에서 그립니다.
+ * <SelectPhotosStep onPick={handlePick} />
  *
  * 의도: 버튼 두 개와 화면 전체 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onPick 하나로 나갑니다.
  *

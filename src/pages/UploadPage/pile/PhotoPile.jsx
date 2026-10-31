@@ -1,10 +1,12 @@
+import { useUploadStore } from '@/stores/upload/uploadStore';
+
 // 더미에 그릴 장 수. 겹쳐 있어서 위쪽 몇 장만 보이니, 300장을 다 그리지 않고 최근 것만 그립니다.
 const VISIBLE_COUNT = 12;
 
 /**
  * 고른 사진이 폴라로이드처럼 포개지는 더미(#87)
  *
- * 책임: 받은 사진을 순서대로 겹쳐 그립니다. 나중에 받은 사진이 위에 놓입니다.
+ * 책임: 스토어의 사진을 순서대로 겹쳐 그립니다. 나중에 받은 사진이 위에 놓입니다.
  * 호출: PilePhotosStep(오른쪽)
  *
  * 의도: 사진마다 위치·각도를 조금씩 다르게 줘서 손으로 던져 놓은 것처럼 보이게 합니다.
@@ -16,10 +18,10 @@ const VISIBLE_COUNT = 12;
  *
  * 주의할 점:
  *  - 들어오는 움직임(animate-photo-pile)은 transform을 덮어써서, 같은 위치를 --pile-* 변수로 넘겨 tokens.css의 keyframes와 맞춥니다.
- * @param {object} props
- * @param {import('@/types').PilePhoto[]} props.photos 지금까지 모인 사진. 앞쪽이 맨 아래에 깔려요
  */
-export default function PhotoPile({ photos }) {
+export default function PhotoPile() {
+  const photos = useUploadStore((state) => state.photos);
+
   return (
     <section
       aria-label="고른 사진 더미"

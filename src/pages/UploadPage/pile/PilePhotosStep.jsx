@@ -1,25 +1,27 @@
-import { usePhotoThumbnails } from '@/hooks/upload/usePhotoThumbnails';
+import { useUploadStore } from '@/stores/upload/uploadStore';
 
 import PhotoPile from './PhotoPile';
 
 /**
  * 고른 사진이 포개지며 쌓이는 화면 (13a″ 다음, 13h″ 전, #87)
  *
- * 책임: 고른 사진을 썸네일로 줄여 오른쪽 더미에 한 장씩 쌓고, 몇 장 모였는지 보여 줍니다.
+ * 책임: 스토어에 준비된 사진 수와 미리 볼 수 없는 수를 보여 줍니다.
  * 사용자는 보기만 하면 되고, 잘못 골랐을 때만 [다시 고르기]를 누릅니다.
  *
  * 호출: UploadPage가 고른 사진이 있을 때 그립니다.
- * <PilePhotosStep files={photoFiles} onReset={() => setPhotoFiles([])} />
+ * <PilePhotosStep onReset={handleReset} />
  *
  * 의도: 13b″(읽으면서 미리보기)·13c″(다 읽음)를 없애고 이 화면 하나로 대신합니다.
  * [다시 고르기]는 13c″에 작은 링크로 있던 것을 옮겨 왔습니다. 깨진 파일만 골랐거나 폴더를 잘못 골랐을 때
  * 13a″로 돌아갈 길이 이것뿐이라, 다 모으기 전에도 늘 보여 줍니다.
  * @param {object} props
- * @param {File[]} props.files 13a″에서 고르고 거른 사진 파일 목록. 바뀌지 않는 같은 배열이어야 해요
  * @param {() => void} props.onReset [다시 고르기]를 누르면 불러요. 13a″로 돌아가요
  */
-export default function PilePhotosStep({ files, onReset }) {
-  const { photos, noPreviewCount, isDone } = usePhotoThumbnails(files);
+export default function PilePhotosStep({ onReset }) {
+  const photoCount = useUploadStore((state) => state.photos.length);
+  const totalCount = useUploadStore((state) => state.files.length);
+  const noPreviewCount = useUploadStore((state) => state.noPreviewCount);
+  const isDone = useUploadStore((state) => state.isDone);
 
   // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가기
   return (
@@ -35,8 +37,8 @@ export default function PilePhotosStep({ files, onReset }) {
           {/* 숫자는 사진마다 바뀌어서 화면 읽기 프로그램에 알리지 않습니다(role="status"를 달면 300장이면 300번 읽음).
               알림은 아래 sr-only 문구 하나가 "다 모았을 때" 한 번만 합니다. */}
           <p className="mt-8 flex items-baseline gap-4">
-            <strong className="font-serif text-8xl font-bold text-ink">{photos.length}</strong>
-            <span className="text-xl text-muted">/ {files.length}장</span>
+            <strong className="font-serif text-8xl font-bold text-ink">{photoCount}</strong>
+            <span className="text-xl text-muted">/ {totalCount}장</span>
           </p>
           {noPreviewCount > 0 && (
             <p className="mt-3 text-md text-muted">
@@ -47,7 +49,7 @@ export default function PilePhotosStep({ files, onReset }) {
               live 영역은 내용이 "바뀔 때" 읽어서, 처음부터 글자가 있으면 읽지 않는 브라우저가 있습니다. */}
           <p role="status" className="sr-only">
             {isDone &&
-              `사진 ${photos.length}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
+              `사진 ${photoCount}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
           </p>
           <button
             type="button"
@@ -57,7 +59,7 @@ export default function PilePhotosStep({ files, onReset }) {
             다시 고르기
           </button>
         </header>
-        <PhotoPile photos={photos} />
+        <PhotoPile />
       </div>
     </main>
   );

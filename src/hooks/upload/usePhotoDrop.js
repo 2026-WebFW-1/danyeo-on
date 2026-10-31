@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 import { filesFromEntries, filterPhotoFiles } from '@/utils/upload/photoFiles';
 
@@ -17,8 +17,14 @@ import { filesFromEntries, filterPhotoFiles } from '@/utils/upload/photoFiles';
 export function usePhotoDrop(onPick) {
   const [isDragging, setIsDragging] = useState(false);
   const [itemCount, setItemCount] = useState(0);
+  // 부르는 쪽이 그릴 때마다 새 onPick을 넘겨도 리스너를 다시 붙이지 않습니다.
+  // 다시 붙이면 폴더를 훑는 도중 다시 그려지기만 해도 아래 isActive가 꺼져 놓은 사진을 잃습니다.
+  const pick = useEffectEvent(onPick);
 
   useEffect(() => {
+    // 화면이 사라진 뒤 끝난 폴더 훑기는 버립니다. onPick이 전역 스토어를 바꿔서, 늦게 오면 새로 고른 사진을 덮어씁니다.
+    let isActive = true;
+
     // 페이지 안의 글자 및 이미지를 끌 때도 같은 이벤트가 와서,
     // 바깥에서 끌어온 파일일 때만 처리합니다.
     const isFileDrag = (event) => event.dataTransfer?.types.includes('Files');
@@ -65,9 +71,11 @@ export function usePhotoDrop(onPick) {
         .filter(Boolean);
 
       const files = await filesFromEntries(entries);
+      if (!isActive) return;
+
       const photos = filterPhotoFiles(files);
       if (photos.length > 0) {
-        onPick(photos);
+        pick(photos);
       }
     };
 
@@ -77,12 +85,13 @@ export function usePhotoDrop(onPick) {
     window.addEventListener('drop', handleDrop);
 
     return () => {
+      isActive = false;
       window.removeEventListener('dragenter', handleDragEnter);
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [onPick]);
+  }, []);
 
   return { isDragging, itemCount };
 }
