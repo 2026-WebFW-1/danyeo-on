@@ -73,7 +73,7 @@ export function usePhotoDrop(onPick) {
       const files = await filesFromEntries(entries);
       if (!isActive) return;
 
-      const photos = filterPhotoFiles(files);
+      const { photos } = filterPhotoFiles(files);
       if (photos.length > 0) {
         pick(photos);
       }

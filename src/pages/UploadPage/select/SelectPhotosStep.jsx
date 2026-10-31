@@ -34,7 +34,7 @@ export default function SelectPhotosStep({ onPick }) {
   const { isDragging, itemCount } = usePhotoDrop(onPick);
 
   const handleInputChange = (event) => {
-    const photos = filterPhotoFiles(event.target.files);
+    const { photos } = filterPhotoFiles(event.target.files);
     if (photos.length > 0) {
       onPick(photos);
     }

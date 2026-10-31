@@ -2,7 +2,7 @@
  * 사용자가 고른 파일을 사진 목록으로 만드는 함수 모음
  *
  * 책임: 파일 이름만 보고 사진을 거르며, 끌어다 놓은 폴더를 파일 목록으로 펼칩니다.(#51)
- *      사진이 실제로 열리는지, 촬영 정보가 있는지는 보지 않습니다. > #22, readExif 몫
+ *      사진이 실제로 열리는지, 촬영 정보가 있는지는 보지 않습니다. > readPhotos 몫
  *
  * 호출: SelectPhotosStep의 input change와 drop 핸들러
  *
@@ -13,27 +13,40 @@
 import { PHOTO_EXTENSIONS } from '@/constants/upload';
 
 /**
- * 사진으로 받을 파일인지 이름으로 봅니다.
+ * 사진으로 받지 않을 파일이면 그 이유를 이름으로 봅니다.
  * macOS가 USB 및 외장 디스크에 남기는 `._IMG_0001.jpg` 같은 숨김 파일은 확장자가 같아도 사진이 아니라서 뺍니다.
  * @param {File} file
- * @returns {boolean}
+ * @returns {'hidden' | 'unsupported' | null} 사진으로 받으면 null
  */
-export function isPhotoFile(file) {
+export function skipReason(file) {
   const name = file.name;
-  const dotIndex = name.lastIndexOf('.');
-  if (name.startsWith('.') || dotIndex === -1) return false;
+  if (name.startsWith('.')) return 'hidden';
 
-  return PHOTO_EXTENSIONS.includes(name.slice(dotIndex + 1).toLowerCase());
+  const dotIndex = name.lastIndexOf('.');
+  const extension = dotIndex === -1 ? '' : name.slice(dotIndex + 1).toLowerCase();
+  return PHOTO_EXTENSIONS.includes(extension) ? null : 'unsupported';
 }
 
 /**
- * 고른 파일 중 사진만 남깁니다.
- * 이때 순서는 그대로입니다.
+ * 고른 파일을 사진과 뺀 파일로 나눕니다. 둘 다 순서는 그대로입니다.
+ * 뺀 파일은 readPhotos가 못 읽은 파일과 같은 모양이라, 화면은 이어 붙여 한 목록으로 보여 줄 수 있습니다.
  * @param {Iterable<File>} files input.files(FileList)나 File 배열
- * @returns {File[]}
+ * @returns {{ photos: File[], skipped: import('@/types').SkippedFile[] }}
  */
 export function filterPhotoFiles(files) {
-  return Array.from(files).filter(isPhotoFile);
+  const photos = [];
+  const skipped = [];
+
+  for (const file of files) {
+    const reason = skipReason(file);
+    if (reason) {
+      skipped.push({ fileName: file.name, reason });
+    } else {
+      photos.push(file);
+    }
+  }
+
+  return { photos, skipped };
 }
 
 /**

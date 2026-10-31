@@ -1,4 +1,4 @@
-# 사진 고르기 흐름 (13a″)
+# 사진 고르기·읽기 흐름 (13a″)
 
 사진은 [폴더 고르기]·[사진만 고르기] 버튼과 화면에 끌어다 놓기(#51), 세 가지 길로 들어옵니다. 세 길 모두 `filterPhotoFiles`로 같은 거르기를 거쳐 `onPick` 하나로 나갑니다.
 
@@ -45,8 +45,8 @@ sequenceDiagram
     펴기-->>훅: File[] (하위 폴더까지 한 줄로)
 
     훅->>거르기: filterPhotoFiles(files)
-    거르기->>거르기: filter(isPhotoFile)
-    거르기-->>훅: photos
+    거르기->>거르기: 이름마다 skipReason (숨김 파일·지원 안 하는 확장자는 skipped로)
+    거르기-->>훅: { photos, skipped } (skipped는 아직 받지 않음)
 
     opt photos가 1장 이상
         훅->>페이지: onPick(photos)
@@ -68,11 +68,41 @@ sequenceDiagram
     화면->>화면: 숨은 input.click() → 파일 창
     사용자->>화면: 고르기 (change)
     화면->>거르기: filterPhotoFiles(input.files)
-    거르기-->>화면: photos
+    거르기-->>화면: { photos, skipped } (skipped는 아직 받지 않음)
     opt photos가 1장 이상
         화면->>페이지: onPick(photos)
     end
     화면->>화면: input.value 비우기 (같은 폴더를 다시 골라도 change가 오게)
+```
+
+## 촬영 정보 읽기
+
+고른 원본은 `readPhotos`가 한 장씩 읽습니다. 아직 화면에서 부르는 곳이 없어서 부르는 쪽은 정해지지 않았습니다.
+
+```mermaid
+sequenceDiagram
+    participant 부르는쪽 as 부르는 쪽 (아직 없음)
+    participant 읽기 as readPhotos
+    participant 정보 as readExif
+    participant exifr
+
+    부르는쪽->>읽기: readPhotos(원본 files, { onProgress })
+    loop 한 장씩 (앞 장이 끝나야 다음 장)
+        읽기->>정보: readExif(file)
+        정보->>exifr: parse(file, 필요한 태그만, 통째로)
+        alt 던짐(이미지가 아님) 또는 errors 있음(잘린 파일)
+            exifr-->>정보: 실패
+            정보-->>읽기: readable = false
+            읽기->>읽기: skipped에 { fileName, reason: 'unreadable' }
+        else 읽음 (EXIF가 없는 사진도 여기)
+            exifr-->>정보: tags
+            정보->>정보: 촬영 시각·위치·카메라로 바꿈
+            정보-->>읽기: readable = true + 정보
+            읽기->>읽기: photos에 { order, fileName, ...정보, dedupeKey }
+        end
+        읽기-->>부르는쪽: onProgress({ done, total })
+    end
+    읽기-->>부르는쪽: { photos, skipped, counts }
 ```
 
 ## 코드만 봐서는 알기 어려운 것
