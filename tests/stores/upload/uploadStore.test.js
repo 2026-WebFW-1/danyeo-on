@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { savePhotoImage } from '@/services/photoService';
 import { useUploadStore } from '@/stores/upload/uploadStore';
-import { resizeThumbnail } from '@/utils/upload/resizePhoto';
+import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
-vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn() }));
+vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
+vi.mock('@/services/photoService', () => ({ savePhotoImage: vi.fn() }));
 
 const { getState } = useUploadStore;
 const photoFile = (name) => new File(['사진'], name, { type: 'image/jpeg' });
@@ -15,6 +17,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   getState().reset();
   vi.restoreAllMocks();
   vi.resetAllMocks();
@@ -132,5 +135,101 @@ describe('reset', () => {
     expect(getState()).toMatchObject({ files: [], photos: [], isDone: false });
     expect(resizeThumbnail).toHaveBeenCalledTimes(1);
     expect(createUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe('uploadImages', () => {
+  const full = new Blob(['보기용'], { type: 'image/webp' });
+  const targetsOf = (count) =>
+    Array.from({ length: count }, (_, order) => ({ order, fileKey: `photos:u/p_${order}` }));
+  const startWith = (count) =>
+    getState().start(Array.from({ length: count }, (_, order) => photoFile(`${order}.jpg`)));
+
+  beforeEach(() => {
+    vi.mocked(resizeFull).mockResolvedValue(full);
+    vi.mocked(savePhotoImage).mockResolvedValue();
+  });
+
+  test('쌓을 때 만든 썸네일과 새로 만든 보기용을 올리고, 올린 수를 세요', async () => {
+    // given
+    await startWith(2);
+    vi.mocked(resizeThumbnail).mockClear();
+
+    // when
+    await getState().uploadImages(targetsOf(2));
+
+    // then
+    expect(savePhotoImage).toHaveBeenCalledWith('photos:u/p_0', { full, thumb });
+    expect(savePhotoImage).toHaveBeenCalledWith('photos:u/p_1', { full, thumb });
+    expect(resizeThumbnail).not.toHaveBeenCalled();
+    expect(getState().imageUpload).toEqual({ total: 2, uploaded: 2, skipped: 0, failed: 0 });
+  });
+
+  test('브라우저가 못 여는 사진은 올리지 않고 건너뛴 수로 세요', async () => {
+    // given
+    vi.mocked(resizeThumbnail).mockResolvedValue(null);
+    await startWith(1);
+
+    // when
+    await getState().uploadImages(targetsOf(1));
+
+    // then
+    expect(resizeFull).not.toHaveBeenCalled();
+    expect(savePhotoImage).not.toHaveBeenCalled();
+    expect(getState().imageUpload).toEqual({ total: 1, uploaded: 0, skipped: 1, failed: 0 });
+  });
+
+  test('실패하면 기다렸다가 다시 시도하고, 세 번 다 실패하면 실패로 세요', async () => {
+    // given: p_0은 한 번 실패한 뒤 성공, p_1은 계속 실패
+    await startWith(2);
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const attempts = {};
+    vi.mocked(savePhotoImage).mockImplementation(async (fileKey) => {
+      attempts[fileKey] = (attempts[fileKey] ?? 0) + 1;
+      if (fileKey === 'photos:u/p_1' || attempts[fileKey] === 1) throw new Error('네트워크');
+    });
+
+    // when
+    const uploading = getState().uploadImages(targetsOf(2));
+    await vi.runAllTimersAsync();
+    await uploading;
+
+    // then
+    expect(attempts).toEqual({ 'photos:u/p_0': 2, 'photos:u/p_1': 3 });
+    expect(getState().imageUpload).toEqual({ total: 2, uploaded: 1, skipped: 0, failed: 1 });
+  });
+
+  test('한 번에 3장까지만 올려요', async () => {
+    // given
+    await startWith(5);
+    let running = 0;
+    let maxRunning = 0;
+    vi.mocked(savePhotoImage).mockImplementation(async () => {
+      running += 1;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running -= 1;
+    });
+
+    // when
+    await getState().uploadImages(targetsOf(5));
+
+    // then
+    expect(maxRunning).toBe(3);
+    expect(getState().imageUpload).toMatchObject({ total: 5, uploaded: 5 });
+  });
+
+  test('도중에 비우면 남은 사진은 올리지 않고 진행 상태도 되살리지 않아요', async () => {
+    // given: 처음 올리는 순간 새로 고름
+    await startWith(5);
+    vi.mocked(savePhotoImage).mockImplementation(async () => getState().reset());
+
+    // when
+    await getState().uploadImages(targetsOf(5));
+
+    // then: 이미 시작한 3장 말고는 올리지 않아요
+    expect(savePhotoImage).toHaveBeenCalledTimes(3);
+    expect(getState().imageUpload).toEqual({ total: 0, uploaded: 0, skipped: 0, failed: 0 });
   });
 });

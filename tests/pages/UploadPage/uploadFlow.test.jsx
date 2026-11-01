@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { resizeThumbnail } from '@/utils/upload/resizePhoto';
 
-vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn() }));
+vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
 vi.mock('@/services/authService', () => ({
   getSessionUser: vi.fn(),
   onSessionChange: vi.fn(() => () => {}),
