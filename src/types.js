@@ -247,8 +247,8 @@
  * @property {number | null} lat
  * @property {number | null} lng
  * @property {{ make, model, focal, aperture, shutter, iso } | null} camera
- * @property {string | null} dedupeKey 이미 올린 사진인지 가리는 키예요(#24와 같은 규칙).
- *   촬영 시각이 없으면 이름만으로는 다른 사진과 구분할 수 없어서 null이고, 늘 새 사진으로 올려요
+ * @property {string} dedupeKey 이미 올린 사진인지 가리는 키예요(#24와 같은 규칙).
+ *   촬영 시각이 없으면 이름만으로 가려요(예: '|IMG_0098.JPG')
  */
 
 /**
