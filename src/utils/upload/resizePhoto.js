@@ -4,18 +4,15 @@ const THUMB_EDGE = 400;
 const QUALITY = 0.8;
 
 /**
- * <p>사진 파일을 보기용, 썸네일로 줄입니다.
- * <p>브라우저가 열지 못하는 파일(HEIC, 깨진 파일)은 null로 처리합니다.
+ * <p>보기용(긴 변 2048px) 한 장만 만듭니다.
+ * <p>썸네일은 고를 때 resizeThumbnail로 이미 만들어 두어서, 올릴 때 다시 만들지 않습니다(#26).
  *
- * <p>결과에는 EXIF를 남기지 않을 예정이고, 촬영 정보는 이전에 처리되어야합니다.
+ * <p>결과에는 EXIF가 남지 않으니, 촬영 정보는 그 전에 원본으로 읽어야 합니다.
  * @param {File} file
- * @returns {Promise<{ full: Blob, thumb: Blob } | null>}
+ * @returns {Promise<Blob | null>} 브라우저가 열지 못하는 파일(HEIC, 깨진 파일)은 null
  */
-export async function resizePhoto(file) {
-  return withBitmap(file, async (bitmap) => ({
-    full: await drawToBlob(bitmap, FULL_EDGE),
-    thumb: await drawToBlob(bitmap, THUMB_EDGE),
-  }));
+export async function resizeFull(file) {
+  return withBitmap(file, (bitmap) => drawToBlob(bitmap, FULL_EDGE));
 }
 
 /**
@@ -85,13 +82,23 @@ async function drawToBlob(bitmap, maxEdge) {
   // resize
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
-  const webp = await canvasToBlob(canvas, 'image/webp');
-  if (webp.type === 'image/webp') {
-    return webp;
-  }
+  return canvasToBlob(canvas, await getImageType());
+}
 
-  // WebP을 못 만드는 브라우저 (Safari)는 PNG를 돌려줘서 용량이 커지므로 JPEG로 대신합니다.
-  return canvasToBlob(canvas, 'image/jpeg');
+let imageTypePromise = null;
+
+/**
+ * <p>WebP를 만들 수 있는 브라우저인지 처음 한 번만 확인합니다.
+ * <p>WebP를 못 만드는 브라우저(Safari)는 PNG를 돌려줘서 용량이 커지므로 JPEG로 대신합니다.
+ * 사진마다 WebP를 먼저 만들어 보면 Safari에서 장마다 두 번 인코딩하게 됩니다(PR #88 리뷰).
+ * @returns {Promise<'image/webp' | 'image/jpeg'>}
+ */
+function getImageType() {
+  imageTypePromise ??= canvasToBlob(document.createElement('canvas'), 'image/webp').then(
+    (blob) => (blob.type === 'image/webp' ? 'image/webp' : 'image/jpeg'),
+    () => 'image/jpeg',
+  );
+  return imageTypePromise;
 }
 
 /**
