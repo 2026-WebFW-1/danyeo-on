@@ -47,7 +47,13 @@ export default defineConfig([
           paths: [{ name: '@supabase/supabase-js', message: 'services/ 함수를 거쳐 주세요.' }],
           patterns: [
             {
-              group: ['@/services/supabase', '@/services/getSupabase'],
+              // 상대 경로('../services/supabase')와 확장자를 붙인 경로도 막아요.
+              group: [
+                '**/services/supabase',
+                '**/services/supabase.js',
+                '**/services/getSupabase',
+                '**/services/getSupabase.js',
+              ],
               message:
                 'Supabase는 services/ 함수로만 불러요. 필요한 함수가 없으면 services/에 추가해 주세요.',
             },
