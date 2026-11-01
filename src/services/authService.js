@@ -1,21 +1,4 @@
-// supabase.js는 주소·키(.env.local)가 없으면 불러오는 순간 오류를 던져요.
-// 맨 위에서 import하면 .env.local이 없는 PC에서 앱 전체가 흰 화면이 돼서, 처음 쓸 때 불러와요.
-// 실패하면 각 함수가 오류를 던지고, init()은 로그인 화면을, 로그인은 "서버에 연결하지 못했어요"를 보여 줘요.
-// 원인(".env.local을 확인해 주세요")은 콘솔에 남겨요.
-// 실패하면 기억을 지워서, 네트워크가 잠깐 끊겼던 경우에도 다음 요청 때 다시 불러와요.
-let clientPromise = null;
-
-function getClient() {
-  clientPromise ??= import('@/services/supabase').then(
-    (module) => module.supabase,
-    (error) => {
-      clientPromise = null;
-      console.error(error);
-      throw error;
-    },
-  );
-  return clientPromise;
-}
+import { getSupabse } from './getSupabase';
 
 /**
  * Supabase 사용자를 화면이 쓰는 모양으로 바꿔요.
@@ -34,9 +17,9 @@ export function toAuthUser(user) {
  * @returns {Promise<import('@/types').AuthUser | null>}
  */
 export async function getSessionUser() {
-  const supabase = await getClient();
+  const supabase = await getSupabse();
   const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
+  if (error) throw error; // 던지기만 하고 잡는건 화면 쪽에서
   return data.session ? toAuthUser(data.session.user) : null;
 }
 
@@ -47,7 +30,7 @@ export async function getSessionUser() {
  * @returns {Promise<import('@/types').AuthUser>}
  */
 export async function signInWithPassword(email, password) {
-  const supabase = await getClient();
+  const supabase = await getSupabse();
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw error;
   return toAuthUser(data.user);
@@ -61,7 +44,7 @@ export async function signInWithPassword(email, password) {
  * @returns {Promise<void>}
  */
 export async function signOut() {
-  const supabase = await getClient();
+  const supabase = await getSupabse();
   const { error } = await supabase.auth.signOut({ scope: 'local' });
   if (error) throw error;
 }
@@ -77,7 +60,7 @@ export function onSessionChange(callback) {
   let subscription = null;
   let isStopped = false;
 
-  getClient()
+  getSupabse()
     .then((supabase) => {
       if (isStopped) return;
       ({ subscription } = supabase.auth.onAuthStateChange((_event, session) => {
