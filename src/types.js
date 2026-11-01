@@ -176,6 +176,43 @@
  */
 
 /**
+ * 사용자가 자동 결과를 고친 기록 하나예요(my_data의 corrections). 대상은 항상 사진 ID로 가리켜요.
+ * type마다 붙는 칸이 달라요. 기준 사진이 지워지면 보정만 남아 사진 칸이 null이나 빈 배열일 수 있어요.
+ *
+ * @typedef {object} Correction
+ * @property {string} id
+ * @property {string} ownerId
+ * @property {'rename' | 'exclude' | 'transit' | 'mode' | 'split' | 'merge'} type
+ * @property {string} createdAt
+ * @property {string | null} [anchorPhotoId] rename: 이 사진이 든 여행의 이름을 바꿔요
+ * @property {string} [name] rename: 새 이름
+ * @property {string | null} [photoId] exclude: 계산에서 뺄 사진
+ * @property {string | null} [fromPhotoId] mode: 이 사진에서 출발하는 구간
+ * @property {'flight' | 'train' | 'car'} [mode] mode: 고친 이동 수단
+ * @property {string | null} [beforePhotoId] split: 이 사진 앞에서 여행을 나눠요
+ * @property {string[]} [photoIds] transit: 경유 지점의 사진들 · merge: 합칠 두 여행의 사진 [a, b]
+ */
+
+/**
+ * rpc('my_data')의 응답이에요. 로그인한 사람의 데이터 전부예요. 사진별 글(photo_notes)은 들어 있지 않아요.
+ *
+ * @typedef {object} MyData
+ * @property {{ id: string, email: string, name: string, picture: string | null, provider: string, createdAt: string } | null} user
+ * @property {Photo[]} photos 촬영 시각 순서, 시각 없는 사진은 맨 뒤
+ * @property {Correction[]} corrections 만든 순서
+ * @property {Post[]} posts 날짜 순서
+ */
+
+/**
+ * 사진 저장 결과예요(savePhotos). 넘긴 사진 ID를 둘로 나눠요.
+ * rpc('save_photos')는 새로 저장된 ID 배열만 돌려줘서, savePhotos가 넘긴 ID와 비교해 만들어요.
+ *
+ * @typedef {object} SavePhotosResult
+ * @property {string[]} saved 새로 저장된 사진
+ * @property {string[]} skipped 이미 있어서 건너뛴 사진(같은 파일 이름·촬영 시각)
+ */
+
+/**
  * 사진 한 장을 화면에 보여 줄 때 필요한 값이에요(PhotoGrid, Lightbox).
  * seed의 photos 한 줄에서 이 둘만 있으면 돼요.
  *

@@ -36,6 +36,26 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  // Supabase는 services/ 함수로만 불러요. RLS에 막히면 0행이 돌아오는 것처럼 직접 다루면 놓치기 쉬운 게 많아서예요.
+  {
+    files: ['src/**/*.{js,jsx}'],
+    ignores: ['src/services/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: '@supabase/supabase-js', message: 'services/ 함수를 거쳐 주세요.' }],
+          patterns: [
+            {
+              group: ['@/services/supabase', '@/services/getSupabase'],
+              message:
+                'Supabase는 services/ 함수로만 불러요. 필요한 함수가 없으면 services/에 추가해 주세요.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Prettier와 겹치는 포맷 규칙은 끄기 (항상 마지막에)
   eslintConfigPrettier,
 ]);
