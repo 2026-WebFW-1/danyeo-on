@@ -9,7 +9,7 @@ let clientPromise = null;
  * 불러오지 못하면 오류를 던집니다. 화면에 무엇을 보여 줄지는 부른 쪽이 결정합니다.
  * @returns {Promise<import('@supabase/supabase-js').SupabaseClient>}
  */
-export function getSupabse() {
+export function getSupabase() {
   clientPromise ??= import('@/services/supabase').then(
     (module) => module.supabase,
     (error) => {

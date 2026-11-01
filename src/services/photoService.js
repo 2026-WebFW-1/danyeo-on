@@ -1,4 +1,4 @@
-import { getSupabse } from './getSupabase';
+import { getSupabase } from './getSupabase';
 
 /**
  * 로그인한 사람의 데이터(사진·보정·글)를 한 번에 가져와요.
@@ -8,7 +8,7 @@ import { getSupabse } from './getSupabase';
  * @returns {Promise<import('@/types').MyData>}
  */
 export async function getMyData() {
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc('my_data');
   if (error) throw error;
   return data;
@@ -27,7 +27,7 @@ export async function savePhotos(photos) {
       skipped: [],
     };
 
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
   const { data, error } = await supabase.rpc('save_photos', {
     photos,
   });
@@ -52,7 +52,7 @@ export async function savePhotos(photos) {
 export async function deletePhotos(ids) {
   if (ids.length === 0) return [];
 
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
 
   // RLS에 막히면 오류 대신 0행이 지워져서, select로 지운 행을 돌려받아 확인합니다.
   const { data, error } = await supabase.from('photos').delete().in('id', ids).select('id');

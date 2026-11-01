@@ -1,4 +1,4 @@
-import { getSupabse } from './getSupabase';
+import { getSupabase } from './getSupabase';
 
 /**
  * Supabase 사용자를 화면이 쓰는 모양으로 바꿔요.
@@ -17,7 +17,7 @@ export function toAuthUser(user) {
  * @returns {Promise<import('@/types').AuthUser | null>}
  */
 export async function getSessionUser() {
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error; // 던지기만 하고 잡는건 화면 쪽에서
   return data.session ? toAuthUser(data.session.user) : null;
@@ -30,7 +30,7 @@ export async function getSessionUser() {
  * @returns {Promise<import('@/types').AuthUser>}
  */
 export async function signInWithPassword(email, password) {
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw error;
   return toAuthUser(data.user);
@@ -44,7 +44,7 @@ export async function signInWithPassword(email, password) {
  * @returns {Promise<void>}
  */
 export async function signOut() {
-  const supabase = await getSupabse();
+  const supabase = await getSupabase();
   const { error } = await supabase.auth.signOut({ scope: 'local' });
   if (error) throw error;
 }
@@ -60,7 +60,7 @@ export function onSessionChange(callback) {
   let subscription = null;
   let isStopped = false;
 
-  getSupabse()
+  getSupabase()
     .then((supabase) => {
       if (isStopped) return;
       ({ subscription } = supabase.auth.onAuthStateChange((_event, session) => {
