@@ -51,7 +51,7 @@ test('fixture를 모두 읽으면 읽은 사진은 고른 순서대로, 못 읽�
   );
 });
 
-test('이름과 촬영 시각이 같아야 같은 키이고, 촬영 시각이 없으면 키가 없어요', async () => {
+test('이름과 촬영 시각이 같아야 같은 키이고, 촬영 시각이 없으면 이름만으로 키를 만들어요', async () => {
   // given
   const paths = ['dup/IMG_0098.JPG', 'dup/IMG_0098 (1).JPG', 'KakaoTalk_20241125_103012.jpg'];
   const files = await Promise.all(paths.map(pickFixture));
@@ -63,7 +63,7 @@ test('이름과 촬영 시각이 같아야 같은 키이고, 촬영 시각이 �
   expect(photos.map((photo) => photo.dedupeKey)).toEqual([
     `${caseOf('dup/IMG_0098.JPG').expect.takenAt}|IMG_0098.JPG`,
     `${caseOf('dup/IMG_0098 (1).JPG').expect.takenAt}|IMG_0098 (1).JPG`,
-    null,
+    '|KakaoTalk_20241125_103012.jpg',
   ]);
 });
 
