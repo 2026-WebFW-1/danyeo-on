@@ -158,6 +158,24 @@
  */
 
 /**
+ * 저장된 사진 한 장이에요(photoService). seed의 photos 한 줄, my_data()의 photos 한 줄과 같은 모양이에요.
+ *
+ * @typedef {object} Photo
+ * @property {string} id 브라우저가 만든 값이에요. 예: 'p_c2a066'
+ * @property {string} ownerId 올린 사람의 uuid예요. AuthUser.id와 같은 값이라, 로그인한 사람의 사진인지 photo.ownerId === user.id로 확인해요
+ * @property {string} fileName 원본 파일 이름이에요. 예: 'IMG_0001.JPG'
+ * @property {string | null} takenAt 현지 시각, 시간대 없음. 예: '2024-03-04T18:38:50'
+ * @property {string | null} offset 예: '+09:00'
+ * @property {boolean} timeUncertain offset이 없으면 true예요
+ * @property {number | null} lat
+ * @property {number | null} lng
+ * @property {{ make, model, focal, aperture, shutter, iso } | null} camera
+ * @property {string | null} fileKey 이미지 위치예요. usePhoto로 주소로 바꿔요. 없으면 null(회색 칸)
+ *   예: 'demo:<uuid>/seojin/tokyo-1.webp', 'public:/photos/tokyo-1.webp'
+ * @property {string} uploadedAt 저장한 시각(시간대 포함)이에요
+ */
+
+/**
  * 사진 한 장을 화면에 보여 줄 때 필요한 값이에요(PhotoGrid, Lightbox).
  * seed의 photos 한 줄에서 이 둘만 있으면 돼요.
  *
