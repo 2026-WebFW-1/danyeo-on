@@ -123,7 +123,7 @@ export default function RouteMap({ home, stops, legs, progress, onSelectStop, cl
             onKeyDown={(event) => handleStopKeyDown(event, stop.id)}
             className="cursor-pointer"
           >
-            {/* 점(지름 8)은 손가락으로 누르기 어려워서 보이지 않는 넓은 영역을 깔아요 */}
+            {/* 점(지름 8)은 누르기 어려워서 보이지 않는 넓은 영역을 깔아요 */}
             <circle cx={x} cy={y} r={12} className="fill-transparent" />
             <circle cx={x} cy={y} r={3.25} strokeWidth={1.5} className="fill-accent stroke-white" />
           </g>

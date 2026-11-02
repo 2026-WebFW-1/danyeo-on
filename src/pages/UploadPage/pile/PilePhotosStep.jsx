@@ -26,7 +26,7 @@ export default function PilePhotosStep({ onReset }) {
   // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가기
   return (
     <main className="flex flex-1 flex-col justify-center bg-canvas">
-      <div className="mx-auto grid w-full max-w-360 items-center gap-10 px-4 py-10 md:grid-cols-[auto_1fr] lg:px-30 lg:py-14 2xl:max-w-400">
+      <div className="mx-auto grid w-full max-w-360 grid-cols-[auto_1fr] items-center gap-10 px-30 py-14 2xl:max-w-400">
         <header>
           <p className="text-xs leading-normal font-medium tracking-[0.04em] text-accent">
             STEP 2 / 2 · 모으기

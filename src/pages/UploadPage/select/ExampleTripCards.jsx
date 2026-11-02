@@ -45,7 +45,7 @@ export default function ExampleTripCards() {
       <p className="text-xs leading-normal font-medium tracking-[0.04em] text-dim">
         넣으면 이렇게 묶여요 . 예시
       </p>
-      <ul className="mt-5 grid gap-6 md:grid-cols-3">
+      <ul className="mt-5 grid grid-cols-3 gap-6">
         {EXAMPLE_TRIPS.map((trip) => (
           <li key={trip.name} className="bg-white p-3 opacity-55">
             <div className="grid grid-cols-3 gap-1.5">

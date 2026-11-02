@@ -25,7 +25,7 @@ export default function PhotoPile() {
   return (
     <section
       aria-label="고른 사진 더미"
-      className="@container relative mx-auto h-80 w-full max-w-120 sm:h-95"
+      className="@container relative mx-auto h-95 w-full max-w-120"
     >
       {photos.slice(-VISIBLE_COUNT).map((photo) => (
         <figure
@@ -54,7 +54,7 @@ export default function PhotoPile() {
             />
           )}
           {/* 글자 크기도 카드처럼 상자 폭(cqw)을 따라갑니다. 2.29cqw는 PolaroidStack(13a″)과 같은 값으로, 상자 480px일 때 11px.
-              PolaroidStack은 휴대폰에서 숨지만 이 더미는 보여서, 너무 작아지지 않게 10px 아래로는 안 줄입니다. */}
+              너무 작아지지 않게 10px 아래로는 안 줄입니다. */}
           <figcaption className="mt-[3cqw] truncate font-mono text-[max(10px,2.29cqw)] leading-normal text-body">
             {photo.filename.replace(/\.[^.]+$/, '')}
           </figcaption>

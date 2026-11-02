@@ -21,7 +21,6 @@ import PolaroidStack from './PolaroidStack';
  *
  * 주의할 것들:
  *  - 같은 폴더를 다시 고르면 change가 오지 않습니다. input.value를 비워 줘야 합니다.
- *  - 휴대폰 브라우저에서 고르면 위치가 빠질 수 있습니다. 기기별 안내는 버튼을 누르면 뜨는 다이얼로그로(#52)
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=355-32
  */
@@ -43,16 +42,15 @@ export default function SelectPhotosStep({ onPick }) {
     event.target.value = '';
   };
 
-  // 휴대폰: 화면이 내용보다 길면 남는 공간을 위아래로 나눠 내용을 가운데에 둡니다.
-  // md 이상: 남는 높이를 전부 위쪽 줄(글·폴라로이드)에 줘서 Nav와 구분선 사이를 채우고, 그 안에서 각자 세로 가운데에 둡니다.
+  // 남는 높이를 전부 위쪽 줄(글·폴라로이드)에 줘서 Nav와 구분선 사이를 채우고, 그 안에서 각자 세로 가운데에 둡니다.
   // flex 안에서 mx-auto는 폭을 내용만큼 줄여 버려서 w-full을 같이 줍니다.
   // relative: 끌어오는 중 덮개가 Nav는 남기고 이 main만 덮도록 기준을 잡습니다.
   return (
-    <main className="relative flex flex-1 flex-col justify-center bg-canvas">
-      <div className="mx-auto flex w-full max-w-360 flex-col px-4 py-10 md:flex-1 lg:px-30 lg:pt-14 lg:pb-12 2xl:max-w-400">
+    <main className="relative flex flex-1 flex-col bg-canvas">
+      <div className="mx-auto flex w-full max-w-360 flex-1 flex-col px-30 pt-14 pb-12 2xl:max-w-400">
         {/* 왼쪽 칸은 글·버튼 폭(auto), 오른쪽 칸은 남는 폭 전부(1fr). */}
-        <div className="md:grid md:flex-1 md:grid-cols-[auto_1fr] md:gap-10">
-          <header className="md:self-center">
+        <div className="grid flex-1 grid-cols-[auto_1fr] gap-10">
+          <header className="self-center">
             <p className="text-xs leading-normal font-medium tracking-[0.04em] text-accent">
               STEP 1 / 2 · 고르기
             </p>
@@ -103,16 +101,16 @@ export default function SelectPhotosStep({ onPick }) {
               className="hidden"
             />
           </header>
-          {/* 꾸밈용이라 휴대폰에서는 숨깁니다. 오른쪽 칸을 위아래로 다 채우고 폴라로이드를 상하좌우 가운데에 둡니다.
+          {/* 오른쪽 칸을 위아래로 다 채우고 폴라로이드를 상하좌우 가운데에 둡니다.
               칸 폭의 88%로 늘고 줄되 피그마 크기(480)를 넘지 않습니다.
               translate-y-[-5%]: 카드가 상자 높이의 11%~100% 지점에 그려져서 상자째 가운데에 두면 아래로 쏠려 보입니다. */}
-          <div className="hidden items-center justify-center md:flex">
+          <div className="flex items-center justify-center">
             <PolaroidStack className="w-[88%] max-w-120 translate-y-[-5%] 2xl:max-w-150" />
           </div>
         </div>
 
-        {/* 위쪽 줄 위아래 여백을 같게 하려고 위 패딩(py-10, lg:pt-14)과 같은 값을 줍니다. */}
-        <hr className="mt-6 border-line md:mt-10 lg:mt-14" />
+        {/* 위쪽 줄 위아래 여백을 같게 하려고 위 패딩(pt-14)과 같은 값을 줍니다. */}
+        <hr className="mt-14 border-line" />
 
         <div className="mt-5">
           <ExampleTripCards />
