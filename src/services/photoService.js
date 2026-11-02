@@ -102,3 +102,25 @@ export async function savePhotoImage(fileKey, images) {
   const failed = results.find((result) => result.error);
   if (failed) throw failed.error;
 }
+
+// 비공개 버킷이라 주소에 기한이 있어요. 한 화면을 보는 동안은 넉넉하게 한 시간으로 잡았어요.
+const SIGNED_URL_SECONDS = 60 * 60;
+
+/**
+ * 올린 사진 이미지를 img src로 쓸 수 있는 서명 주소로 바꿔요.
+ *
+ * @param {string} fileKey toUploadedFileKey로 만든 키
+ * @param {'full' | 'thumb'} size
+ * @returns {Promise<string>} 아직 올리지 않은 이미지면 오류를 던져요
+ */
+export async function getPhotoImageUrl(fileKey, size) {
+  const paths = toUploadedImagePaths(fileKey);
+  if (!paths) throw new Error(`올린 사진의 fileKey가 아니에요: ${fileKey}`);
+
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .createSignedUrl(paths[size], SIGNED_URL_SECONDS);
+  if (error) throw error;
+  return data.signedUrl;
+}

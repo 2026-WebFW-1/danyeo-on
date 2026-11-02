@@ -2,6 +2,14 @@
 const UPLOADED_PREFIX = 'photos:';
 
 /**
+ * 새 사진 ID를 만들어요. 한 사람이 수천 장을 올려도 겹치지 않게 seed('p_c2a066')보다 길게 12자로 만들어요.
+ * @returns {string} 예: 'p_3f9a0c1b7e42'
+ */
+export function createPhotoId() {
+  return `p_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
+}
+
+/**
  * 올릴 사진의 fileKey를 만들어요. 저장하기 전에 정해서, photos 행과 Storage 파일이 처음부터 같은 사진을 가리키게 해요.
  * @param {string} ownerId 로그인한 사람의 uuid(AuthUser.id)
  * @param {string} photoId 예: 'p_c2a066'

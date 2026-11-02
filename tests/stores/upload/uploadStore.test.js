@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { savePhotoImage } from '@/services/photoService';
+import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
-vi.mock('@/services/photoService', () => ({ savePhotoImage: vi.fn() }));
+vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
+vi.mock('@/services/photoService', () => ({ savePhotoImage: vi.fn(), savePhotos: vi.fn() }));
 
 const { getState } = useUploadStore;
 const photoFile = (name) => new File(['사진'], name, { type: 'image/jpeg' });
@@ -265,5 +267,112 @@ describe('uploadImages', () => {
 
     // then
     expect(savePhotoImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('save', () => {
+  const TAKEN_AT = '2024-11-24T08:30:49';
+  const full = new Blob(['보기용'], { type: 'image/webp' });
+  const pick = (names) => getState().start(names.map((name) => photoFile(name)));
+  const readResultOf = (names) => ({
+    photos: names.map((fileName, order) => ({
+      order,
+      fileName,
+      takenAt: TAKEN_AT,
+      offset: null,
+      timeUncertain: true,
+      lat: null,
+      lng: null,
+      camera: null,
+      dedupeKey: `${TAKEN_AT}|${fileName}`,
+    })),
+    skipped: [],
+    counts: { unreadable: 0, noDate: 0, noLocation: 0 },
+  });
+  const uploadedKeys = () => vi.mocked(savePhotoImage).mock.calls.map(([fileKey]) => fileKey);
+
+  beforeEach(() => {
+    vi.mocked(resizeFull).mockResolvedValue(full);
+    vi.mocked(savePhotoImage).mockResolvedValue();
+    vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+      saved: photos.map((photo) => photo.id),
+      skipped: [],
+    }));
+  });
+
+  test('새 사진은 fileKey를 정해 저장하고, 미리 볼 수 있는 사진의 이미지만 올려요', async () => {
+    // given: 두 번째 사진은 미리 볼 수 없음
+    vi.mocked(resizeThumbnail).mockResolvedValueOnce(thumb).mockResolvedValueOnce(null);
+    await pick(['a.jpg', 'b.heic']);
+    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.heic']));
+
+    // when
+    await getState().save('u1');
+    await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+    // then
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    expect(rows[0].id).toMatch(/^p_[0-9a-f]{12}$/);
+    expect(rows[0]).toMatchObject({ fileName: 'a.jpg', fileKey: `photos:u1/${rows[0].id}` });
+    expect(rows[1]).toMatchObject({ fileName: 'b.heic', fileKey: null });
+    expect(uploadedKeys()).toEqual([rows[0].fileKey]);
+    expect(getState()).toMatchObject({
+      saveStatus: 'saved',
+      saveResult: { saved: 2, existing: 0 },
+    });
+  });
+
+  test('이미 저장한 사진은 두 벌로 저장하지 않고 이미지도 다시 올리지 않아요', async () => {
+    // given: a는 전에 저장한 사진
+    await pick(['a.jpg', 'b.jpg']);
+    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
+    vi.mocked(savePhotos).mockImplementation(async ([existing, fresh]) => ({
+      saved: [fresh.id],
+      skipped: [existing.id],
+    }));
+
+    // when
+    await getState().save('u1');
+    await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+    // then
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    expect(uploadedKeys()).toEqual([rows[1].fileKey]);
+    expect(getState().saveResult).toEqual({ saved: 1, existing: 1 });
+  });
+
+  test('저장하지 못하면 실패 상태가 되고 이미지는 올리지 않아요', async () => {
+    // given
+    await pick(['a.jpg']);
+    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+    vi.mocked(savePhotos).mockRejectedValue(new Error('네트워크'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // when
+    await getState().save('u1');
+
+    // then
+    expect(getState().saveStatus).toBe('failed');
+    expect(savePhotoImage).not.toHaveBeenCalled();
+  });
+
+  test('저장하는 도중 비우면 결과를 덮거나 이미지를 올리지 않아요', async () => {
+    // given: 저장 요청이 끝나기 전
+    await pick(['a.jpg']);
+    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+    const pending = Promise.withResolvers();
+    vi.mocked(savePhotos).mockReturnValueOnce(pending.promise);
+    const saving = getState().save('u1');
+    await vi.waitFor(() => expect(savePhotos).toHaveBeenCalled());
+
+    // when
+    getState().reset();
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    pending.resolve({ saved: rows.map((row) => row.id), skipped: [] });
+    await saving;
+
+    // then
+    expect(getState()).toMatchObject({ saveStatus: 'idle', saveResult: null });
+    expect(savePhotoImage).not.toHaveBeenCalled();
   });
 });

@@ -1,23 +1,58 @@
-# 사진 이미지 올리기·지우기 흐름 (#26)
+# 사진 저장·이미지 올리기·보기·지우기 흐름 (#26)
 
 ## 한눈에
 
 ```
-올리기:  사진 고름 → 보기용으로 줄임 → 버킷에 올림 (3장씩, 실패하면 다시)
+저장:    [저장하기] → 촬영 정보 읽기 → DB에 저장 → 올릴 사진 골라 올리기 시작
+올리기:  보기용으로 줄임 → 버킷에 올림 (3장씩, 실패하면 다시)
+보기:    'photos:' 키는 서명 주소를 받아 와서 보여 줌 (받기 전엔 회색 칸)
 지우기:  DB에서 지움 → 버킷 파일도 지움
 키:      DB엔 'photos:내id/사진id' 하나만 적고, 실제 파일 경로는 필요할 때 계산
 ```
 
 아래 다이어그램은 이 줄기에 재시도·취소·건너뛰기 같은 예외 처리를 더한 것입니다.
 
-`uploadImages`를 부르는 화면은 아직 없어서, "화면"은 앞으로 붙을 호출자입니다.
+저장 버튼과 진행 줄은 03 화면과 #27이 생기기 전까지 모으기 화면(`SavePhotos`)에 임시로 둡니다.
 
-## 1. 올리기 (`uploadImages`)
+## 1. 저장 (`save`)
+
+같은 폴더를 다시 넣어도 두 벌로 저장되지 않습니다. 이미 저장한 사진의 이미지는 다시 올리지 않습니다.
+창을 닫으면 JS가 멈추면서 올리기도 멈춥니다. 그때 못 올린 이미지를 이어서 올리는 기능은 #26에 남겨 두었습니다(코드가 커서 뺐음).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant UI as 화면(미구현)
+    participant UI as SavePhotos
+    participant Store as uploadStore
+    participant Read as readPhotos
+    participant Svc as photoService
+    participant DB as Supabase DB
+    participant S3 as Supabase Storage<br/>(photos 버킷)
+
+    UI->>Store: save(ownerId)
+    Store->>Store: saveStatus = 'saving'
+    Store->>Read: readPhotos(files) (원본에서 촬영 정보)
+    Read-->>Store: 사진마다 { order, dedupeKey, 촬영 정보 }
+    Store->>Store: 사진마다 id = createPhotoId()<br/>미리 볼 수 있으면 fileKey = 'photos:ownerId/id', 없으면 null
+    Store->>Svc: savePhotos(rows)
+    Svc->>DB: rpc('save_photos')
+    DB-->>Store: { saved, skipped } (skipped = 같은 이름·촬영 시각이 이미 있음)
+
+    alt 실패
+        Store->>Store: saveStatus = 'failed' (다시 누르면 처음부터, 저장은 두 벌이 되지 않음)
+    else 성공
+        Store->>Store: jobId 바뀌었으면 멈춤 (그사이 다시 고른 것)
+        Store->>Store: saveStatus = 'saved', saveResult = { saved, existing }
+        Store-)Store: uploadImages(새로 저장한 사진 중 fileKey 있는 것) (기다리지 않음)
+    end
+```
+
+## 2. 올리기 (`uploadImages`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as save
     participant Store as uploadStore
     participant One as uploadImage<br/>(한 장 담당)
     participant Resize as resizePhoto
@@ -66,7 +101,30 @@ sequenceDiagram
     Store-->>UI: 끝 (Promise resolve)
 ```
 
-## 2. 지우기 (`deletePhotos`)
+## 3. 보기 (`usePhoto`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Cell as PhotoGridCell / Lightbox
+    participant Hook as usePhoto
+    participant Svc as photoService
+    participant S3 as Supabase Storage<br/>(photos 버킷)
+
+    Cell->>Hook: usePhoto(fileKey, size)
+    alt 데모 사진 (public:, demo:)
+        Hook-->>Cell: 바로 주소 (photoSource)
+    else 직접 올린 사진 (photos:)
+        Hook-->>Cell: null (회색 칸)
+        Hook->>Svc: getPhotoImageUrl(fileKey, size)
+        Svc->>S3: createSignedUrl(경로, 1시간)
+        S3-->>Svc: 서명 주소 (아직 안 올라간 이미지면 오류 → 회색 칸 유지)
+        Svc-->>Hook: 서명 주소
+        Hook-->>Cell: 서명 주소 (fileKey가 그대로일 때만)
+    end
+```
+
+## 4. 지우기 (`deletePhotos`)
 
 ```mermaid
 sequenceDiagram

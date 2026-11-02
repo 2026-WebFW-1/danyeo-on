@@ -1,8 +1,13 @@
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import edgeSeed from '@/data/seed/edge.json';
 import seojinSeed from '@/data/seed/seojin.json';
-import { photoSource } from '@/hooks/usePhoto';
+import { photoSource, usePhoto } from '@/hooks/usePhoto';
+import { getPhotoImageUrl } from '@/services/photoService';
+
+vi.mock('@/services/photoService', () => ({ getPhotoImageUrl: vi.fn() }));
 
 describe('photoSource', () => {
   test('크기를 안 주면 full 주소예요', () => {
@@ -87,5 +92,80 @@ describe('시연용 사진 파일', () => {
       if (response.headers.get('content-type') !== 'image/webp') missing.push(url);
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('usePhoto로 직접 올린 사진 보기', () => {
+  const fileKey = 'photos:u1/p_a';
+  let container;
+  let root;
+  let rendered;
+
+  function Probe({ photoKey, size }) {
+    rendered = usePhoto(photoKey, size);
+    return null;
+  }
+  const render = (photoKey, size = 'full') =>
+    act(() => root.render(<Probe photoKey={photoKey} size={size} />));
+
+  beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement('div');
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(() => root.unmount());
+    vi.resetAllMocks();
+    delete globalThis.IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  test('서명 주소를 받기 전엔 회색 칸(null)이고, 받으면 그 주소예요', async () => {
+    // given
+    const pending = Promise.withResolvers();
+    vi.mocked(getPhotoImageUrl).mockReturnValue(pending.promise);
+
+    // when
+    await render(fileKey, 'thumb');
+    const beforeSigned = rendered;
+    await act(async () => pending.resolve('https://signed/thumb'));
+
+    // then
+    expect(beforeSigned).toBeNull();
+    expect(rendered).toBe('https://signed/thumb');
+    expect(getPhotoImageUrl).toHaveBeenCalledWith(fileKey, 'thumb');
+  });
+
+  test('다른 사진으로 바뀌면 이전 사진 주소를 보여 주지 않아요', async () => {
+    // given: p_a 주소를 받은 뒤
+    vi.mocked(getPhotoImageUrl).mockResolvedValueOnce('https://signed/a');
+    await render(fileKey);
+    vi.mocked(getPhotoImageUrl).mockReturnValueOnce(new Promise(() => {}));
+
+    // when
+    await render('photos:u1/p_b');
+
+    // then
+    expect(rendered).toBeNull();
+  });
+
+  test('주소를 못 받으면 회색 칸으로 둬요', async () => {
+    // given
+    vi.mocked(getPhotoImageUrl).mockRejectedValue(new Error('Object not found'));
+
+    // when
+    await render(fileKey);
+
+    // then
+    expect(rendered).toBeNull();
+  });
+
+  test('데모 사진은 서명 주소를 요청하지 않아요', async () => {
+    // when
+    await render('public:/photos/tokyo-1.webp');
+
+    // then
+    expect(rendered).toBe('/photos/full/tokyo-1.webp');
+    expect(getPhotoImageUrl).not.toHaveBeenCalled();
   });
 });
