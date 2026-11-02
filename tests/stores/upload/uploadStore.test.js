@@ -228,8 +228,42 @@ describe('uploadImages', () => {
     // when
     await getState().uploadImages(targetsOf(5));
 
-    // then: 이미 시작한 3장 말고는 올리지 않아요
-    expect(savePhotoImage).toHaveBeenCalledTimes(3);
+    // then: 보기용을 같이 줄이던 나머지 2장도 올리기 직전에 멈춰요
+    expect(savePhotoImage).toHaveBeenCalledTimes(1);
     expect(getState().imageUpload).toEqual({ total: 0, uploaded: 0, skipped: 0, failed: 0 });
+  });
+
+  test('보기용을 줄이는 도중 비우면 그 사진도 올리지 않아요', async () => {
+    // given: 보기용을 줄이는 중
+    await startWith(1);
+    const pending = Promise.withResolvers();
+    vi.mocked(resizeFull).mockReturnValueOnce(pending.promise);
+    const uploading = getState().uploadImages(targetsOf(1));
+
+    // when
+    getState().reset();
+    pending.resolve(full);
+    await uploading;
+
+    // then
+    expect(savePhotoImage).not.toHaveBeenCalled();
+  });
+
+  test('다시 시도를 기다리는 도중 비우면 다시 올리지 않아요', async () => {
+    // given: 첫 시도가 실패해서 기다리는 중
+    await startWith(1);
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(savePhotoImage).mockRejectedValue(new Error('네트워크'));
+    const uploading = getState().uploadImages(targetsOf(1));
+    await vi.advanceTimersByTimeAsync(0);
+
+    // when
+    getState().reset();
+    await vi.runAllTimersAsync();
+    await uploading;
+
+    // then
+    expect(savePhotoImage).toHaveBeenCalledTimes(1);
   });
 });

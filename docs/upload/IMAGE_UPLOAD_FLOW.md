@@ -43,6 +43,7 @@ sequenceDiagram
                 One-->>Store: 'skipped'
             else 줄이기 성공
                 loop 최대 3번 (처음 + 재시도 2번)
+                    One->>One: jobId 바뀌었으면 'cancelled' (줄이거나 기다리는 사이 reset된 것)
                     One->>Svc: savePhotoImage(fileKey, { full, thumb })
                     Svc->>S3: upload full (upsert)
                     Svc->>S3: upload thumb (upsert)
@@ -54,11 +55,11 @@ sequenceDiagram
                         One->>One: 1초 대기 → 다음엔 3초 대기
                     end
                 end
-                One-->>Store: 'uploaded' 또는 'failed'
+                One-->>Store: 'uploaded' / 'failed' / 'cancelled'
             end
 
             Store->>Store: jobId 바뀌었으면 멈춤 (reset된 것)
-            Store->>Store: imageUpload[결과] += 1
+            Store->>Store: imageUpload[결과] += 1 (cancelled는 위에서 멈춰서 세지 않음)
         end
     end
 

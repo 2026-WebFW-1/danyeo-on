@@ -69,13 +69,14 @@ export const useUploadStore = create((set, get) => ({
 
   uploadImages: async (targets) => {
     const currentJob = jobId;
+    const isCancelled = () => currentJob !== jobId;
     const queue = [...targets];
     set({ imageUpload: { ...INITIAL_IMAGE_UPLOAD, total: targets.length } });
 
     const work = async () => {
-      while (queue.length > 0 && currentJob === jobId) {
-        const result = await uploadImage(queue.shift(), get);
-        if (currentJob !== jobId) return;
+      while (queue.length > 0 && !isCancelled()) {
+        const result = await uploadImage(queue.shift(), get, isCancelled);
+        if (isCancelled()) return;
         set((state) => ({
           imageUpload: { ...state.imageUpload, [result]: state.imageUpload[result] + 1 },
         }));
@@ -97,9 +98,10 @@ export const useUploadStore = create((set, get) => ({
  * 한 장을 올려요. 썸네일은 쌓을 때 만든 것을 그대로 쓰고 보기용만 새로 만들어요.
  * @param {{ order: number, fileKey: string }} target
  * @param {() => UploadState} get
- * @returns {Promise<'uploaded' | 'skipped' | 'failed'>}
+ * @param {() => boolean} isCancelled 그사이 reset됐는지예요
+ * @returns {Promise<'uploaded' | 'skipped' | 'failed' | 'cancelled'>} cancelled는 세지 않아요
  */
-async function uploadImage({ order, fileKey }, get) {
+async function uploadImage({ order, fileKey }, get, isCancelled) {
   const file = get().files[order];
   const pilePhoto = get().photos.find((photo) => photo.order === order);
   // 아직 쌓이지 않은 장이면 썸네일을 여기서 만들어요. 쌓인 장의 thumb가 null이면 브라우저가 못 여는 사진이에요.
@@ -108,6 +110,8 @@ async function uploadImage({ order, fileKey }, get) {
   if (!full) return 'skipped';
 
   for (let attempt = 0; ; attempt += 1) {
+    // 보기용을 줄이거나 다시 시도를 기다리는 사이 reset됐으면 올리지 않아요.
+    if (isCancelled()) return 'cancelled';
     try {
       await savePhotoImage(fileKey, { full, thumb });
       return 'uploaded';
