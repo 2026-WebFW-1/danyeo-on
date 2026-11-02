@@ -1,6 +1,7 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
 
 import PhotoPile from './PhotoPile';
+import SavePhotos from './SavePhotos';
 
 /**
  * 고른 사진이 포개지며 쌓이는 화면 (13a″ 다음, 13h″ 전, #87)
@@ -23,7 +24,7 @@ export default function PilePhotosStep({ onReset }) {
   const noPreviewCount = useUploadStore((state) => state.noPreviewCount);
   const isDone = useUploadStore((state) => state.isDone);
 
-  // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가기
+  // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가고, 저장은 정리 뒤로 옮기기
   return (
     <main className="flex flex-1 flex-col justify-center bg-canvas">
       <div className="mx-auto grid w-full max-w-360 grid-cols-[auto_1fr] items-center gap-10 px-30 py-14 2xl:max-w-400">
@@ -51,6 +52,7 @@ export default function PilePhotosStep({ onReset }) {
             {isDone &&
               `사진 ${photoCount}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
           </p>
+          {isDone && <SavePhotos />}
           <button
             type="button"
             onClick={onReset}

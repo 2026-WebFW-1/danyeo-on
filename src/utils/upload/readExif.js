@@ -37,7 +37,7 @@ const UNREADABLE = {
 
 /**
  * <p>사진 파일에서 촬영 시각·위치·카메라 정보를 읽어 seed의 photos 모양으로 돌려줍니다.
- * <p>줄이면 EXIF가 사라지므로 resizePhoto보다 먼저, 원본 파일로 불러야 합니다.
+ * <p>줄이면 EXIF가 사라지므로 resizePhoto.js로 줄이기 전에, 원본 파일로 불러야 합니다.
  *
  * <p>readable은 파일 자체를 읽을 수 있는지입니다. EXIF가 없는 사진(메신저, 캡처)은 true에 값만 null입니다.
  * @param {File | Blob} file

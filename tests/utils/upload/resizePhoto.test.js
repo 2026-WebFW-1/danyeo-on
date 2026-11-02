@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { resizePhoto, resizeThumbnail } from '@/utils/upload/resizePhoto';
+import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 // 사진 파일 대신 캔버스로 PNG를 만들어 씁니다.
 function makeImageFile(width, height) {
@@ -14,13 +14,21 @@ function makeImageFile(width, height) {
   });
 }
 
-test('보기용과 썸네일을 WebP로 만든다', async () => {
+test('보기용은 긴 변이 2048px인 WebP 한 장을 돌려준다', async () => {
   const file = await makeImageFile(3000, 2000);
 
-  const { full, thumb } = await resizePhoto(file);
+  const full = await resizeFull(file);
 
   expect(full.type).toBe('image/webp');
-  expect(thumb.type).toBe('image/webp');
+  const bitmap = await createImageBitmap(full);
+  expect(Math.max(bitmap.width, bitmap.height)).toBe(2048);
+  bitmap.close();
+});
+
+test('보기용도 열 수 없는 파일은 null을 돌려준다', async () => {
+  const file = new File(['not an image'], 'broken.jpg', { type: 'image/jpeg' });
+
+  expect(await resizeFull(file)).toBeNull();
 });
 
 test('썸네일만 만들면 긴 변이 400px인 WebP 한 장을 돌려준다', async () => {

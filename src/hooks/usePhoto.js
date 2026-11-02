@@ -1,3 +1,8 @@
+import { useEffect, useState } from 'react';
+
+import { getPhotoImageUrl } from '@/services/photoService';
+import { toUploadedImagePaths } from '@/utils/photoFileKey';
+
 // `public:`이 붙은 fileKey는 public/ 폴더의 시연용 사진이에요.
 const PUBLIC_PREFIX = 'public:';
 const DEMO_PREFIX = 'demo:';
@@ -37,11 +42,30 @@ export function photoSource(fileKey, size = 'full') {
 }
 
 /**
- * 사진 주소를 돌려주는 훅이에요. 업로드 사진(IndexedDB)을 읽을 때를 위해 훅으로 만들었어요.
+ * 사진 주소를 돌려주는 훅이에요.
+ * 직접 올린 사진(photos:)은 비공개 버킷이라 서명 주소를 받아 와야 해서, 받기 전과 못 받으면 null(회색 칸)이에요.
  * @param {string | null | undefined} fileKey
  * @param {'thumb' | 'full'} [size]
  * @returns {string | null}
  */
 export function usePhoto(fileKey, size = 'full') {
-  return photoSource(fileKey, size);
+  const isUploaded = toUploadedImagePaths(fileKey) !== null;
+  const requestKey = isUploaded ? `${fileKey}|${size}` : null;
+  // 주소가 어느 요청의 것인지 같이 두어, fileKey가 바뀐 직후 이전 사진 주소를 보여 주지 않아요.
+  const [signed, setSigned] = useState({ requestKey: null, url: null });
+
+  useEffect(() => {
+    if (!requestKey) return undefined;
+    let isCurrent = true;
+    getPhotoImageUrl(fileKey, size).then(
+      (url) => isCurrent && setSigned({ requestKey, url }),
+      () => {},
+    );
+    return () => {
+      isCurrent = false;
+    };
+  }, [fileKey, size, requestKey]);
+
+  if (!isUploaded) return photoSource(fileKey, size);
+  return signed.requestKey === requestKey ? signed.url : null;
 }
