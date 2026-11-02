@@ -356,6 +356,23 @@ describe('save', () => {
     expect(savePhotoImage).not.toHaveBeenCalled();
   });
 
+  test('촬영 정보를 읽는 도중 비우면 DB에 저장하지 않아요', async () => {
+    // given: 촬영 정보를 읽는 중
+    await pick(['a.jpg']);
+    const reading = Promise.withResolvers();
+    vi.mocked(readPhotos).mockReturnValueOnce(reading.promise);
+    const saving = getState().save('u1');
+
+    // when
+    getState().reset();
+    reading.resolve(readResultOf(['a.jpg']));
+    await saving;
+
+    // then
+    expect(savePhotos).not.toHaveBeenCalled();
+    expect(getState().saveStatus).toBe('idle');
+  });
+
   test('저장하는 도중 비우면 결과를 덮거나 이미지를 올리지 않아요', async () => {
     // given: 저장 요청이 끝나기 전
     await pick(['a.jpg']);

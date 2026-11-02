@@ -33,6 +33,7 @@ sequenceDiagram
     Store->>Store: saveStatus = 'saving'
     Store->>Read: readPhotos(files) (원본에서 촬영 정보)
     Read-->>Store: 사진마다 { order, dedupeKey, 촬영 정보 }
+    Store->>Store: jobId 바뀌었으면 멈춤 (읽는 사이 다시 고른 것, DB에 저장하지 않음)
     Store->>Store: 사진마다 id = createPhotoId()<br/>미리 볼 수 있으면 fileKey = 'photos:ownerId/id', 없으면 null
     Store->>Svc: savePhotos(rows)
     Svc->>DB: rpc('save_photos')

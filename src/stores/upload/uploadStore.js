@@ -78,18 +78,19 @@ export const useUploadStore = create((set, get) => ({
 
   save: async (ownerId) => {
     const currentJob = jobId;
+    const isCancelled = () => currentJob !== jobId;
     set({ saveStatus: 'saving' });
 
     let saved;
     try {
-      saved = await savePicked(ownerId, get());
+      saved = await savePicked(ownerId, get(), isCancelled);
     } catch (error) {
-      if (currentJob !== jobId) return;
+      if (isCancelled()) return;
       console.error(error);
       set({ saveStatus: 'failed' });
       return;
     }
-    if (currentJob !== jobId) return;
+    if (isCancelled()) return;
 
     const { targets, ...saveResult } = saved;
     set({ saveStatus: 'saved', saveResult });
@@ -129,10 +130,15 @@ export const useUploadStore = create((set, get) => ({
  *
  * @param {string} ownerId
  * @param {UploadState} state
- * @returns {Promise<{ saved: number, existing: number, targets: { order: number, fileKey: string }[] }>}
+ * @param {() => boolean} isCancelled 그사이 reset됐는지예요
+ * @returns {Promise<{ saved: number, existing: number, targets: { order: number, fileKey: string }[] } | null>}
+ *   촬영 정보를 읽는 사이 reset됐으면 저장하지 않고 null
  */
-async function savePicked(ownerId, { files, photos }) {
+async function savePicked(ownerId, { files, photos }, isCancelled) {
   const { photos: readResults } = await readPhotos(files);
+  // 저장하면 이미지 없는 행이 남고, 같은 사진을 다시 저장해도 이미 있다며 건너뛰어서 회색 칸이 돼요.
+  if (isCancelled()) return null;
+
   const hasImage = new Set(photos.filter((photo) => photo.thumb).map((photo) => photo.order));
   const rows = readResults.map(({ order, fileName, takenAt, offset, lat, lng, camera }) => {
     const id = createPhotoId();
