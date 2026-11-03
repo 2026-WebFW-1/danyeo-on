@@ -8,6 +8,7 @@ import UploadPage from '@/pages/UploadPage/UploadPage';
 import * as authService from '@/services/authService';
 import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
+import { usePostStore } from '@/stores/postStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
@@ -18,6 +19,7 @@ vi.mock('@/services/photoService', () => ({
   savePhotoImage: vi.fn(),
   savePhotos: vi.fn(),
   getPhotoImageUrl: vi.fn(),
+  getMyData: vi.fn(),
 }));
 vi.mock('@/services/authService', () => ({
   getSessionUser: vi.fn(),
@@ -45,6 +47,7 @@ afterEach(async () => {
   container.remove();
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
+  usePostStore.getState().reset();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
@@ -122,6 +125,7 @@ test.each([null, { ...user, id: '다른계정' }])(
     await act(() => useUploadStore.getState().start([file]));
     const src = useUploadStore.getState().photos[0].src;
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    usePostStore.setState({ status: 'ready' });
 
     // when: 로그아웃하거나 다른 계정이 되면
     await act(() =>
@@ -131,6 +135,7 @@ test.each([null, { ...user, id: '다른계정' }])(
     // then
     expect(useUploadStore.getState().photos).toEqual([]);
     expect(revoke).toHaveBeenCalledExactlyOnceWith(src);
+    expect(usePostStore.getState().status).toBe('idle');
   },
 );
 
