@@ -179,6 +179,24 @@ describe('save', () => {
     expect(getState().saveError[DATE]).toBe(error);
   });
 
+  test('같은 날짜를 저장 중이면 서버를 부르지 않고 던지고, 앞선 저장은 그대로 끝나요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    const first = getState().save(input);
+
+    // when, then
+    await expect(getState().save(input)).rejects.toThrow();
+    expect(savePost).toHaveBeenCalledTimes(1);
+    expect(getState().saving[DATE]).toBe(true);
+    expect(getState().saveError[DATE]).toBeUndefined();
+
+    request.resolve();
+    const post = await first;
+    expect(getState().byDate[DATE]).toBe(post);
+    expect(getState().saving[DATE]).toBeUndefined();
+  });
+
   test('날짜가 YYYY-MM-DD가 아니면 서버를 부르지 않고 던져요', async () => {
     await expect(getState().save({ ...input, date: '2025-7-1' })).rejects.toThrow();
     expect(savePost).not.toHaveBeenCalled();

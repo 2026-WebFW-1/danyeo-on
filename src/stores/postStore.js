@@ -24,7 +24,7 @@ function omit(map, key) {
  * DB는 같은 날 여러 개를 받을 수 있지만, 앱은 그날 글이 있으면 그 id로 고쳐서 늘리지 않아요.
  *
  * 저장 버튼은 status가 'ready'이고 saving[date]가 아닐 때만 켜 주세요.
- * 불러오기 전이나 저장 중에 또 저장하면 그날 글을 못 찾아 같은 날 글이 늘어날 수 있어요.
+ * 불러오기 전에 저장하면 그날 글을 못 찾아 같은 날 글이 늘어날 수 있어요. 저장 중인 날짜는 스토어도 던져요.
  *
  * 꺼낼 땐 필요한 값만 골라요: usePostStore((state) => state.byDate[date])
  */
@@ -67,6 +67,8 @@ export const usePostStore = create((set, get) => ({
    */
   save: async ({ date, title, body, tags, photoIds }) => {
     if (!DATE_FORMAT.test(date)) throw new Error(`날짜 형식이 YYYY-MM-DD가 아니에요: ${date}`);
+    // 겹쳐 저장하면 새 날짜에 서로 다른 id가 만들어져 같은 날 글이 늘어나요(#110 리뷰).
+    if (get().saving[date]) throw new Error(`이미 저장 중인 날짜예요: ${date}`);
 
     const requested = generation;
     const previous = get().byDate[date];
