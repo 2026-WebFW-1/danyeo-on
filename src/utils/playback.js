@@ -29,6 +29,16 @@ const STAY_MS = 1000;
  */
 
 /**
+ * 재생 시간 한 토막과 실제 시각 한 토막의 짝이에요. 01 아래 타임라인 손잡이가 이걸로 움직여요.
+ *
+ * @typedef {object} DateSegment
+ * @property {number} startMs 이 토막을 시작하는 재생 시간
+ * @property {number} endMs 이 토막이 끝나는 재생 시간
+ * @property {number} fromTime 시작할 때의 실제 시각(밀리초)
+ * @property {number} toTime 끝날 때의 실제 시각(밀리초)
+ */
+
+/**
  * @param {number} value
  * @param {number} min
  * @param {number} max
@@ -122,4 +132,85 @@ export function calcPositionAtDate(legs, date) {
     return legIndex === 0 ? { legIndex: 0, t: 0 } : { legIndex: legIndex - 1, t: 1 };
   }
   return { legIndex, t: (time - departMs) / (Date.parse(leg.arriveAt) - departMs) };
+}
+
+/**
+ * 재생 시간과 실제 시각을 잇는 표를 만들어요. 구간마다 이동 토막, 머무르면 머무는 토막이 하나씩 있어요.
+ * 머무는 토막은 도착부터 다음 출발까지예요. 위치(t: 1)만으로는 머무는 동안의 날짜를 알 수 없어서 따로 둬요.
+ * 집에 돌아오면 재생은 머물지 않고 바로 떠나므로, 집에 있던 기간은 다음 이동 토막에 얹어요.
+ * 그래서 손잡이가 몇 달을 건너뛸 때도 한 번에 튀지 않고 그 이동 동안 미끄러져요.
+ *
+ * @param {import('@/types').Leg[]} legs 시간 순서대로
+ * @param {PlaybackTimeline} timeline
+ * @returns {DateSegment[]} 구간이 0개면 빈 배열
+ */
+export function buildDateTrack(legs, { steps }) {
+  return legs.flatMap((leg, index) => {
+    const { startMs, moveMs, stayMs } = steps[index];
+    const arriveTime = Date.parse(leg.arriveAt);
+    const isAfterHome = index > 0 && steps[index - 1].stayMs === 0;
+    const fromTime = Date.parse(isAfterHome ? legs[index - 1].arriveAt : leg.departAt);
+    const move = { startMs, endMs: startMs + moveMs, fromTime, toTime: arriveTime };
+    if (stayMs === 0) return [move];
+
+    const nextLeg = legs[index + 1];
+    const stay = {
+      startMs: move.endMs,
+      endMs: move.endMs + stayMs,
+      fromTime: arriveTime,
+      toTime: nextLeg ? Date.parse(nextLeg.departAt) : arriveTime,
+    };
+    return [move, stay];
+  });
+}
+
+/**
+ * 지난 재생 시간에 해당하는 실제 시각을 돌려줘요. 타임라인 손잡이의 위치예요.
+ * 끝까지 재생했으면 마지막 도착 시각이에요.
+ *
+ * @param {DateSegment[]} track
+ * @param {number} elapsedMs
+ * @returns {number | null} 밀리초. 구간이 0개면 null
+ */
+export function calcTimeAtElapsed(track, elapsedMs) {
+  if (track.length === 0) return null;
+
+  const segment = track.find(({ endMs }) => elapsedMs <= endMs);
+  if (!segment) return track.at(-1).toTime;
+
+  const { startMs, endMs, fromTime, toTime } = segment;
+  const ratio = clamp((elapsedMs - startMs) / (endMs - startMs), 0, 1);
+  return fromTime + ratio * (toTime - fromTime);
+}
+
+/**
+ * calcTimeAtElapsed의 반대예요. 타임라인을 끌 때 그 날짜의 재생 시간을 찾아요.
+ * 머무는 날짜로 끌어도 도착 순간으로 돌아가지 않고 끈 자리에 그대로 있어요.
+ * 맨 끝으로 끌어도 '다 그린 상태'가 아니라 마지막 지점에 머무는 상태라 카드가 보여요.
+ *
+ * @param {DateSegment[]} track
+ * @param {number} time 밀리초
+ * @returns {number} 구간이 0개면 Infinity(다 그린 상태)
+ */
+export function calcElapsedAtTime(track, time) {
+  if (track.length === 0) return Infinity;
+  if (time <= track[0].fromTime) return 0;
+
+  const segment = track.find(({ toTime }) => time <= toTime);
+  if (!segment) return track.at(-1).endMs;
+
+  const { startMs, endMs, fromTime, toTime } = segment;
+  return startMs + ((time - fromTime) / (toTime - fromTime)) * (endMs - startMs);
+}
+
+/**
+ * 지점에 도착한 순간의 진행 위치예요. 지도에서 지점을 눌렀을 때 seek에 넘겨요.
+ *
+ * @param {import('@/types').Leg[]} legs
+ * @param {string} stopId
+ * @returns {import('@/utils/routeMap').RouteProgress | null} 이 구간들로 도착하는 지점이 아니면 null
+ */
+export function calcPositionAtStop(legs, stopId) {
+  const legIndex = legs.findIndex((leg) => leg.to === stopId);
+  return legIndex === -1 ? null : { legIndex, t: 1 };
 }

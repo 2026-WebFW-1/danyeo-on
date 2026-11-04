@@ -114,3 +114,24 @@ describe('seek', () => {
     expect(getState().isPlaying).toBe(false);
   });
 });
+
+describe('seekToDate', () => {
+  test('머무는 날짜로 옮기면 도착 순간으로 돌아가지 않고 그 자리에 있어요', () => {
+    const arrive = Date.parse(legs[0].arriveAt);
+    const nextDepart = Date.parse(legs[1].departAt);
+
+    getState().seekToDate((arrive + nextDepart) / 2);
+
+    const { timeline, elapsedMs } = getState();
+    const { startMs, moveMs, stayMs } = timeline.steps[0];
+    expect(elapsedMs).toBeCloseTo(startMs + moveMs + stayMs / 2);
+    expect(position()).toEqual({ legIndex: 0, t: 1 });
+  });
+
+  test('재생 상태는 그대로 둬요', () => {
+    getState().pause();
+    getState().seekToDate(Date.parse(legs[3].departAt));
+
+    expect(getState().isPlaying).toBe(false);
+  });
+});
