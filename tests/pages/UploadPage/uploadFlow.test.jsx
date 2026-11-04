@@ -6,11 +6,21 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import App from '@/App';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 import * as authService from '@/services/authService';
+import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
+import { usePostStore } from '@/stores/postStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
-import { resizeThumbnail } from '@/utils/upload/resizePhoto';
+import { readPhotos } from '@/utils/upload/readPhotos';
+import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
-vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn() }));
+vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
+vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
+vi.mock('@/services/photoService', () => ({
+  savePhotoImage: vi.fn(),
+  savePhotos: vi.fn(),
+  getPhotoImageUrl: vi.fn(),
+  getMyData: vi.fn(),
+}));
 vi.mock('@/services/authService', () => ({
   getSessionUser: vi.fn(),
   onSessionChange: vi.fn(() => () => {}),
@@ -37,6 +47,7 @@ afterEach(async () => {
   container.remove();
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
+  usePostStore.getState().reset();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
@@ -114,6 +125,7 @@ test.each([null, { ...user, id: '다른계정' }])(
     await act(() => useUploadStore.getState().start([file]));
     const src = useUploadStore.getState().photos[0].src;
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    usePostStore.setState({ status: 'ready' });
 
     // when: 로그아웃하거나 다른 계정이 되면
     await act(() =>
@@ -123,6 +135,7 @@ test.each([null, { ...user, id: '다른계정' }])(
     // then
     expect(useUploadStore.getState().photos).toEqual([]);
     expect(revoke).toHaveBeenCalledExactlyOnceWith(src);
+    expect(usePostStore.getState().status).toBe('idle');
   },
 );
 
@@ -143,4 +156,48 @@ test('같은 계정의 세션 갱신에서는 사진을 유지해요', async () 
 
   // then
   expect(useUploadStore.getState().photos[0]).toBe(photo);
+});
+
+test('다 모은 뒤 저장하기를 누르면 저장하고 올린 이미지 수를 보여 줘요', async () => {
+  // given: 로그인해서 사진을 다 모은 화면
+  useAuthStore.setState({ user, status: 'authenticated' });
+  await useUploadStore.getState().start([file]);
+  vi.mocked(readPhotos).mockResolvedValue({
+    photos: [
+      {
+        order: 0,
+        fileName: '사진.jpg',
+        takenAt: null,
+        offset: null,
+        timeUncertain: true,
+        lat: null,
+        lng: null,
+        camera: null,
+        dedupeKey: '|사진.jpg',
+      },
+    ],
+    skipped: [],
+    counts: { unreadable: 0, noDate: 1, noLocation: 1 },
+  });
+  vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+    saved: photos.map((photo) => photo.id),
+    skipped: [],
+  }));
+  vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+  vi.mocked(savePhotoImage).mockResolvedValue();
+  await act(() => root.render(<UploadPage />));
+  const saveButton = [...container.querySelectorAll('button')].find(
+    (button) => button.textContent === '저장하기',
+  );
+
+  // when
+  await act(() => saveButton.click());
+  await vi.waitFor(() => expect(container.textContent).toContain('이미지를 다 올렸어요'));
+
+  // then
+  expect(container.textContent).toContain('1장 저장했어요');
+  expect(savePhotoImage).toHaveBeenCalledWith(
+    expect.stringMatching(/^photos:내계정\/p_[0-9a-f]{12}$/),
+    expect.anything(),
+  );
 });

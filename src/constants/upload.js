@@ -27,3 +27,9 @@ export const PHOTO_ACCEPT = [
   'image/avif',
   'image/tiff',
 ].join(',');
+
+// 이미지를 동시에 올리는 장수. 장마다 2048px 보기용을 디코딩해서 메모리를 쓰므로 3장으로 묶었습니다(#26).
+export const IMAGE_UPLOAD_CONCURRENCY = 3;
+
+// 올리기가 실패하면 이만큼(ms) 기다렸다가 다시 시도합니다. 두 번 더 해도 실패하면 실패로 셉니다.
+export const IMAGE_UPLOAD_RETRY_DELAYS_MS = [1000, 3000];
