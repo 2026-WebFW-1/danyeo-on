@@ -205,7 +205,7 @@ export default function TripCard({ trip }) {
 - 컴포넌트·훅·스토어에서 Supabase를 **직접 import하지 않습니다.** 반드시 `services/`의 함수를 거칩니다. 직접 import하면 ESLint 오류가 납니다.
 - 앱 데이터는 Supabase에서 읽습니다. `src/data/`의 JSON은 테스트와 BE seed 재료로만 쓰고, 화면에 보여 줄 데이터로 새로 읽지 않습니다. (`journeyService`의 fixture 읽기는 #104에서 Supabase로 바뀝니다.)
 - 필요한 함수가 없으면 `services/`에 추가합니다. 쿼리는 AI로 작성해도 됩니다. 이때 BE 저장소의 `supabase/migrations/`와 `docs/ERD.md`를 근거로 삼게 합니다.
-- 읽기는 `supabase.from('테이블').select('칸, 연결된테이블(칸)')`으로 해결합니다. **여러 테이블을 한 번에 저장할 때만** BE RPC를 씁니다.
+- 새로 만드는 읽기는 `supabase.from('테이블').select('칸, 연결된테이블(칸)')`으로 해결합니다. BE RPC는 **이미 있는 통합 조회(`my_data`)와 여러 테이블을 한 번에 저장할 때만** 씁니다.
 
   ```js
   // services/noteService.js
