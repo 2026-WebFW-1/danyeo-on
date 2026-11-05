@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 import { geoPath } from 'd3-geo';
 import { feature, mesh } from 'topojson-client';
 import world from 'world-atlas/countries-110m.json';
@@ -37,7 +37,8 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  *
  * 의도: 지점 점은 지금까지 도착한 곳만 찍습니다. 아직 그리지 않은 구간의 도착지가 먼저 보이지 않게 하려고요.
  *       home이 null이면(여행 0개) 경로 없이 지도만 그립니다.
- *       라벨은 도착한 구간에 남기되, 앞 라벨이나 집 표시와 겹치는 라벨은 숨깁니다(selectVisibleLegLabels).
+ *       라벨은 도착한 구간에 남기되, 앞 라벨·집 표시·지점 점을 가리면 비켜 놓고 자리가 없으면 숨깁니다.
+ *       자리는 재생 범위 전체로 한 번 정해서 재생 중에 옮겨 가지 않습니다(selectVisibleLegLabels).
  *
  * @param {object} props
  * @param {import('@/types').Journey['home']} props.home
@@ -49,13 +50,15 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  */
 export default function RouteMap({ home, stops, legs, progress, onSelectStop, className }) {
   const glowFilterId = useId();
+  // 재생 중에는 매 프레임 그려져서, 범위가 바뀔 때만 다시 계산해요.
+  const legLabels = useMemo(() => selectVisibleLegLabels(legs, home, stops), [legs, home, stops]);
   const hasRoute = home !== null;
   const split = splitByProgress(hasRoute ? legs : [], progress);
   const reachedStopIds = calcReachedStopIds(split);
   const visibleStops = stops.filter((stop) => !stop.transit && reachedStopIds.has(stop.id));
   const [homeX, homeY] = hasRoute ? mapProjection([home.lng, home.lat]) : [0, 0];
   const arrivedLegs = split.current?.t === 1 ? [...split.done, split.current.leg] : split.done;
-  const labeledLegs = selectVisibleLegLabels(arrivedLegs, home);
+  const arrivedLegIds = new Set(arrivedLegs.map((leg) => leg.id));
 
   const handleStopKeyDown = (event, stopId) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -141,9 +144,11 @@ export default function RouteMap({ home, stops, legs, progress, onSelectStop, cl
         );
       })}
 
-      {labeledLegs.map((leg) => (
-        <LegLabel key={leg.id} leg={leg} />
-      ))}
+      {legLabels
+        .filter(({ leg }) => arrivedLegIds.has(leg.id))
+        .map(({ leg, rect }) => (
+          <LegLabel key={leg.id} leg={leg} rect={rect} />
+        ))}
     </svg>
   );
 }

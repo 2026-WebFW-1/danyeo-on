@@ -1,6 +1,5 @@
 import { MODE_EMOJI } from '@/constants/journey';
 import { formatInbound } from '@/utils/formatInbound';
-import { calcLegLabelRect } from '@/utils/legLabels';
 
 // foreignObject는 크기를 정해야 해서 긴 글자('기차 · 12,345km')도 들어가는 폭으로 잡고 가운데 맞춰요.
 const BOX_WIDTH = 130;
@@ -16,9 +15,10 @@ const BOX_WIDTH = 130;
  *
  * @param {object} props
  * @param {import('@/types').Leg} props.leg 기차·차 구간
+ * @param {import('@/utils/legLabels').MapRect} props.rect 라벨 자리(selectVisibleLegLabels)
  */
-export default function LegLabel({ leg }) {
-  const { left, right, top, bottom } = calcLegLabelRect(leg);
+export default function LegLabel({ leg, rect }) {
+  const { left, right, top, bottom } = rect;
 
   return (
     <foreignObject

@@ -15,6 +15,8 @@ const LATIN_WIDTH = 6.5;
 const LABEL_GAP = 4;
 // RouteMap이 그리는 집 표시의 바깥 동그라미 반지름이에요.
 const HOME_RING_RADIUS = 16.25;
+// RouteMap이 그리는 지점 점의 반지름이에요(r 3.25 + 흰 테두리 절반).
+const STOP_DOT_RADIUS = 4;
 
 /**
  * @typedef {object} MapRect
@@ -69,31 +71,61 @@ function isOverlapping(a, b) {
 }
 
 /**
- * 지도에 보여 줄 구간 라벨을 골라요. 비행은 라벨이 없어요.
- * 먼저 지나온 라벨이 자리를 차지하고, 그 자리나 집 표시와 겹치는 뒤 라벨은 숨겨요.
- * 그래서 재생이 진행돼도 이미 보이던 라벨이 사라지거나 다시 나타나지 않아요.
- *
- * @param {import('@/types').Leg[]} legs 지나온 구간, 시간 순서
- * @param {import('@/types').Journey['home']} home
- * @returns {import('@/types').Leg[]}
+ * @param {[number, number]} point 지도 좌표
+ * @param {number} radius
+ * @returns {MapRect}
  */
-export function selectVisibleLegLabels(legs, home) {
-  const occupied = [];
+function calcPointRect([x, y], radius) {
+  return { left: x - radius, right: x + radius, top: y - radius, bottom: y + radius };
+}
+
+/**
+ * 라벨을 놓아 볼 자리를 먼저 쓸 순서로 돌려줘요.
+ * 짧은 구간은 양 끝 점이 가운데 바로 옆에 있어서, 가운데 위가 막히면 양 끝 점의 위나 아래로 비켜요.
+ *
+ * @param {import('@/types').Leg} leg 기차·차 구간
+ * @returns {MapRect[]}
+ */
+function calcLabelCandidates(leg) {
+  const rect = calcLegLabelRect(leg);
+  const clearance = STOP_DOT_RADIUS + LABEL_GAP;
+  const endYs = [0, 1].map((t) => mapProjection(calcLegPoint(leg, t))[1]);
+  const aboveBottom = Math.min(...endYs) - clearance;
+  const belowTop = Math.max(...endYs) + clearance;
+  return [
+    rect,
+    { ...rect, top: aboveBottom - LABEL_HEIGHT, bottom: aboveBottom },
+    { ...rect, top: belowTop, bottom: belowTop + LABEL_HEIGHT },
+  ];
+}
+
+/**
+ * 재생 범위 전체에서 구간 라벨의 자리를 정해요. 비행은 라벨이 없어요.
+ * 라벨은 집 표시와 지점 점을 가리지 않고, 먼저 지나온 라벨이 자리를 차지해요. 놓을 자리가 없으면 숨겨요.
+ * 아직 도착하지 않은 지점의 점도 미리 피해요. 범위 전체로 정해 두고 지나온 구간만 그리면
+ * 재생이 진행돼도 보이던 라벨이 옮겨 가거나 사라지지 않아요.
+ *
+ * @param {import('@/types').Leg[]} legs 재생 범위의 구간, 시간 순서
+ * @param {import('@/types').Journey['home']} home
+ * @param {import('@/types').Stop[]} stops
+ * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]}
+ */
+export function selectVisibleLegLabels(legs, home, stops) {
+  const routeStopIds = new Set(legs.flatMap((leg) => [leg.from, leg.to]));
+  const occupied = stops
+    .filter((stop) => !stop.transit && routeStopIds.has(stop.id))
+    .map((stop) => calcPointRect(mapProjection([stop.lng, stop.lat]), STOP_DOT_RADIUS));
   if (home) {
-    const [x, y] = mapProjection([home.lng, home.lat]);
-    occupied.push({
-      left: x - HOME_RING_RADIUS,
-      right: x + HOME_RING_RADIUS,
-      top: y - HOME_RING_RADIUS,
-      bottom: y + HOME_RING_RADIUS,
-    });
+    occupied.push(calcPointRect(mapProjection([home.lng, home.lat]), HOME_RING_RADIUS));
   }
 
-  return legs.filter((leg) => {
-    if (leg.mode === 'flight') return false;
-    const rect = calcLegLabelRect(leg);
-    if (occupied.some((other) => isOverlapping(rect, other))) return false;
+  return legs.flatMap((leg) => {
+    if (leg.mode === 'flight') return [];
+    const rect = calcLabelCandidates(leg).find((candidate) =>
+      occupied.every((other) => !isOverlapping(candidate, other)),
+    );
+    if (!rect) return [];
     occupied.push(rect);
-    return true;
+    return [{ leg, rect }];
   });
 }
