@@ -46,6 +46,18 @@ export function formatDotDate(iso) {
 }
 
 /**
+ * 한 여행만 재생할 때 머리말에 쓰는 기간 글자예요.
+ * 여행은 대부분 며칠이라 formatPeriodRange처럼 월까지만 쓰면 '2025년 9월 – 2025년 9월'이 돼서 날짜까지 써요.
+ *
+ * @param {{ from: string, to: string }} range 시간대가 붙은 시각
+ * @returns {string} 예: '2025.09.19 – 2025.09.21'. 하루짜리면 '2025.09.19'
+ */
+export function formatTripRange({ from, to }) {
+  const [fromDate, toDate] = [formatDotDate(from), formatDotDate(to)];
+  return fromDate === toDate ? fromDate : `${fromDate} – ${toDate}`;
+}
+
+/**
  * 범례에 쓰는 이동 수단별 구간 수예요.
  *
  * @param {import('@/types').Leg[]} legs

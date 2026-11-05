@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn';
-import { formatPeriodRange } from '@/utils/mapScreen';
+import { formatPeriodRange, formatTripRange } from '@/utils/mapScreen';
 
 import { PANEL_STYLE } from './panelStyle';
 
@@ -10,8 +10,9 @@ import { PANEL_STYLE } from './panelStyle';
  *
  * @param {object} props
  * @param {{ from: string, to: string }} props.range 지금 고른 기간
+ * @param {import('@/types').Trip | null} props.trip 한 여행만 재생할 때 그 여행. 있으면 기간 대신 여행 이름과 날짜를 보여 줘요
  */
-export default function MapHeader({ range }) {
+export default function MapHeader({ range, trip }) {
   return (
     <header
       className={cn(
@@ -20,7 +21,14 @@ export default function MapHeader({ range }) {
       )}
     >
       <h1 className="font-serif text-5xl font-bold tracking-[-0.02em] text-nav">My Journey</h1>
-      <p className="text-lg leading-body-lg text-muted">{formatPeriodRange(range)}</p>
+      {trip ? (
+        <>
+          <p className="text-lg font-bold text-nav">{trip.name}</p>
+          <p className="text-md leading-body-md text-muted">{formatTripRange(trip)}</p>
+        </>
+      ) : (
+        <p className="text-lg leading-body-lg text-muted">{formatPeriodRange(range)}</p>
+      )}
     </header>
   );
 }
