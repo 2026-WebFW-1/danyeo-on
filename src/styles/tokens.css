@@ -23,6 +23,14 @@
         rotate(var(--pile-r)) scale(1);
     }
   }
+  /* 경로가 도착하면 카드가 떠오르는 움직임(#117). 피그마 00 모션 주석의 fade + 12px up이에요 */
+  --animate-route-card: route-card 400ms ease-out backwards;
+  @keyframes route-card {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
   /* 색. 피그마 color/* 이름을 그대로 씁니다 */
   --color-canvas: #f8f6f0; /* 페이지 바탕 */
   --color-paper: #efebe2; /* 카드 안쪽 바탕 */
@@ -37,6 +45,10 @@
   --color-map: #f3f0e9; /* 평면 지도 바다 */
   --color-map-land: #cfc9bd; /* 평면 지도 땅 */
   --color-map-border: #fff; /* 나라 경계 */
+  --color-globe-light: #1f4a7c; /* 지구본 밝은 쪽 (00 Globe 이미지에서 뽑은 값) */
+  --color-globe-deep: #0b2545; /* 지구본 가장자리 */
+  --color-globe-land: #8fb3d9; /* 지구본 땅 점 (00 Globe 이미지에서 뽑은 값) */
+  --color-route: #ff3d99; /* 지구본 경로 곡선 */
 
   /* 글꼴 파일은 index.html에서 받습니다. --font-sans를 바꾸면 Preflight가 body 기본 글꼴로 씁니다 */
   --font-sans: 'Noto Sans KR', sans-serif;
