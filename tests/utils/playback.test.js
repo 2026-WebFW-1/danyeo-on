@@ -1,14 +1,20 @@
 import { describe, expect, test } from 'vitest';
 
+import edge from '@/data/fixtures/edge.journey.json';
 import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
+import { selectLegsByPeriod } from '@/utils/periodLegs';
 import {
+  buildDateTrack,
   buildTimeline,
+  calcElapsedAtTime,
   calcElapsedMs,
   calcMoveMs,
   calcPosition,
   calcPositionAtDate,
+  calcPositionAtStop,
+  calcTimeAtElapsed,
 } from '@/utils/playback';
 
 const legs = seojin.legs;
@@ -118,6 +124,46 @@ describe('calcPosition', () => {
   });
 });
 
+// 소수 오차는 숫자에 따라 나타나서, 가진 데이터의 기간별 구간을 모두 돌려 봐요.
+const legSets = [seojin, edge, heavy].flatMap((journey) =>
+  ['1y', '2y', 'all'].map((period) => selectLegsByPeriod(journey, period)),
+);
+
+describe('도착한 순간의 t', () => {
+  test('어느 구간이든 도착 위치로 옮기면 t가 정확히 1이에요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      set.forEach((_leg, legIndex) => {
+        const elapsedMs = calcElapsedMs(setTimeline, { legIndex, t: 1 });
+        expect(calcPosition(setTimeline, elapsedMs)).toEqual({ legIndex, t: 1 });
+      });
+    });
+  });
+
+  test('타임라인을 어느 구간의 도착 시각으로 끌어도 t가 정확히 1이에요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      const track = buildDateTrack(set, setTimeline);
+      set.forEach((leg) => {
+        const position = calcPosition(
+          setTimeline,
+          calcElapsedAtTime(track, Date.parse(leg.arriveAt)),
+        );
+        expect(position.t).toBe(1);
+      });
+    });
+  });
+
+  test('타임라인 맨 끝이면 마지막 구간에 도착한 상태예요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      const track = buildDateTrack(set, setTimeline);
+      const position = calcPosition(setTimeline, calcElapsedAtTime(track, track.at(-1).toTime));
+      expect(position).toEqual({ legIndex: set.length - 1, t: 1 });
+    });
+  });
+});
+
 describe('calcElapsedMs', () => {
   test.each([
     { legIndex: 0, t: 0 },
@@ -185,5 +231,91 @@ describe('calcPositionAtDate', () => {
 
   test('구간이 0개(empty)면 null이에요', () => {
     expect(calcPositionAtDate(empty.legs, '2025-01-01T00:00:00Z')).toBeNull();
+  });
+});
+
+describe('buildDateTrack', () => {
+  const track = buildDateTrack(legs, timeline);
+
+  test.each([
+    ['seojin', seojin],
+    ['heavy', heavy],
+  ])('%s: 재생 시간과 실제 시각이 끊기지 않고 앞으로만 가요', (_name, journey) => {
+    const journeyTrack = buildDateTrack(journey.legs, buildTimeline(journey.legs));
+    journeyTrack.slice(1).forEach((segment, index) => {
+      const prev = journeyTrack[index];
+      expect(segment.startMs).toBe(prev.endMs);
+      expect(segment.fromTime).toBe(prev.toTime);
+      expect(segment.toTime).toBeGreaterThanOrEqual(segment.fromTime);
+    });
+  });
+
+  test('집에 있던 기간은 다음 이동에 얹어서 한 번에 튀지 않아요', () => {
+    const homeIndex = legs.findIndex((leg, index) => leg.to === 'home' && legs[index + 1]);
+    const arrivedHome = Date.parse(legs[homeIndex].arriveAt);
+    const next = track.find((segment) => segment.startMs === steps[homeIndex + 1].startMs);
+
+    expect(next.fromTime).toBe(arrivedHome);
+    expect(next.toTime).toBe(Date.parse(legs[homeIndex + 1].arriveAt));
+  });
+
+  test('구간이 0개면 빈 배열이에요', () => {
+    expect(buildDateTrack(empty.legs, buildTimeline(empty.legs))).toEqual([]);
+  });
+});
+
+describe('calcTimeAtElapsed', () => {
+  const track = buildDateTrack(legs, timeline);
+
+  test('처음은 첫 출발, 끝은 마지막 도착이에요', () => {
+    expect(calcTimeAtElapsed(track, 0)).toBe(Date.parse(legs[0].departAt));
+    expect(calcTimeAtElapsed(track, Infinity)).toBe(Date.parse(legs.at(-1).arriveAt));
+  });
+
+  test('머무는 동안에도 날짜가 도착과 다음 출발 사이에서 움직여요', () => {
+    const { startMs, moveMs, stayMs } = steps[0];
+    const middle = calcTimeAtElapsed(track, startMs + moveMs + stayMs / 2);
+
+    expect(middle).toBeGreaterThan(Date.parse(legs[0].arriveAt));
+    expect(middle).toBeLessThan(Date.parse(legs[1].departAt));
+  });
+
+  test('구간이 0개면 null이에요', () => {
+    expect(calcTimeAtElapsed([], 0)).toBeNull();
+  });
+});
+
+describe('calcElapsedAtTime', () => {
+  const track = buildDateTrack(legs, timeline);
+
+  test.each([[0.1], [0.37], [0.5], [0.82]])(
+    '전체의 %s 지점에서 재생 시간 → 날짜 → 재생 시간이 제자리로 돌아와요',
+    (ratio) => {
+      const elapsedMs = timeline.totalMs * ratio;
+      const time = calcTimeAtElapsed(track, elapsedMs);
+      expect(calcElapsedAtTime(track, time)).toBeCloseTo(elapsedMs, 3);
+    },
+  );
+
+  test('첫 출발보다 앞이면 0이고, 마지막 도착보다 뒤면 마지막 지점에 머무는 상태예요', () => {
+    expect(calcElapsedAtTime(track, 0)).toBe(0);
+
+    const elapsedMs = calcElapsedAtTime(track, Date.parse(legs.at(-1).arriveAt) + 1000);
+    expect(elapsedMs).toBe(timeline.totalMs);
+    expect(calcPosition(timeline, elapsedMs)).not.toBeNull();
+  });
+
+  test('구간이 0개면 다 그린 상태예요', () => {
+    expect(calcElapsedAtTime([], 0)).toBe(Infinity);
+  });
+});
+
+describe('calcPositionAtStop', () => {
+  test('그 지점에 도착하는 구간의 t: 1이에요', () => {
+    expect(calcPositionAtStop(legs, legs[0].to)).toEqual({ legIndex: 0, t: 1 });
+  });
+
+  test('도착하는 구간이 없으면 null이에요', () => {
+    expect(calcPositionAtStop(legs, 'none')).toBeNull();
   });
 });

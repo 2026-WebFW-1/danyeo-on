@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { buildTimeline, calcElapsedMs } from '@/utils/playback';
+import { buildDateTrack, buildTimeline, calcElapsedAtTime, calcElapsedMs } from '@/utils/playback';
 
 /**
  * 01 지도 재생의 상태예요. 지도·PAUSE 버튼·타임라인·도착 사진 카드가 같이 봐요.
@@ -10,14 +10,17 @@ import { buildTimeline, calcElapsedMs } from '@/utils/playback';
  * @typedef {object} PlaybackState
  * @property {import('@/types').Leg[]} legs 지금 재생하는 구간들
  * @property {import('@/utils/playback').PlaybackTimeline} timeline
+ * @property {import('@/utils/playback').DateSegment[]} dateTrack 재생 시간 ↔ 실제 시각 표. 타임라인이 봐요
  * @property {number} elapsedMs 재생을 시작하고 지난 시간. 전체 시간을 넘으면 다 그린 상태예요
  * @property {boolean} isPlaying
  * @property {(legs: import('@/types').Leg[]) => void} load
  *   구간을 싣고 처음부터 재생해요. 움직임 줄이기 설정이면 재생 없이 다 그린 상태로 시작해요
  * @property {() => void} play 재생. 끝난 뒤에 부르면 처음부터
+ * @property {() => void} resume 지금 자리에서 이어서 재생. 맨 끝이면 처음으로 돌아가지 않고 멈춘 채예요
  * @property {() => void} pause
  * @property {(position: import('@/utils/routeMap').RouteProgress | null) => void} seek
  *   위치 옮기기. 재생 중이면 거기서부터 이어서 재생해요. null이면 끝으로 가요
+ * @property {(time: number) => void} seekToDate 그 날짜(밀리초)로 옮기기. 타임라인을 끌 때 써요
  * @property {(deltaMs: number) => void} tick 재생 중일 때 시간을 흘려요. usePlayback만 불러요
  */
 
@@ -29,6 +32,7 @@ function prefersReducedMotion() {
 export const usePlaybackStore = create((set, get) => ({
   legs: [],
   timeline: buildTimeline([]),
+  dateTrack: [],
   elapsedMs: Infinity,
   isPlaying: false,
 
@@ -38,6 +42,7 @@ export const usePlaybackStore = create((set, get) => ({
     set({
       legs,
       timeline,
+      dateTrack: buildDateTrack(legs, timeline),
       elapsedMs: reduceMotion ? Infinity : 0,
       isPlaying: !reduceMotion && timeline.steps.length > 0,
     });
@@ -46,14 +51,21 @@ export const usePlaybackStore = create((set, get) => ({
   play: () => {
     const { timeline, elapsedMs } = get();
     if (timeline.steps.length === 0) return;
-    // 끝까지 재생한 뒤 다시 누르면 처음부터예요.
-    const hasEnded = elapsedMs > timeline.totalMs;
+    // 끝까지 재생했거나 타임라인을 맨 끝으로 끈 뒤 누르면 처음부터예요.
+    const hasEnded = elapsedMs >= timeline.totalMs;
     set({ isPlaying: true, elapsedMs: hasEnded ? 0 : elapsedMs });
+  },
+
+  resume: () => {
+    const { timeline, elapsedMs } = get();
+    if (elapsedMs < timeline.totalMs) set({ isPlaying: true });
   },
 
   pause: () => set({ isPlaying: false }),
 
   seek: (position) => set({ elapsedMs: calcElapsedMs(get().timeline, position) }),
+
+  seekToDate: (time) => set({ elapsedMs: calcElapsedAtTime(get().dateTrack, time) }),
 
   tick: (deltaMs) => {
     const { isPlaying, timeline } = get();

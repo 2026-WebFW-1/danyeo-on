@@ -1,9 +1,11 @@
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 import { geoPath } from 'd3-geo';
 import { feature, mesh } from 'topojson-client';
 import world from 'world-atlas/countries-110m.json';
 
 import { cn } from '@/utils/cn';
+import { selectVisibleLegLabels } from '@/utils/legLabels';
+import { getPlaceName } from '@/utils/mapScreen';
 import {
   calcReachedStopIds,
   MAP_SIZE,
@@ -12,6 +14,7 @@ import {
   toLegLine,
 } from '@/utils/routeMap';
 
+import LegLabel from './LegLabel';
 import ProgressMarker from './ProgressMarker';
 
 const drawPath = geoPath(mapProjection);
@@ -26,14 +29,16 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
 /**
  * 01 지도 재생의 세계 지도와 여행 경로
  *
- * 책임: 받은 props만으로 땅·국경, 집, 다 그린 구간, 지금 구간의 진행, 도착한 지점을 그립니다.
+ * 책임: 받은 props만으로 땅·국경, 집, 다 그린 구간, 지금 구간의 진행, 도착한 지점, 지나온 기차·차 구간 라벨을 그립니다.
  *       재생 시간 계산(usePlayback)과 기간 필터(selectLegsByPeriod)는 쓰는 쪽이 합니다.
- * 호출: MapPage(01). 라우트 연결은 D가 합니다.
+ * 호출: MapPage(01)
  * 크기: viewBox가 1440×799(MAP_SIZE)라 폭만 주면 높이가 비율대로 정해집니다.
  *       폭과 높이를 둘 다 주면 비율이 달라도 빈틈 없이 채우고 넘치는 쪽을 잘라냅니다(태평양이 가운데).
  *
  * 의도: 지점 점은 지금까지 도착한 곳만 찍습니다. 아직 그리지 않은 구간의 도착지가 먼저 보이지 않게 하려고요.
  *       home이 null이면(여행 0개) 경로 없이 지도만 그립니다.
+ *       라벨은 도착한 구간에 남기되, 앞 라벨·집 표시·지점 점을 가리면 비켜 놓고 자리가 없으면 숨깁니다.
+ *       자리는 재생 범위 전체로 한 번 정해서 재생 중에 옮겨 가지 않습니다(selectVisibleLegLabels).
  *
  * @param {object} props
  * @param {import('@/types').Journey['home']} props.home
@@ -45,11 +50,15 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  */
 export default function RouteMap({ home, stops, legs, progress, onSelectStop, className }) {
   const glowFilterId = useId();
+  // 재생 중에는 매 프레임 그려져서, 범위가 바뀔 때만 다시 계산해요.
+  const legLabels = useMemo(() => selectVisibleLegLabels(legs, home, stops), [legs, home, stops]);
   const hasRoute = home !== null;
   const split = splitByProgress(hasRoute ? legs : [], progress);
   const reachedStopIds = calcReachedStopIds(split);
   const visibleStops = stops.filter((stop) => !stop.transit && reachedStopIds.has(stop.id));
   const [homeX, homeY] = hasRoute ? mapProjection([home.lng, home.lat]) : [0, 0];
+  const arrivedLegs = split.current?.t === 1 ? [...split.done, split.current.leg] : split.done;
+  const arrivedLegIds = new Set(arrivedLegs.map((leg) => leg.id));
 
   const handleStopKeyDown = (event, stopId) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -95,7 +104,12 @@ export default function RouteMap({ home, stops, legs, progress, onSelectStop, cl
       ))}
 
       {split.current && (
-        <ProgressMarker leg={split.current.leg} t={split.current.t} glowFilterId={glowFilterId} />
+        <ProgressMarker
+          leg={split.current.leg}
+          t={split.current.t}
+          destinationName={getPlaceName(home, stops, split.current.leg.to)}
+          glowFilterId={glowFilterId}
+        />
       )}
 
       {hasRoute && (
@@ -129,6 +143,12 @@ export default function RouteMap({ home, stops, legs, progress, onSelectStop, cl
           </g>
         );
       })}
+
+      {legLabels
+        .filter(({ leg }) => arrivedLegIds.has(leg.id))
+        .map(({ leg, rect }) => (
+          <LegLabel key={leg.id} leg={leg} rect={rect} />
+        ))}
     </svg>
   );
 }

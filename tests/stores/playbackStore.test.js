@@ -79,11 +79,46 @@ describe('play', () => {
     expect(position()).toEqual({ legIndex: 0, t: 0 });
   });
 
+  test('타임라인을 맨 끝으로 끈 뒤에 누르면 처음부터예요', () => {
+    getState().pause();
+    getState().seekToDate(getState().dateTrack.at(-1).toTime);
+    expect(getState().elapsedMs).toBe(getState().timeline.totalMs);
+
+    getState().play();
+
+    expect(getState().isPlaying).toBe(true);
+    expect(position()).toEqual({ legIndex: 0, t: 0 });
+  });
+
   test('구간이 0개(empty)면 아무것도 안 해요', () => {
     getState().load(empty.legs);
     getState().play();
 
     expect(getState().isPlaying).toBe(false);
+  });
+});
+
+describe('resume', () => {
+  test('옮긴 자리에서 이어서 재생해요', () => {
+    getState().pause();
+    getState().seek({ legIndex: 2, t: 0.5 });
+    const { elapsedMs } = getState();
+
+    getState().resume();
+
+    expect(getState().isPlaying).toBe(true);
+    expect(getState().elapsedMs).toBe(elapsedMs);
+  });
+
+  test('맨 끝이면 처음으로 돌아가지 않고 멈춘 채예요', () => {
+    getState().pause();
+    getState().seekToDate(getState().dateTrack.at(-1).toTime);
+    const { elapsedMs } = getState();
+
+    getState().resume();
+
+    expect(getState().isPlaying).toBe(false);
+    expect(getState().elapsedMs).toBe(elapsedMs);
   });
 });
 
@@ -111,6 +146,27 @@ describe('seek', () => {
     expect(position()).toBeNull();
 
     getState().tick(16);
+    expect(getState().isPlaying).toBe(false);
+  });
+});
+
+describe('seekToDate', () => {
+  test('머무는 날짜로 옮기면 도착 순간으로 돌아가지 않고 그 자리에 있어요', () => {
+    const arrive = Date.parse(legs[0].arriveAt);
+    const nextDepart = Date.parse(legs[1].departAt);
+
+    getState().seekToDate((arrive + nextDepart) / 2);
+
+    const { timeline, elapsedMs } = getState();
+    const { startMs, moveMs, stayMs } = timeline.steps[0];
+    expect(elapsedMs).toBeCloseTo(startMs + moveMs + stayMs / 2);
+    expect(position()).toEqual({ legIndex: 0, t: 1 });
+  });
+
+  test('재생 상태는 그대로 둬요', () => {
+    getState().pause();
+    getState().seekToDate(Date.parse(legs[3].departAt));
+
     expect(getState().isPlaying).toBe(false);
   });
 });
