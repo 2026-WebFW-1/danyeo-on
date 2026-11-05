@@ -50,8 +50,8 @@ export const usePlaybackStore = create((set, get) => ({
   play: () => {
     const { timeline, elapsedMs } = get();
     if (timeline.steps.length === 0) return;
-    // 끝까지 재생한 뒤 다시 누르면 처음부터예요.
-    const hasEnded = elapsedMs > timeline.totalMs;
+    // 끝까지 재생했거나 타임라인을 맨 끝으로 끈 뒤 누르면 처음부터예요.
+    const hasEnded = elapsedMs >= timeline.totalMs;
     set({ isPlaying: true, elapsedMs: hasEnded ? 0 : elapsedMs });
   },
 

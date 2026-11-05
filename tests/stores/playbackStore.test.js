@@ -79,6 +79,17 @@ describe('play', () => {
     expect(position()).toEqual({ legIndex: 0, t: 0 });
   });
 
+  test('타임라인을 맨 끝으로 끈 뒤에 누르면 처음부터예요', () => {
+    getState().pause();
+    getState().seekToDate(getState().dateTrack.at(-1).toTime);
+    expect(getState().elapsedMs).toBe(getState().timeline.totalMs);
+
+    getState().play();
+
+    expect(getState().isPlaying).toBe(true);
+    expect(position()).toEqual({ legIndex: 0, t: 0 });
+  });
+
   test('구간이 0개(empty)면 아무것도 안 해요', () => {
     getState().load(empty.legs);
     getState().play();
