@@ -98,6 +98,30 @@ describe('play', () => {
   });
 });
 
+describe('resume', () => {
+  test('옮긴 자리에서 이어서 재생해요', () => {
+    getState().pause();
+    getState().seek({ legIndex: 2, t: 0.5 });
+    const { elapsedMs } = getState();
+
+    getState().resume();
+
+    expect(getState().isPlaying).toBe(true);
+    expect(getState().elapsedMs).toBe(elapsedMs);
+  });
+
+  test('맨 끝이면 처음으로 돌아가지 않고 멈춘 채예요', () => {
+    getState().pause();
+    getState().seekToDate(getState().dateTrack.at(-1).toTime);
+    const { elapsedMs } = getState();
+
+    getState().resume();
+
+    expect(getState().isPlaying).toBe(false);
+    expect(getState().elapsedMs).toBe(elapsedMs);
+  });
+});
+
 describe('seek', () => {
   test('멈춰 있으면 위치만 옮기고 멈춘 채예요', () => {
     getState().pause();

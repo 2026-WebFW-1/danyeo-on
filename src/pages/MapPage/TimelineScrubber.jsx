@@ -84,7 +84,7 @@ export default function TimelineScrubber({ home, stops }) {
   };
 
   const handleLostPointerCapture = () => {
-    if (wasPlayingRef.current) usePlaybackStore.getState().play();
+    if (wasPlayingRef.current) usePlaybackStore.getState().resume();
   };
 
   const handleKeyDown = (event) => {
