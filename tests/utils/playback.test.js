@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
+import edge from '@/data/fixtures/edge.journey.json';
 import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
+import { selectLegsByPeriod } from '@/utils/periodLegs';
 import {
   buildDateTrack,
   buildTimeline,
@@ -119,6 +121,46 @@ describe('calcPosition', () => {
     const last = heavyTimeline.steps.at(-1);
 
     expect(calcPosition(heavyTimeline, last.startMs + 1).legIndex).toBe(heavy.legs.length - 1);
+  });
+});
+
+// 소수 오차는 숫자에 따라 나타나서, 가진 데이터의 기간별 구간을 모두 돌려 봐요.
+const legSets = [seojin, edge, heavy].flatMap((journey) =>
+  ['1y', '2y', 'all'].map((period) => selectLegsByPeriod(journey, period)),
+);
+
+describe('도착한 순간의 t', () => {
+  test('어느 구간이든 도착 위치로 옮기면 t가 정확히 1이에요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      set.forEach((_leg, legIndex) => {
+        const elapsedMs = calcElapsedMs(setTimeline, { legIndex, t: 1 });
+        expect(calcPosition(setTimeline, elapsedMs)).toEqual({ legIndex, t: 1 });
+      });
+    });
+  });
+
+  test('타임라인을 어느 구간의 도착 시각으로 끌어도 t가 정확히 1이에요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      const track = buildDateTrack(set, setTimeline);
+      set.forEach((leg) => {
+        const position = calcPosition(
+          setTimeline,
+          calcElapsedAtTime(track, Date.parse(leg.arriveAt)),
+        );
+        expect(position.t).toBe(1);
+      });
+    });
+  });
+
+  test('타임라인 맨 끝이면 마지막 구간에 도착한 상태예요', () => {
+    legSets.forEach((set) => {
+      const setTimeline = buildTimeline(set);
+      const track = buildDateTrack(set, setTimeline);
+      const position = calcPosition(setTimeline, calcElapsedAtTime(track, track.at(-1).toTime));
+      expect(position).toEqual({ legIndex: set.length - 1, t: 1 });
+    });
   });
 });
 

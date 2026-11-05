@@ -93,7 +93,9 @@ export function calcPosition({ steps, totalMs }, elapsedMs) {
   // 경계에선 앞 구간의 도착(t: 1)으로 봐요. 그래야 집에 도착한 순간도 한 번은 보여요.
   const legIndex = steps.findIndex((step) => elapsed <= step.startMs + step.moveMs + step.stayMs);
   const { startMs, moveMs } = steps[legIndex];
-  return { legIndex, t: Math.min(1, (elapsed - startMs) / moveMs) };
+  // 나눗셈은 소수 오차로 도착한 순간에도 1이 안 될 수 있어서 도착 시각과 먼저 비교해요.
+  const t = elapsed >= startMs + moveMs ? 1 : (elapsed - startMs) / moveMs;
+  return { legIndex, t };
 }
 
 /**
