@@ -179,6 +179,45 @@ describe('PlacesPage 글과 사진', () => {
     expect(usePostStore.getState().status).toBe('error');
   });
 
+  test('글을 못 받았어도 화면에 다시 들어오면 한 번 더 불러와요', async () => {
+    vi.mocked(getPosts)
+      .mockRejectedValueOnce({ status: 0, code: 'LOAD_FAILED', message: 'x' })
+      .mockResolvedValueOnce(seojinSeed.posts);
+    const path = `/places?trip=${tripIdOf('밴쿠버 · 밴프')}`;
+
+    await render(path);
+    expect(usePostStore.getState().status).toBe('error');
+
+    // 다른 화면에 갔다가 돌아온 것처럼 화면을 내렸다가 다시 그려요.
+    await act(async () => root.render(null));
+    await render(path);
+
+    expect(getPosts).toHaveBeenCalledTimes(2);
+    expect(usePostStore.getState().status).toBe('ready');
+    const firstPost = seojinSeed.posts.find((post) => post.date === '2025-06-28');
+    expect(container.textContent).toContain(firstPost.body.slice(0, 12));
+  });
+
+  test('화면이 열려 있는 동안 계정이 바뀌어 글이 처음 상태로 돌아가면 다시 불러와요', async () => {
+    await render('/places');
+    expect(getPosts).toHaveBeenCalledTimes(1);
+
+    await act(async () => usePostStore.getState().reset());
+
+    expect(getPosts).toHaveBeenCalledTimes(2);
+    expect(usePostStore.getState().status).toBe('ready');
+  });
+
+  test('글을 못 받아도 같은 화면에 머무는 동안은 다시 부르지 않아요', async () => {
+    vi.mocked(getPosts).mockRejectedValue({ status: 0, code: 'LOAD_FAILED', message: 'x' });
+
+    await render('/places');
+    await render(`/places?trip=${tripIdOf('밴쿠버 · 밴프')}`);
+
+    expect(usePostStore.getState().status).toBe('error');
+    expect(getPosts).toHaveBeenCalledTimes(1);
+  });
+
   test('사진을 못 받아도(빈 목록) 대표 사진 한 장으로 크게 볼 수 있어요', async () => {
     vi.mocked(useMyPhotos).mockReturnValue({ photos: [], status: 'error', error: { code: 'x' } });
 
