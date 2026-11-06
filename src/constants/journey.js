@@ -8,6 +8,8 @@ export const PERIODS = ['1y', '2y', 'all'];
 export const DEFAULT_PERIOD = '2y';
 // 01 화면이 기간을 URL에 남기는 칸 이름이에요. 예: /map?period=1y
 export const PERIOD_PARAM = 'period';
+// 01 화면에서 한 여행만 재생할 때 여행 ID를 남기는 칸 이름이에요. 예: /map?trip=p_356b49
+export const TRIP_PARAM = 'trip';
 
 // 비행은 지도에서 비행기 아이콘을 써서 이모지가 없어요.
 export const MODE_EMOJI = { train: '🚆', car: '🚗' };

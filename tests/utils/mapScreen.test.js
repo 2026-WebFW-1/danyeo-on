@@ -9,6 +9,7 @@ import {
   countLegsByMode,
   formatDotDate,
   formatPeriodRange,
+  formatTripRange,
   getPlaceName,
   parsePeriod,
   selectArrivalStops,
@@ -37,6 +38,26 @@ describe('formatPeriodRange', () => {
 describe('formatDotDate', () => {
   test('브라우저 시간대와 상관없이 현지 날짜예요', () => {
     expect(formatDotDate('2026-02-14T23:30:00-07:00')).toBe('2026.02.14');
+  });
+});
+
+describe('formatTripRange', () => {
+  test('시작과 끝을 현지 날짜로 보여 줘요', () => {
+    expect(
+      formatTripRange({ from: '2025-06-28T18:30:51-07:00', to: '2025-08-26T09:00:00-07:00' }),
+    ).toBe('2025.06.28 – 2025.08.26');
+  });
+
+  test('해가 바뀌어도 양쪽에 연도를 써요', () => {
+    expect(
+      formatTripRange({ from: '2025-12-26T10:00:00+09:00', to: '2026-01-08T20:00:00+09:00' }),
+    ).toBe('2025.12.26 – 2026.01.08');
+  });
+
+  test('하루짜리는 날짜 하나만 보여 줘요', () => {
+    expect(
+      formatTripRange({ from: '2025-03-06T09:00:00+09:00', to: '2025-03-06T21:00:00+09:00' }),
+    ).toBe('2025.03.06');
   });
 });
 

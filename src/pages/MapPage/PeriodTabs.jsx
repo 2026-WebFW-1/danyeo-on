@@ -10,7 +10,7 @@ import { PANEL_STYLE } from './panelStyle';
  * 호출: MapPage
  *
  * @param {object} props
- * @param {'1y' | '2y' | 'all'} props.period
+ * @param {'1y' | '2y' | 'all' | null} props.period 한 여행만 재생할 때는 null이라 어느 탭도 강조하지 않아요
  * @param {(period: '1y' | '2y' | 'all') => void} props.onSelect
  */
 export default function PeriodTabs({ period, onSelect }) {
