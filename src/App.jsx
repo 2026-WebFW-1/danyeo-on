@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/layout/RequireAuth';
+import HomePage from '@/pages/HomePage/HomePage';
 import LoginPage from '@/pages/LoginPage/LoginPage';
 import MapPage from '@/pages/MapPage/MapPage';
 import NotFoundPage from '@/pages/NotFoundPage/NotFoundPage';
@@ -34,8 +35,7 @@ export default function App() {
       <Route path="login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          {/* TODO(endl24): 00 홈(입구)이 생기면 HomePage로 바꾸기. 지금은 있는 화면이 사진 올리기뿐이라 보냅니다. */}
-          <Route index element={<Navigate to="/upload" replace />} />
+          <Route index element={<HomePage />} />
           <Route path="map" element={<MapPage />} />
           <Route path="places" element={<PlacesPage />} />
           <Route path="upload" element={<UploadPage />} />
