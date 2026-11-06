@@ -1,4 +1,4 @@
-import { calcDaysBetween } from '@/utils/localDate';
+import { toUtcDay } from '@/utils/localDate';
 import { calcDistanceKm } from '@/utils/distance';
 import { legMode } from '@/utils/legMode';
 
@@ -17,7 +17,29 @@ const COORD_SCALE = 1e5;
 // 2. 작은 도우미
 const roundCoord = (value) => Math.round(value * COORD_SCALE) / COORD_SCALE;
 const toInstant = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
-const countDays = (fromIso, toIso) => calcDaysBetween(fromIso, toIso) + 1;
+
+/**
+ * 현지 날짜로 가장 이른 날부터 가장 늦은 날까지, 첫날과 마지막 날을 모두 세요.
+ * 자정 무렵 시간대를 넘나들면 현지 날짜 순서가 촬영 순서와 거꾸로일 수 있어서,
+ * 처음·마지막 사진이 아니라 모든 사진의 날짜에서 가장 이른 날과 늦은 날을 골라요.
+ *
+ * @param {string[]} takenAts 시간대 없는 현지 시각. 예: '2025-01-01T23:20:00'
+ * @returns {number} 1 이상
+ */
+const countDays = (takenAts) => {
+  const utcDays = takenAts.map(toUtcDay);
+  return (Math.max(...utcDays) - Math.min(...utcDays)) / MS_PER_DAY + 1;
+};
+
+/**
+ * 경도를 -180 이상 180 미만으로 되돌려요.
+ * 들어오는 값은 -360 ~ 360 안이라 한 번만 돌리면 돼요. 범위 안의 값은 그대로라 소수점이 바뀌지 않아요.
+ */
+const wrapLng = (lng) => {
+  if (lng >= 180) return lng - 360;
+  if (lng < -180) return lng + 360;
+  return lng;
+};
 
 /** 3. 지점 묶기
  * 시각 순으로 훑으며 사진을 지점(머문 곳)으로 묶어요.
@@ -53,7 +75,10 @@ function buildStops(photos) {
       current.photos.push(photo);
 
       current.lat += (photo.lat - current.lat) / current.photos.length;
-      current.lng += (photo.lng - current.lng) / current.photos.length;
+      // 날짜변경선을 넘으면 179.9와 -179.9의 차이가 359.8이 돼요. 짧은 쪽(-0.2)으로 바꿔 평균을 내야
+      // 중심이 지구 반대편(경도 0)으로 가지 않아요.
+      const lngDelta = wrapLng(photo.lng - current.lng);
+      current.lng = wrapLng(current.lng + lngDelta / current.photos.length);
       current.lastAt = at;
     } else {
       // 새 지점
@@ -139,6 +164,10 @@ function findHome(stops) {
  *   legs: 여행 안 지점 사이 구간. 집에서 나가고 들어오는 구간은 buildJourney 몫이에요
  */
 function buildTrips(stops, rawStops) {
+  // 여행 일수를 셀 때 지점 안 모든 사진의 날짜가 필요해요(countDays).
+  const takenAtsByStopId = new Map(
+    stops.map((stop, i) => [stop.id, rawStops[i].photos.map((photo) => photo.takenAt)]),
+  );
   const runs = []; // 여행 하나 = 이어진 지점 배열 하나
   let current = null; // 지금 채우고 있는 여행. 집에 있는 동안은 null
   let prevLastAt = null; // 직전 지점의 마지막 사진 시각
@@ -173,7 +202,7 @@ function buildTrips(stops, rawStops) {
       stopIds: run.map((stop) => stop.id),
       from: first.from,
       to: last.to,
-      days: countDays(first.from, last.to),
+      days: countDays(run.flatMap((stop) => takenAtsByStopId.get(stop.id))),
       // [A, B, C] → A→B, B→C. slice(1)로 B부터 돌고, run[i]가 바로 앞 지점이에요.
       legs: run.slice(1).map((stop, i) => {
         const km = calcDistanceKm(run[i], stop);
@@ -215,7 +244,7 @@ export function group(photos) {
     const first = raw.photos[0];
     const last = raw.photos.at(-1);
 
-    const days = countDays(first.takenAt, last.takenAt);
+    const days = countDays(raw.photos.map((photo) => photo.takenAt));
 
     const isHome = home ? calcDistanceKm(home, raw) <= SAME_PLACE_KM : false;
 

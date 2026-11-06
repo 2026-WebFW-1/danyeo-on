@@ -90,6 +90,40 @@ describe('group', () => {
     expect(result.stops[0].photoIds).toEqual(['earlier', 'later']);
   });
 
+  test('날짜변경선 양쪽에서 찍은 가까운 사진은 한 지점이고, 중심도 그 근처예요', () => {
+    // given: 피지 근처(위도 -16.5) 경도 179.9 · -179.9 · 179.9, 서로 약 21km
+    const photo = (id, takenAt, lng) => ({ id, takenAt, offset: '+12:00', lat: -16.5, lng });
+    const photos = [
+      photo('a', '2025-01-01T10:00:00', 179.9),
+      photo('b', '2025-01-01T11:00:00', -179.9),
+      photo('c', '2025-01-01T12:00:00', 179.9),
+    ];
+
+    // when
+    const result = group(photos);
+
+    // then: 경도를 그냥 평균 내면 0(지구 반대편)이 돼서 c가 떨어져 나가요.
+    expect(result.stops).toHaveLength(1);
+    expect(Math.abs(result.stops[0].lng)).toBeGreaterThan(179);
+  });
+
+  test('자정 무렵 시간대를 넘어 현지 날짜가 거꾸로 가도 머문 날은 1일 이상이에요', () => {
+    // given: 00:10 +01:00(= UTC 23:10)을 찍고 10분 뒤 23:20 +00:00을 찍음
+    // 실제 순서로는 01-02 → 01-01이라 끝 날짜가 시작 날짜보다 앞서요.
+    const photo = (id, takenAt, offset) => ({ id, takenAt, offset, lat: 51.5, lng: 0 });
+    const photos = [
+      photo('first', '2025-01-02T00:10:00', '+01:00'),
+      photo('second', '2025-01-01T23:20:00', '+00:00'),
+    ];
+
+    // when
+    const result = group(photos);
+
+    // then: 현지 날짜 1일과 2일에 걸쳐 있으니 2일
+    expect(result.stops).toHaveLength(1);
+    expect(result.stops[0].days).toBe(2);
+  });
+
   describe('edge의 경계 케이스', () => {
     test('시계가 초기화된 2000년 사진도 시각 순서대로 맨 앞 지점이 돼요', () => {
       // given: 배터리가 나가 2000-01-01로 찍힌 사진(p_3e527e)이 섞인 사진
