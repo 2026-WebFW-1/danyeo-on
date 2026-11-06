@@ -1,5 +1,5 @@
 import CollagePhoto from './CollagePhoto';
-import { SHADOW_CLASS } from './cardClass';
+import { PHOTO_CLASS } from './cardClass';
 import NoteCard from './NoteCard';
 import PostCard from './PostCard';
 import Sticker from './Sticker';
@@ -39,7 +39,7 @@ export default function CollageItem({ item, onOpenPhoto }) {
         <CollagePhoto
           photo={item.photo}
           onOpen={handleOpenPhoto}
-          className={`size-full rounded-xs ${SHADOW_CLASS}`}
+          className={`size-full ${PHOTO_CLASS}`}
         />
       )}
       {item.kind === 'sticker' && <Sticker label={item.label} size={item.size} />}
