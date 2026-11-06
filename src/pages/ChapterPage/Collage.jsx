@@ -1,8 +1,10 @@
 import { COLLAGE_DESIGN_WIDTH, COLLAGE_TOP } from '@/constants/collage';
 import { useFitScale } from '@/hooks/useFitScale';
+import { cn } from '@/utils/cn';
 
 import CollageItem from './CollageItem';
 import ContinueRow from './ContinueRow';
+import { FRAME_CLASS } from './frameClass';
 
 /**
  * 챕터의 글·사진·스티커를 흩어 놓은 콜라주와, 맨 아래 [계속 여행하기 →] 줄이에요.
@@ -15,6 +17,7 @@ import ContinueRow from './ContinueRow';
  *    (useFitScale). 줄이면 글자도 같이 작아지지만, 글이 카드를 넘쳐 다른 조각을 덮는 것보다 낫다고 봤어요.
  *  - transform은 자리를 차지하는 크기를 바꾸지 않아서, 바깥 상자의 높이는 줄인 높이로 따로 정해요.
  *  - 위쪽 130px은 머리(ChapterHeader)가 겹쳐 그려지는 자리라서, 줄이지 않고 그대로 비워 둬요.
+ *  - 화면이 1440px보다 넓으면 키우지 않고 가운데에 둬요(FRAME_CLASS). 머리와 같은 폭이에요.
  *
  * @param {object} props
  * @param {{ items: import('@/utils/layoutCollage').CollageItem[], height: number, continueTop: number }} props.layout
@@ -27,7 +30,7 @@ export default function Collage({ layout, target, onOpenPhoto }) {
   return (
     <div
       ref={ref}
-      className="relative"
+      className={cn(FRAME_CLASS, 'relative')}
       style={{ marginTop: COLLAGE_TOP, height: layout.height * scale }}
     >
       <div
