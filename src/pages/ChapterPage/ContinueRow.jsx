@@ -1,22 +1,24 @@
 import { Link } from 'react-router';
 
+import { CONTINUE_ROW_TOP } from '@/constants/collage';
+
 /**
  * 챕터 맨 아래 오른쪽의 "NEXT · 다음 지점"과 [계속 여행하기 →] 버튼이에요(기능 명세 R106).
  * 여행의 마지막 지점이라 다음이 없으면 NEXT 글자 없이 [전체 기록 보기 →]만 나와요.
  *
- * 호출: Collage 캔버스 안에서 top에 맞춰 그려요. 캔버스 좌표를 쓰니 캔버스와 함께 줄어요.
+ * 호출: Collage 캔버스 안에서 그려요. 자리는 캔버스 좌표(CONTINUE_ROW_TOP)라서 캔버스와 함께 줄어요.
+ * <ContinueRow target={target} />
+ *
  * 의도:
  *  - 다음 지점 이름이 길면 줄이 왼쪽으로 길게 자라 글 카드를 덮어서, NEXT 글자는 192px에서 줄임표로 잘라요.
  *  - 피그마는 NEXT 글자를 버튼 세로 가운데보다 2.3px 위에 뒀어요(손으로 놓은 값이라 그대로 따라요).
- * <ContinueRow target={target} top={layout.continueTop} />
  *
  * @param {object} props
  * @param {{ path: string, label: string, nextName: string | null }} props.target getContinueTarget의 결과
- * @param {number} props.top 줄 윗변의 캔버스 좌표(px)
  */
-export default function ContinueRow({ target, top }) {
+export default function ContinueRow({ target }) {
   return (
-    <div className="absolute right-15 flex items-center gap-4.5" style={{ top }}>
+    <div className="absolute right-15 flex items-center gap-4.5" style={{ top: CONTINUE_ROW_TOP }}>
       {target.nextName && (
         <p className="relative -top-[2.3px] max-w-48 overflow-hidden font-serif text-xs font-bold tracking-[0.2em] text-ellipsis whitespace-pre text-muted uppercase">
           {`NEXT  ·  ${target.nextName}`}

@@ -10,7 +10,7 @@ import { FRAME_CLASS } from './frameClass';
  * <ChapterHeader stop={stop} chapter={chapter} />
  *
  * 의도:
- *  - 콜라주 첫 타일이 머리의 아랫부분과 겹치는 높이(Nav 아래 130px)에서 시작해서, 머리는 흐름에서 빼고 위에 얹어요.
+ *  - 콜라주가 머리의 아랫부분과 겹치는 높이(Nav 아래 130px)에서 시작해서, 머리는 흐름에서 빼고 위에 얹어요.
  *    겹치는 자리에는 아무것도 놓이지 않아요.
  *  - 화면이 1440px보다 넓으면 콜라주와 같은 폭(FRAME_CLASS)으로 가운데에 둬요. "03 / 12"가 콜라주 오른쪽 끝에 맞게요.
  *  - "03 / 12"의 줄 높이는 피그마처럼 글꼴 기본값(leading-[normal])이에요. leading-normal은 1.5배라서 줄이 5px 높아지고

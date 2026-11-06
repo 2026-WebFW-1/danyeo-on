@@ -46,7 +46,7 @@ export default function ChapterView({
   const [visitSeed] = useState(createSeed);
   const seed = fixedSeed ?? visitSeed;
 
-  const layout = useMemo(
+  const items = useMemo(
     () => layoutCollage(selectChapterCollage({ stop, posts, photos, notes, seed })),
     [stop, posts, photos, notes, seed],
   );
@@ -60,7 +60,7 @@ export default function ChapterView({
   return (
     <main className="relative flex-1 overflow-x-clip bg-canvas">
       <ChapterHeader stop={stop} chapter={chapter} />
-      <Collage layout={layout} target={target} onOpenPhoto={handleOpenPhoto} />
+      <Collage items={items} target={target} onOpenPhoto={handleOpenPhoto} />
       <Lightbox
         photos={photos}
         index={openIndex}
