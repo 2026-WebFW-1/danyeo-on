@@ -1,5 +1,5 @@
 import StatRow from '@/components/common/StatRow';
-import { TRIP_PARAM } from '@/constants/places';
+import { TRIP_PARAM } from '@/constants/journey';
 import { formatTripStats } from '@/utils/formatTripStats';
 
 import ArrowLink from './ArrowLink';

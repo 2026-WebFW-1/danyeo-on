@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { TRIP_PARAM } from '@/constants/places';
+import { TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
+import { useLoadPosts } from '@/hooks/useLoadPosts';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { usePostStore } from '@/stores/postStore';
 import { selectCityBlocks } from '@/utils/cityBlocks';
@@ -25,8 +26,7 @@ import PlacesView from './PlacesView';
  *    journey가 ready가 된 뒤에만 여행을 골라요.
  *  - 글은 D의 usePostStore, 사진은 useMyPhotos예요. 둘 다 아직 못 받았거나 실패해도 도시 블록은 그려요.
  *    글 자리는 비고 사진 칸은 대표 사진만(없으면 회색)이에요.
- *  - 글은 화면에 들어올 때 불러요. 스토어의 error는 계정이 바뀔 때까지 남아서, 다시 들어와도 안 부르면 새로고침하기 전까지
- *    글이 계속 비어요. 그래서 error로 남아 있어도 들어올 때 한 번 더 불러요.
+ *  - 글은 화면에 들어올 때 불러요(error로 남아 있으면 한 번 더 불러요. useLoadPosts).
  *  - 탭을 누르면 주소가 바뀌고(뒤로 가기로 앞 탭에 돌아와요), 아래 이전·다음 여행을 눌러도 맨 위로 올라가요.
  *
  * @see PlacesView
@@ -34,22 +34,11 @@ import PlacesView from './PlacesView';
 export default function PlacesPage() {
   const { journey, status } = useJourney();
   const { photos } = useMyPhotos();
-  const postsStatus = usePostStore((state) => state.status);
   const postsByDate = usePostStore((state) => state.byDate);
-  const fetchPosts = usePostStore((state) => state.fetch);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTripId = searchParams.get(TRIP_PARAM);
 
-  // 아직 안 불렀거나(idle), 계정이 바뀌어 글이 처음 상태로 돌아갔으면 불러와요.
-  useEffect(() => {
-    if (postsStatus === 'idle') fetchPosts();
-  }, [postsStatus, fetchPosts]);
-
-  // 지난번에 실패해서 error로 남아 있으면 들어올 때 한 번 더 불러와요.
-  // error를 계속 지켜보면 계속 실패할 때 요청이 반복돼서, 들어올 때 한 번만 봐요(fetchPosts는 바뀌지 않아요).
-  useEffect(() => {
-    if (usePostStore.getState().status === 'error') fetchPosts();
-  }, [fetchPosts]);
+  useLoadPosts();
 
   const posts = useMemo(() => Object.values(postsByDate), [postsByDate]);
   const trips = useMemo(() => selectTrips(journey), [journey]);

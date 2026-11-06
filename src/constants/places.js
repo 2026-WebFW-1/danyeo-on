@@ -1,8 +1,5 @@
 // 03 전체 기록 화면에서 쓰는 값이에요. 숫자는 피그마 03 "에디토리얼 (여행 탭)" 프레임에서 읽은 값이에요.
 
-// 고른 여행을 주소에 남기는 칸 이름이에요. 예: /places?trip=p_c2a066
-export const TRIP_PARAM = 'trip';
-
 // 도시 블록은 이 개수까지만 펼쳐 두고, 나머지는 [+ N곳 펼치기]로 접어요(기능 명세 R103).
 export const VISIBLE_STOP_COUNT = 3;
 
