@@ -125,7 +125,7 @@ describe('ChapterPage 챕터 찾기', () => {
     await render();
 
     expect(headline()).toBe('밴쿠버에서 보낸 57일');
-    expect(titles()).toHaveLength(7);
+    expect(titles()).toHaveLength(3);
   });
 
   test('주소가 인코딩되어 들어와도(%EB…) 같은 챕터를 찾아요', async () => {
@@ -197,13 +197,13 @@ describe('ChapterPage 글과 사진별 글', () => {
     expect(headline()).toBe('밴쿠버에서 보낸 57일');
   });
 
-  test('글을 받는 동안에도 안내만 보여 줘요(글을 받아야 어떤 사진의 글을 읽을지 정해져요)', async () => {
+  test('글을 받는 동안에도 안내만 보여 줘요(사진별 글은 글과 같이 읽어요)', async () => {
     const posts = deferred();
     vi.mocked(getPosts).mockReturnValue(posts.promise);
 
     await render();
     expect(headline()).toBeUndefined();
-    expect(getPhotoNotes).not.toHaveBeenCalled();
+    expect(getPhotoNotes).toHaveBeenCalledTimes(1);
 
     await act(async () => posts.resolve(seojinSeed.posts));
     await settle();
@@ -212,23 +212,20 @@ describe('ChapterPage 글과 사진별 글', () => {
     expect(getPhotoNotes).toHaveBeenCalledTimes(1);
   });
 
-  test('콜라주에 올릴 사진의 글만 한 번에 읽어요(hero 사진은 빼요)', async () => {
+  test('지점의 사진 전부의 글을 한 번에 읽어요', async () => {
     await render();
 
     expect(getPhotoNotes).toHaveBeenCalledTimes(1);
     const [ids] = vi.mocked(getPhotoNotes).mock.calls[0];
-    expect(ids).toHaveLength(5);
-    expect(ids.every((id) => vancouver.photoIds.includes(id))).toBe(true);
-    expect(ids).not.toContain(
-      seojinSeed.posts.find((post) => post.date === '2025-06-28').photoIds[0],
-    );
+    expect(ids.toSorted()).toEqual(vancouver.photoIds.toSorted());
   });
 
   test('읽은 사진별 글이 메모 카드로 그려져요', async () => {
     await render();
 
     const [ids] = vi.mocked(getPhotoNotes).mock.calls[0];
-    expect(memoTexts().length).toBeGreaterThan(0);
+    // 메모 카드 칸은 둘이라, 읽은 사진별 글 중 둘만 그려져요
+    expect(memoTexts()).toHaveLength(2);
     expect(memoTexts().every((text) => ids.some((id) => text === `사진 ${id}의 글`))).toBe(true);
   });
 
@@ -239,7 +236,7 @@ describe('ChapterPage 글과 사진별 글', () => {
 
     expect(headline()).toBe('밴쿠버에서 보낸 57일');
     expect(memoTexts()).toEqual([]);
-    expect(titles()).toHaveLength(7);
+    expect(titles()).toHaveLength(3);
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 

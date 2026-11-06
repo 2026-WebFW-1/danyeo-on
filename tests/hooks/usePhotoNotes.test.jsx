@@ -1,4 +1,4 @@
-import { act, useEffect } from 'react';
+import { act, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -100,6 +100,26 @@ describe('usePhotoNotes', () => {
     await mount(['a', 'b']);
 
     expect(getPhotoNotes).toHaveBeenCalledTimes(1);
+  });
+
+  test('개발 모드(StrictMode)에서 effect가 두 번 돌아도 한 번만 읽어요', async () => {
+    vi.mocked(getPhotoNotes).mockResolvedValue([{ photoId: 'a', body: '첫 사진' }]);
+
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <Probe
+            photoIds={['a']}
+            onResult={(result) => {
+              latest = result;
+            }}
+          />
+        </StrictMode>,
+      ),
+    );
+
+    expect(getPhotoNotes).toHaveBeenCalledTimes(1);
+    expect(latest.notes).toEqual({ a: '첫 사진' });
   });
 
   test('사진 id가 바뀌면 곧바로 loading이 되고 새 사진들의 글을 줘요', async () => {

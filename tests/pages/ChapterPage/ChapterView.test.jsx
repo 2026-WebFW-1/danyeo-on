@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import ChapterView from '@/pages/ChapterPage/ChapterView';
+import { selectChapterCollage } from '@/utils/chapterCollage';
 import { findChapterBySlug, getNextStop, selectChapters } from '@/utils/chapters';
 import { selectStopPhotos } from '@/utils/selectStopPhotos';
 import { selectPostsOfStop } from '@/utils/tripStops';
@@ -15,6 +16,9 @@ const chapter = selectChapters(seojin).find((item) => item.stop.id === stop.id);
 const posts = selectPostsOfStop(seojin, seojinSeed.posts, stop.id);
 const photos = selectStopPhotos(stop, seojinSeed.photos);
 const nextStop = getNextStop(seojin, stop.id);
+
+// 무작위로 고르는 기준이에요. 값을 고정해서 같은 모양으로 확인해요.
+const SEED = 1234;
 
 let container;
 let root;
@@ -30,6 +34,7 @@ const render = (props) =>
           photos={photos}
           notes={{}}
           nextStop={nextStop}
+          seed={SEED}
           {...props}
         />
       </MemoryRouter>,
@@ -69,17 +74,23 @@ describe('ChapterView 머리', () => {
 });
 
 describe('ChapterView 콜라주', () => {
-  test('글은 모두 카드가 돼요(첫 글은 hero, 나머지는 글 카드)', async () => {
+  test('글이 많아도 hero 하나와 글 카드 둘만 그려요(칸이 정해져 있어요)', async () => {
     await render();
 
-    expect(titles().toSorted()).toEqual(posts.map((post) => post.title).toSorted());
+    expect(posts).toHaveLength(7);
+    expect(titles()).toHaveLength(3);
+    expect(titles().every((title) => posts.some((post) => post.title === title))).toBe(true);
   });
 
-  test('글 카드의 날짜는 글의 date 그대로예요', async () => {
+  test('글 카드의 날짜는 그 글의 date 그대로예요', async () => {
     await render();
 
-    expect(container.textContent).toContain('2025-06-28');
-    expect(container.textContent).toContain('2025-07-05');
+    [...container.querySelectorAll('article')].forEach((article) => {
+      const title = article.querySelector('h2').textContent;
+      const date = article.querySelector('p').textContent;
+
+      expect(date).toBe(posts.find((post) => post.title === title).date);
+    });
   });
 
   test('스티커는 글의 태그이고 같은 태그는 한 번만 그려요', async () => {
@@ -96,18 +107,17 @@ describe('ChapterView 콜라주', () => {
     expect(memoTexts()).toEqual([]);
   });
 
-  test('콜라주에 올린 사진의 사진별 글은 메모 카드가 돼요', async () => {
-    const picked = photos.map((photo) => photo.id);
-    const notes = Object.fromEntries(picked.map((id) => [id, `사진 ${id}의 글`]));
+  test('사진별 글은 메모 카드가 되고, 둘까지만 그려요', async () => {
+    const notes = Object.fromEntries(photos.map((photo) => [photo.id, `사진 ${photo.id}의 글`]));
 
     await render({ notes });
 
     const texts = memoTexts();
-    expect(texts.length).toBeGreaterThan(0);
+    expect(texts).toHaveLength(2);
     expect(texts.every((text) => text.startsWith('사진 '))).toBe(true);
   });
 
-  test('제목 없는 짧은 글이 사진별 글보다 먼저 메모 카드가 돼요', async () => {
+  test('제목 없는 짧은 글도 메모 카드가 돼요', async () => {
     const shortPost = {
       ...posts[1],
       id: 'post_short',
@@ -115,11 +125,10 @@ describe('ChapterView 콜라주', () => {
       title: '',
       body: '제목 없이 적은 짧은 글',
     };
-    const notes = Object.fromEntries(photos.map((photo) => [photo.id, '사진별 글']));
 
-    await render({ posts: [...posts, shortPost], notes });
+    await render({ posts: [...posts, shortPost] });
 
-    expect(memoTexts()[0]).toBe('제목 없이 적은 짧은 글');
+    expect(memoTexts()).toEqual(['제목 없이 적은 짧은 글']);
     expect(titles()).not.toContain('');
   });
 
@@ -129,12 +138,28 @@ describe('ChapterView 콜라주', () => {
     expect(container.querySelectorAll('article')).toHaveLength(0);
     expect(photoButtons().length).toBeGreaterThan(0);
   });
+
+  test('seed가 같으면 같은 모양이고, 다르면 달라져요', async () => {
+    await render({ seed: 1 });
+    const first = titles();
+    await render({ seed: 1 });
+    expect(titles()).toEqual(first);
+
+    const seen = new Set([first.join()]);
+    for (let seed = 2; seed <= 10; seed += 1) {
+      await render({ seed });
+      seen.add(titles().join());
+    }
+
+    expect(seen.size).toBeGreaterThan(1);
+  });
 });
 
 describe('ChapterView 사진 크게 보기', () => {
   test('hero 사진을 누르면 그 사진부터 크게 보고, 지점의 사진 전부를 넘겨 볼 수 있어요', async () => {
     await render();
-    const heroIndex = photos.findIndex((photo) => photo.id === posts[0].photoIds[0]);
+    const { hero } = selectChapterCollage({ stop, posts, photos, notes: {}, seed: SEED });
+    const heroIndex = photos.findIndex((photo) => photo.id === hero.photo.id);
 
     await act(async () => heroPhotoButton().click());
 

@@ -4,7 +4,7 @@ import edge from '@/data/fixtures/edge.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import edgeSeed from '@/data/seed/edge.json';
 import seojinSeed from '@/data/seed/seojin.json';
-import { pickStickerLabels, selectChapterCollage } from '@/utils/chapterCollage';
+import { pickHeroPhoto, pickStickerLabels, selectChapterCollage } from '@/utils/chapterCollage';
 import { selectStopPhotos } from '@/utils/selectStopPhotos';
 import { selectPostsOfStop } from '@/utils/tripStops';
 
@@ -19,6 +19,11 @@ const post = (id, overrides = {}) => ({
   ...overrides,
 });
 const ids = (list) => list.map((item) => item.id);
+const range = (count, make, prefix) =>
+  Array.from({ length: count }, (_, index) => make(`${prefix}${index}`));
+const seedsFrom = (count) => Array.from({ length: count }, (_, index) => index + 1);
+
+const SEED = 1234;
 
 describe('pickStickerLabels', () => {
   test('태그를 처음 나온 순서대로 모으고 같은 태그는 한 번만 둬요', () => {
@@ -40,119 +45,249 @@ describe('pickStickerLabels', () => {
   });
 });
 
+describe('pickHeroPhoto', () => {
+  const photos = range(10, photo, 'p');
+
+  test('그 글에 붙은 첫 사진을 줘요', () => {
+    const attached = post('a', { photoIds: ['없는-사진', 'p3', 'p5'] });
+
+    expect(pickHeroPhoto(attached, photos, null)).toEqual(photo('p3'));
+  });
+
+  test('붙은 사진이 없으면 지점의 대표 사진을 줘요', () => {
+    expect(pickHeroPhoto(post('a'), photos, 'public:/photos/p4.webp')).toEqual(photo('p4'));
+  });
+
+  test('대표 사진도 목록에 없으면 첫 사진을 줘요', () => {
+    expect(pickHeroPhoto(post('a'), photos, 'public:/photos/없음.webp')).toEqual(photo('p0'));
+  });
+
+  test('사진이 하나도 없으면 null이에요', () => {
+    expect(pickHeroPhoto(post('a'), [], 'public:/photos/p4.webp')).toBeNull();
+  });
+});
+
 describe('selectChapterCollage', () => {
   const stop = { coverFileKey: 'public:/photos/p2.webp' };
-  const photos = Array.from({ length: 8 }, (_, index) => photo(`p${index}`));
+  const photos = range(8, photo, 'p');
+  const select = (input) => selectChapterCollage({ stop, photos, seed: SEED, ...input });
 
-  test('제목이 있는 첫 글이 hero고 나머지는 글 카드예요', () => {
-    const posts = [post('a'), post('b'), post('c')];
+  describe('hero와 글 카드', () => {
+    test('제목 있는 글 중 하나가 hero고, 글 카드는 둘까지예요', () => {
+      const posts = range(6, post, 'a');
 
-    const { hero, cards } = selectChapterCollage({ stop, posts, photos });
+      const { hero, cards } = select({ posts });
 
-    expect(hero.post.id).toBe('a');
-    expect(ids(cards)).toEqual(['b', 'c']);
-  });
-
-  test('hero 사진은 그 글에 붙은 사진이고, 콜라주 사진에서는 빠져요', () => {
-    const posts = [post('a', { photoIds: ['p4'] })];
-
-    const { hero, photos: picked } = selectChapterCollage({ stop, posts, photos });
-
-    expect(hero.photo.id).toBe('p4');
-    expect(ids(picked)).not.toContain('p4');
-  });
-
-  test('글에 사진이 안 붙었으면 hero 사진은 지점의 대표 사진이에요', () => {
-    const { hero } = selectChapterCollage({ stop, posts: [post('a')], photos });
-
-    expect(hero.photo.id).toBe('p2');
-  });
-
-  test('제목 없이 본문만 있는 글은 메모 카드 글이고, 글 카드가 아니에요', () => {
-    const posts = [post('a'), post('b', { title: '  ', body: '짧은 메모' }), post('c')];
-
-    const { cards, memoPosts } = selectChapterCollage({ stop, posts, photos });
-
-    expect(ids(cards)).toEqual(['c']);
-    expect(ids(memoPosts)).toEqual(['b']);
-  });
-
-  test('제목도 본문도 없는 글은 어디에도 그리지 않아요', () => {
-    const posts = [post('a'), post('b', { title: '', body: ' ' })];
-
-    const { cards, memoPosts } = selectChapterCollage({ stop, posts, photos });
-
-    expect(cards).toEqual([]);
-    expect(memoPosts).toEqual([]);
-  });
-
-  test('제목 있는 글이 없으면 hero가 없어요', () => {
-    const { hero, cards } = selectChapterCollage({
-      stop,
-      posts: [post('a', { title: '' })],
-      photos,
+      expect(posts.map((item) => item.id)).toContain(hero.post.id);
+      expect(cards).toHaveLength(2);
+      expect(new Set([hero.post.id, ...ids(cards)]).size).toBe(3);
     });
 
-    expect(hero).toBeNull();
-    expect(cards).toEqual([]);
+    test('글이 칸(hero 하나와 글 카드 둘)보다 적으면 있는 만큼만 줘요', () => {
+      const two = select({ posts: [post('a'), post('b')] });
+      const one = select({ posts: [post('a')] });
+
+      expect(two.hero).not.toBeNull();
+      expect(two.cards).toHaveLength(1);
+      expect(one.hero.post.id).toBe('a');
+      expect(one.cards).toEqual([]);
+    });
+
+    test('같은 seed면 항상 같은 결과예요', () => {
+      const posts = range(6, post, 'a');
+
+      expect(select({ posts })).toEqual(select({ posts }));
+    });
+
+    test('seed가 다르면 다른 글이 hero가 될 수 있어요', () => {
+      const posts = range(6, post, 'a');
+
+      const heroes = new Set(seedsFrom(20).map((seed) => select({ posts, seed }).hero.post.id));
+
+      expect(heroes.size).toBeGreaterThan(2);
+    });
+
+    test('제목이 없는 글은 hero도 글 카드도 되지 않아요', () => {
+      const posts = [post('a'), post('b', { title: '  ', body: '짧은 메모' }), post('c')];
+
+      const { hero, cards } = select({ posts });
+
+      expect([hero.post.id, ...ids(cards)].toSorted()).toEqual(['a', 'c']);
+    });
+
+    test('제목 있는 글이 없으면 hero도 글 카드도 없어요', () => {
+      const { hero, cards } = select({ posts: [post('a', { title: '' })] });
+
+      expect(hero).toBeNull();
+      expect(cards).toEqual([]);
+    });
   });
 
-  test('글이 없으면 사진만 골라요', () => {
-    const result = selectChapterCollage({ stop, posts: [], photos });
+  describe('hero 사진과 사진 칸', () => {
+    test('hero 사진은 그 글에 붙은 사진이고, 사진 칸에서는 빠져요', () => {
+      const { hero, photos: picked } = select({ posts: [post('a', { photoIds: ['p4'] })] });
 
-    expect(result.hero).toBeNull();
-    expect(result.photos).toHaveLength(5);
+      expect(hero.photo.id).toBe('p4');
+      expect(ids(picked)).not.toContain('p4');
+    });
+
+    test('글에 사진이 안 붙었으면 hero 사진은 지점의 대표 사진이에요', () => {
+      const { hero } = select({ posts: [post('a')] });
+
+      expect(hero.photo.id).toBe('p2');
+    });
+
+    test('사진 칸은 다섯 장까지예요(사진이 많아도)', () => {
+      const manyPhotos = range(30, photo, 'q');
+
+      const { photos: picked } = select({ posts: [post('a')], photos: manyPhotos });
+
+      expect(picked).toHaveLength(5);
+      expect(new Set(ids(picked)).size).toBe(5);
+    });
+
+    test('사진이 다섯 장보다 적으면 있는 만큼만 줘요', () => {
+      const { photos: picked } = select({ posts: [post('a')], photos: range(3, photo, 'q') });
+
+      // hero 사진 한 장을 빼면 둘이 남아요
+      expect(picked).toHaveLength(2);
+    });
+
+    test('seed가 다르면 다른 사진이 골라져요', () => {
+      const manyPhotos = range(30, photo, 'q');
+
+      const sets = new Set(
+        seedsFrom(10).map((seed) =>
+          ids(select({ posts: [], photos: manyPhotos, seed }).photos)
+            .toSorted()
+            .join(),
+        ),
+      );
+
+      expect(sets.size).toBeGreaterThan(5);
+    });
+
+    test('글이 없으면 hero 없이 사진만 골라요', () => {
+      const result = select({ posts: [] });
+
+      expect(result.hero).toBeNull();
+      expect(result.photos).toHaveLength(5);
+    });
+
+    test('사진이 하나도 없으면 hero 사진도 사진 칸도 없어요', () => {
+      const { hero, photos: picked } = select({ posts: [post('a')], photos: [] });
+
+      expect(hero.photo).toBeNull();
+      expect(picked).toEqual([]);
+    });
   });
 
-  test('콜라주 사진 수는 글 카드가 늘어 타일이 늘면 같이 늘어요', () => {
-    const manyPhotos = Array.from({ length: 30 }, (_, index) => photo(`q${index}`));
-    const postsOf = (count) => Array.from({ length: count }, (_, index) => post(`a${index}`));
-    const countPhotos = (count) =>
-      selectChapterCollage({ stop, posts: postsOf(count), photos: manyPhotos }).photos.length;
+  describe('메모 카드', () => {
+    test('제목 없이 본문만 있는 글은 메모 글이고, 글 카드가 아니에요', () => {
+      const posts = [post('a'), post('b', { title: '  ', body: '짧은 메모' })];
 
-    // 글 3개(hero와 카드 둘)면 타일 하나라 사진 칸이 5개예요
-    expect(countPhotos(3)).toBe(5);
-    // 글 7개면 타일 둘이 꽉 차서 10개예요
-    expect(countPhotos(7)).toBe(10);
-    // 글 4개면 둘째 타일에 카드가 한 장뿐이라 그 타일은 사진 칸을 2개만 써요
-    expect(countPhotos(4)).toBe(7);
+      const { memos, cards } = select({ posts });
+
+      expect(memos).toEqual([{ id: 'b', text: '짧은 메모' }]);
+      expect(cards).toEqual([]);
+    });
+
+    test('제목도 본문도 없는 글은 어디에도 그리지 않아요', () => {
+      const posts = [post('a'), post('b', { title: '', body: ' ' })];
+
+      const { cards, memos } = select({ posts });
+
+      expect(cards).toEqual([]);
+      expect(memos).toEqual([]);
+    });
+
+    test('사진별 글도 메모 글이에요', () => {
+      const { memos } = select({ posts: [post('a')], notes: { p1: '사진 한 장의 글' } });
+
+      expect(memos).toEqual([{ id: 'note-p1', text: '사진 한 장의 글' }]);
+    });
+
+    test('빈 사진별 글은 버려요', () => {
+      expect(select({ posts: [post('a')], notes: { p1: '  ' } }).memos).toEqual([]);
+    });
+
+    test('메모 글이 많으면 둘만 골라요(제목 없는 글과 사진별 글을 가리지 않고 섞어서요)', () => {
+      const posts = [
+        post('a'),
+        ...range(4, (id) => post(id, { title: '', body: `메모 ${id}` }), 'm'),
+      ];
+      const notes = Object.fromEntries(
+        range(4, photo, 'q').map((item) => [item.id, `글 ${item.id}`]),
+      );
+
+      const { memos } = select({ posts, notes });
+
+      expect(memos).toHaveLength(2);
+      expect(new Set(ids(memos)).size).toBe(2);
+    });
+
+    test('메모 글이 없으면 메모 카드도 없어요', () => {
+      expect(select({ posts: [post('a')] }).memos).toEqual([]);
+    });
   });
 
-  test('사진이 하나도 없으면 hero 사진도 콜라주 사진도 없어요', () => {
-    const { hero, photos: picked } = selectChapterCollage({ stop, posts: [post('a')], photos: [] });
+  describe('스티커', () => {
+    test('스티커는 넷까지이고, 글의 태그에서 서로 다른 것만 골라요', () => {
+      const posts = [
+        post('a', { tags: ['밴쿠버', '산책', '카페'] }),
+        post('b', { tags: ['밴쿠버', '야경', '맛집', '쇼핑'] }),
+      ];
 
-    expect(hero.photo).toBeNull();
-    expect(picked).toEqual([]);
+      const { stickers } = select({ posts });
+
+      expect(stickers).toHaveLength(4);
+      expect(new Set(stickers).size).toBe(4);
+      expect(stickers.every((label) => pickStickerLabels(posts).includes(label))).toBe(true);
+    });
+
+    test('태그가 넷보다 적으면 있는 만큼만 줘요', () => {
+      expect(select({ posts: [post('a', { tags: ['산책'] })] }).stickers).toEqual(['산책']);
+    });
   });
 
-  test('seojin 밴쿠버: 글 7개를 hero 하나와 글 카드 여섯으로 나누고, 스티커는 서로 다른 태그 셋이에요', () => {
-    const vancouver = seojin.stops.find((item) => item.chapter);
-    const posts = selectPostsOfStop(seojin, seojinSeed.posts, vancouver.id);
-    const stopPhotos = selectStopPhotos(vancouver, seojinSeed.photos);
+  describe('피그마 데모 데이터', () => {
+    test('seojin 밴쿠버: 글 7개 중 hero 하나와 글 카드 둘, 스티커 셋(태그가 셋뿐이에요)', () => {
+      const vancouver = seojin.stops.find((item) => item.chapter);
+      const posts = selectPostsOfStop(seojin, seojinSeed.posts, vancouver.id);
+      const stopPhotos = selectStopPhotos(vancouver, seojinSeed.photos);
 
-    const result = selectChapterCollage({ stop: vancouver, posts, photos: stopPhotos });
-
-    expect(result.hero.post.date).toBe(posts[0].date);
-    expect(result.cards).toHaveLength(6);
-    expect(result.memoPosts).toEqual([]);
-    expect(result.stickers).toEqual(['밴쿠버', '개스타운', '산책']);
-    // 사진 6장 중 hero에 한 장을 쓰고 나머지가 콜라주로 가요
-    expect(result.photos.length + 1).toBe(stopPhotos.length);
-  });
-
-  test('edge 런던과 파리의 글도 모두 hero와 글 카드로 나뉘어요', () => {
-    const chapters = edge.stops.filter((item) => item.chapter);
-
-    expect(chapters.map((item) => item.city)).toEqual(['런던', '파리']);
-    chapters.forEach((chapter) => {
-      const posts = selectPostsOfStop(edge, edgeSeed.posts, chapter.id);
       const result = selectChapterCollage({
-        stop: chapter,
+        stop: vancouver,
         posts,
-        photos: selectStopPhotos(chapter, edgeSeed.photos),
+        photos: stopPhotos,
+        seed: SEED,
       });
 
-      expect(1 + result.cards.length).toBe(posts.length);
+      expect(posts).toHaveLength(7);
+      expect(result.cards).toHaveLength(2);
+      expect(result.memos).toEqual([]);
+      expect([...result.stickers].toSorted()).toEqual(['개스타운', '밴쿠버', '산책']);
+      // 사진 6장 중 hero에 한 장을 쓰고 나머지 다섯이 사진 칸으로 가요
+      expect(result.photos).toHaveLength(5);
+    });
+
+    test('edge 런던과 파리도 칸 수를 넘지 않아요', () => {
+      const chapters = edge.stops.filter((item) => item.chapter);
+
+      expect(chapters.map((item) => item.city)).toEqual(['런던', '파리']);
+      chapters.forEach((chapter) => {
+        const posts = selectPostsOfStop(edge, edgeSeed.posts, chapter.id);
+        const result = selectChapterCollage({
+          stop: chapter,
+          posts,
+          photos: selectStopPhotos(chapter, edgeSeed.photos),
+          seed: SEED,
+        });
+
+        expect(result.cards.length).toBeLessThanOrEqual(2);
+        expect(result.photos.length).toBeLessThanOrEqual(5);
+        expect(result.hero).not.toBeNull();
+      });
     });
   });
 });
