@@ -65,7 +65,9 @@ export const STICKER_FONT_SIZES = { large: 24, medium: 18, small: 16 };
 export const STICKER_PADDING_X = 38;
 
 // 스티커 글자가 이보다 길면 줄임표로 잘라요. 한 줄 알약이 칸 밖으로 길게 나가 다른 것을 덮지 않게요.
-export const STICKER_MAX_LENGTH = 16;
+// 18자는 가장 큰 글자(24px) 칸에서 한글로만 채워도 알약 폭이 약 470px이라 오른쪽의 hero 카드(왼쪽 끝 690)에 닿지 않아요.
+// 피그마 샘플의 가장 긴 스티커("한 달에 한 번 비 안 오는 날", 17자)도 잘리지 않고요.
+export const STICKER_MAX_LENGTH = 18;
 
 // 다른 타일끼리 겹칠 때 뒤 타일이 위에 오도록 타일마다 z를 이만큼 더해요.
 export const TILE_Z_STEP = 20;

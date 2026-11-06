@@ -13,6 +13,8 @@ import { FRAME_CLASS } from './frameClass';
  *  - 콜라주 첫 타일이 머리의 아랫부분과 겹치는 높이(Nav 아래 130px)에서 시작해서, 머리는 흐름에서 빼고 위에 얹어요.
  *    겹치는 자리에는 아무것도 놓이지 않아요.
  *  - 화면이 1440px보다 넓으면 콜라주와 같은 폭(FRAME_CLASS)으로 가운데에 둬요. "03 / 12"가 콜라주 오른쪽 끝에 맞게요.
+ *  - "03 / 12"의 줄 높이는 피그마처럼 글꼴 기본값(leading-[normal])이에요. leading-normal은 1.5배라서 줄이 5px 높아지고
+ *    글자가 피그마보다 2px 내려가요.
  *  - 기간은 01 머리말과 같은 formatTripRange를 그대로 써요(양쪽 날짜를 모두 써요).
  *  - 점(·) 앞뒤의 빈칸이 둘인 건 피그마 그대로예요.
  *
@@ -35,7 +37,7 @@ export default function ChapterHeader({ stop, chapter }) {
             {`${formatTripRange(stop)}  ·  ${stop.country} ${stop.cc}  ·  사진 ${stop.photoCount}장`}
           </p>
         </div>
-        <p className="absolute top-16 right-16 font-serif text-4xl leading-normal text-dim italic">
+        <p className="absolute top-16 right-16 font-serif text-4xl leading-[normal] text-dim italic">
           {`${chapter.no} / ${chapter.total}`}
         </p>
       </div>

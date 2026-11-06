@@ -189,7 +189,13 @@ describe('layoutCollage', () => {
   test('긴 스티커 글자는 줄임표로 잘라요', () => {
     const { items } = layoutCollage({ stickers: ['가나다라마바사아자차카타파하가나다라마바'] });
 
-    expect(items[0].label).toBe('가나다라마바사아자차카타파하가…');
+    expect(items[0].label).toBe('가나다라마바사아자차카타파하가나다…');
+  });
+
+  test('피그마 샘플의 가장 긴 스티커(17자)는 자르지 않아요', () => {
+    const { items } = layoutCollage({ stickers: ['한 달에 한 번 비 안 오는 날'] });
+
+    expect(items[0].label).toBe('한 달에 한 번 비 안 오는 날');
   });
 
   test('같은 입력이면 항상 같은 배치예요', () => {
