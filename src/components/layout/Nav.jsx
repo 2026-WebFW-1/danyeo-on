@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
 
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
@@ -8,9 +8,15 @@ const HOME_PATH = '/';
 const NAV_ITEMS = [
   { key: 'home', label: 'Home', to: HOME_PATH },
   { key: 'map', label: 'Map', to: '/map' },
-  { key: 'places', label: 'Places', to: '/places' },
+  // 02 챕터(/chapter/…)는 03 전체 기록에서 열리는 화면이라 Places 아래로 봅니다(피그마 02 프레임에서도 Places가 흰색입니다).
+  { key: 'places', label: 'Places', to: '/places', alsoActiveOn: ['/chapter'] },
   { key: 'passport', label: 'Passport', to: '/passport' },
 ];
+
+// 주소가 이 경로이거나 그 아래(/chapter/…)인지 봅니다. /chapters처럼 앞부분만 같은 주소는 아닙니다.
+function isUnder(pathname, path) {
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
 
 /**
  * 모든 화면 위에 붙는 검정 Nav
@@ -23,6 +29,8 @@ const NAV_ITEMS = [
  * 의도:
  *  - 지금 메뉴는 NavLink가 주소를 보고 정합니다(aria-current="page"도 붙여 줍니다).
  *    주소가 메뉴에 없으면(/upload 등) 어느 메뉴도 흰색이 되지 않습니다.
+ *  - 02 챕터(/chapter/…)는 03에서 열리는 화면이라 Places도 흰색으로 둡니다(alsoActiveOn). 이때는 02가 열려 있는 것이지
+ *    03이 열려 있는 게 아니라서 aria-current는 붙이지 않습니다. Places를 누르면 03으로 갑니다.
  *
  * 주의할 것들:
  *  - Home만 end를 붙입니다. 안 붙이면 모든 주소가 /로 시작해서 Home이 늘 흰색입니다.
@@ -36,6 +44,7 @@ const NAV_ITEMS = [
 export default function Nav() {
   const userName = useAuthStore((state) => state.user?.name);
   const signOut = useAuthStore((state) => state.signOut);
+  const { pathname } = useLocation();
 
   const handleSignOut = () => {
     signOut();
@@ -49,18 +58,22 @@ export default function Nav() {
       </Link>
 
       <nav className="flex gap-8">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.key}
-            to={item.to}
-            end={item.to === HOME_PATH}
-            className={({ isActive }) =>
-              cn('text-md font-medium text-dim', isActive && 'text-white')
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const isChildPage = item.alsoActiveOn?.some((path) => isUnder(pathname, path)) ?? false;
+
+          return (
+            <NavLink
+              key={item.key}
+              to={item.to}
+              end={item.to === HOME_PATH}
+              className={({ isActive }) =>
+                cn('text-md font-medium text-dim', (isActive || isChildPage) && 'text-white')
+              }
+            >
+              {item.label}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="flex items-center gap-7">
