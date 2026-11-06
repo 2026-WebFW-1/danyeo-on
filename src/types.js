@@ -270,5 +270,58 @@
  * @property {string} name 화면에 보일 이름. 예: '윤서진'
  */
 
+/**
+ * 시각과 위치가 다 있는 사진이에요. group이 거른 뒤에 쓰고, 이 사진만 지점에 들어가요.
+ *
+ * @typedef {Photo & { takenAt: string, lat: number, lng: number }} LocatedPhoto
+ */
+
+/**
+ * group이 묶은 지점이에요. 이름(city 등)·경유·대표 사진은 아직 없고 buildJourney가 붙여요.
+ * from·to는 사진의 takenAt 그대로라 시간대가 붙어 있지 않아요. 시간대는 offset에 따로 있어요.
+ *
+ * @typedef {object} GroupStop
+ * @property {string} id 이 지점의 첫 사진 ID
+ * @property {number} lat 사진 좌표 평균, 소수 5자리
+ * @property {number} lng
+ * @property {string | null} offset 첫 사진의 시간대. 예: '+09:00'
+ * @property {string} from 첫 사진 시각. 예: '2024-09-01T19:00:59'
+ * @property {string} to 마지막 사진 시각
+ * @property {number} days 첫날과 마지막 날을 모두 센 날 수
+ * @property {string[]} photoIds 시각 순서
+ * @property {boolean} isHome 집에서 60km 안이면 true
+ * @property {boolean} chapter 집이 아니고 14일 이상 머물렀으면 true
+ */
+
+/**
+ * group이 묶은 여행 안의 구간이에요. 집에서 나가고 들어오는 구간은 buildJourney가 만들어요.
+ *
+ * @typedef {object} GroupLeg
+ * @property {string} from 지점 ID
+ * @property {string} to 지점 ID
+ * @property {number} km 반올림한 정수
+ * @property {'flight' | 'train' | 'car'} mode legMode(km)
+ */
+
+/**
+ * @typedef {object} GroupTrip
+ * @property {string} id 첫 지점 ID
+ * @property {string[]} stopIds
+ * @property {string} from 첫 지점의 from
+ * @property {string} to 마지막 지점의 to
+ * @property {number} days
+ * @property {GroupLeg[]} legs
+ */
+
+/**
+ * group(photos)의 결과예요.
+ *
+ * @typedef {object} GroupResult
+ * @property {{ lat: number, lng: number } | null} home 지역이 하나뿐이면 null
+ * @property {GroupStop[]} stops 시각 순서
+ * @property {GroupTrip[]} trips
+ * @property {string[]} unlocated 시각이나 위치가 없어 지점에 못 넣은 사진 ID. 받은 순서 그대로예요
+ */
+
 // 값을 내보내는 게 없어도 import('@/types')로 불러올 수 있게 모듈로 만들어요.
 export {};
