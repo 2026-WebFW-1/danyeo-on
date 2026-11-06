@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
-import { TRIP_PARAM } from '@/constants/places';
+import { TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { usePostStore } from '@/stores/postStore';
