@@ -1,3 +1,5 @@
+import { toLocalDate } from '../localDate';
+
 // 1. 상수
 const DEFAULT_OFFSET = '+09:00';
 
@@ -51,3 +53,37 @@ const roundHours = (hours) => Math.round(hours * 10) / 10;
  */
 const calcTravelHours = (km, mode) =>
   km / SPEED_KMH[mode] + (mode === 'flight' ? FLIGHT_EXTRA_HOURS : 0);
+
+// 3. 시각 계산 함수 formAt, addYears
+
+/**
+ * 밀리초 시각을 그 시간대의 현지 시각 문자열로 바꿉니다. (toInstant를 거꾸로)
+ * Date는 브라우저 시간대로 바뀌어서, 시간대만큼 더한 뒤 UTC로 읽고 시간대를 붙입니다.
+ *
+ * @param {number} ms ex: 1720684868000
+ * @param {string} offset ex: '+09:00'
+ * @returns {string} ex: '2024-07-11T17:01:21+09:00'
+ */
+function formAt(ms, offset) {
+  const [, sign, hh, mm] = offset.match(/([+-])(\d{2}):(\d{2})/);
+  const offsetMs = (sign === '-' ? -1 : 1) * (Number(hh) * 60 + Number(mm)) * MS_PER_MINUTE;
+
+  // UTC 숫자에 시간대만큼 더해, UTC로 읽었을 때 현지 시각이 나옵니다.
+  const localIso = new Date(ms + offsetMs).toISOString(); // '2024-07-11T17:01:08.000Z'
+  const localTime = localIso.slice(0, LOCAL_TIME_LENGTH); // '2024-07-11T17:01:08'
+
+  return `${localTime}${offset}`;
+}
+
+/**
+ * 날짜에서 n년을 더하거나 뺍니다. 기간 필터 (1Y, 2Y)의 시작일을 만들 때 씁니다.
+ *
+ * @param {string} ex: '2026-08-16'
+ * @param {number} n 빼려면 음수 ex: -1
+ * @returns {string} ex: '2025-08-16'
+ */
+function addYears(date, n) {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCFullYear(day.getUTCFullYear() + n);
+  return toLocalDate(day.toISOString());
+}
