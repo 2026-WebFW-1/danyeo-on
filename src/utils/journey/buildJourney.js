@@ -1,4 +1,5 @@
 import { toLocalDate } from '../localDate';
+import { group } from './group';
 
 // 1. 상수
 const DEFAULT_OFFSET = '+09:00';
@@ -86,4 +87,39 @@ function addYears(date, n) {
   const day = new Date(`${date}T00:00:00Z`);
   day.setUTCFullYear(day.getUTCFullYear() + n);
   return toLocalDate(day.toISOString());
+}
+
+// 3. buildJourney 시작(뺀 사진을 거르고 묶기)
+/**
+ * 사진과 보정으로 화면이 받는 Journey를 만듭니다.
+ * 순서: exclude 사진 빼기 -> group -> 지점 이름 및 경유
+ *      -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
+ *
+ * @param {import('@/types').Photo[]} photos 올린 사진 전부. 순서는 상관없이
+ * @param {import('@/types').Correction[]} corrections 만든 순서
+ * @param {(lat: number, lng: number) => import('@/types').Place | Promise<import('@/types').Place>} findPlace 좌표의 도시 이름을 찾습니다. 앱에선 reverseCity를 그대로 넘기고, 테스트에선 fixture 값을 돌려줍니다.
+ * @returns {Promise<import('@/types').Journey>}
+ */
+export async function buildJourney(photos, corrections, findPlace) {
+  /** 보정 목록에서 한 종류만 꺼냅니다 */
+  const byType = (type) => corrections.filter((correction) => correction.photoId);
+
+  // 3. (사용자가)뺀 사진을 거르고 묶기
+  // Set을 쓰는 이유는 사진이 많아지면 has가 include보다 빨라서이며 수백장이라 차이가 납니다.
+  const excludeIds = new Set(byType('exclude').map((correction) => correction.photoId));
+  const keptPhotos = photos.filter((photo) => !excludeIds.has(photo.id));
+  const grouped = group(keptPhotos); // { home, stops, trips, unlocated }
+
+  /**
+   * group의 결과에는 사진 ID만 있습니다.
+   * 사진의 시각, fileKey를 꺼내려면 ID로 사진을 찾아와야 하므로 미리표로 만들어둡니다.
+   * photoById.get('p_356b49') // { id: 'p_356b49', takenAt: '2024-07-11T20:10:08', ... }
+   */
+  const photoById = new Map(keptPhotos.map((photo) => [photo.id, photo]));
+
+  // trip.stopIds를 통해 이 지점은 어느 여행이 필요하여 뒤집은 표를 만듭니다.
+  // trips: [{ id: 'p_356b49', stopIds: ['p_356b49', 'p_75d831'] }]
+  // ex) tripIdByStopId.get('p_75d831') // 'p_356b49'
+  const tripIdByStopId = new Map();
+  grouped.trips.forEach((trip) => trip.stopIds.forEach((id) => tripIdByStopId.set(id, trip.id)));
 }
