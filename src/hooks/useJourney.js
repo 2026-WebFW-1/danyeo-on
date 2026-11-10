@@ -26,7 +26,7 @@ const LOADING = { journey: null, status: 'loading', error: null };
  *   error: { status: number, code: string, message: string } | null,
  * }}
  *   journey: 'ready'일 때만 있어요. 행이 없는 계정도 'ready'이고 배열은 비고 home·periods는 null이에요
- *   error: 'error'일 때만 있어요. code는 'LOAD_FAILED'예요
+ *   error: 'error'일 때만 있어요. code는 'LOAD_FAILED'예요(읽는 사이 계정이 바뀌면 'ACCOUNT_CHANGED')
  */
 export function useJourney() {
   const userId = useAuthStore((state) => state.user?.id ?? null);

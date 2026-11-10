@@ -20,9 +20,16 @@ const journeyOf = (name) => ({
 });
 
 // from().select().eq().maybeSingle()이 돌려주는 값을 흉내 내요. 부른 모양은 calls에 남겨요.
-function fakeSupabase(respond) {
+// 지금 세션의 계정은 sessionUserId예요. 주지 않으면 요청한 계정과 같아요.
+function fakeSupabase(respond, sessionUserId) {
   const calls = [];
   const client = {
+    auth: {
+      getSession: async () => ({
+        data: { session: { user: { id: sessionUserId ?? calls.at(-1)?.value } } },
+        error: null,
+      }),
+    },
     from: (table) => ({
       select: (columns) => ({
         eq: (column, value) => ({
@@ -106,6 +113,20 @@ describe('getJourney', () => {
       code: 'LOAD_FAILED',
       message: '.env.local을 확인해주세요',
     });
+  });
+
+  test('읽는 사이 세션 계정이 바뀌었으면 기억하지 않고 ACCOUNT_CHANGED로 거절해요', async () => {
+    // given: A를 읽는 요청이 다른 세션으로 나가서 RLS 때문에 행이 안 보임
+    const userA = newUserId();
+    fakeSupabase(() => ({ data: null, error: null }), 'someone-else');
+
+    // when · then
+    await expect(getJourney(userA)).rejects.toMatchObject({ status: 0, code: 'ACCOUNT_CHANGED' });
+
+    // 다시 A로 부르면 새로 읽어요
+    const calls = fakeSupabase(() => ({ data: { payload: journeyOf('a') }, error: null }));
+    await expect(getJourney(userA)).resolves.toEqual(journeyOf('a'));
+    expect(calls).toHaveLength(1);
   });
 
   test('같은 계정을 동시에 두 번 불러도 한 번만 읽고 같은 객체예요', async () => {
