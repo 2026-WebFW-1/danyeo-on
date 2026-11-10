@@ -293,6 +293,28 @@ describe('buildJourney 규칙', () => {
     expect(journey.stops.map((stop) => stop.slug)).toEqual(['도쿄-2024', '도쿄-2024-2']);
   });
 
+  test('도시 이름에 주소를 깨는 글자가 있으면 챕터 주소에서 -로 바꿔요', async () => {
+    // given: 도쿄에 14일 넘게 머무는데, 이름을 찾았더니 'A/B'처럼 /가 들어 있어요
+    const photos = [
+      makePhoto('p_s1', 'seoul', '2023-12-20T09:00:00'),
+      makePhoto('p_s2', 'seoul', '2023-12-21T09:00:00'),
+      makePhoto('p_s3', 'seoul', '2023-12-22T09:00:00'),
+      makePhoto('p_t1', 'tokyo', '2024-01-01T09:00:00'),
+      makePhoto('p_t2', 'tokyo', '2024-01-20T09:00:00'),
+      makePhoto('p_s4', 'seoul', '2024-02-01T09:00:00'),
+    ];
+    const findPlace = (lat, lng) => {
+      const place = findCity(lat, lng);
+      return place.city === '도쿄' ? { ...place, city: 'A/B' } : place;
+    };
+
+    // when
+    const journey = await buildJourney(photos, [], findPlace);
+
+    // then: /chapter/A/B-2024가 되면 chapter/:slug 라우트와 안 맞아요
+    expect(journey.stops[0].slug).toBe('A-B-2024');
+  });
+
   test('이름을 여러 번 바꾸면 마지막 이름을 써요', async () => {
     // given
     const corrections = [

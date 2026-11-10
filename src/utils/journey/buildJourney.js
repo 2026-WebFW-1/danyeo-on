@@ -1,7 +1,8 @@
+import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
 import { legMode } from '@/utils/legMode';
-import { toLocalDate, toLocalYear } from '@/utils/localDate';
+import { toLocalDate } from '@/utils/localDate';
 
 // 1. 상수
 const DEFAULT_OFFSET = '+09:00';
@@ -195,19 +196,22 @@ const collectTransitPhotoIds = (transitCorrections) =>
   new Set(transitCorrections.flatMap((correction) => correction.photoIds));
 
 /**
- * 챕터 주소를 만드는 함수를 돌려줍니다. '도시-연도'이고, 같은 게 또 나오면 -2, -3을 붙입니다.
- * 지금까지 몇 번 나왔는지 세야 해서, 셈을 함수 안에 가둬 둡니다.
+ * 챕터 지점에 주소(slug)를 붙입니다. 주소 규칙은 chapterSlug 하나로 둡니다.
+ * 도시 이름의 /·?·# 같은 글자를 바꾸고, 바꾼 뒤 겹치면 -2, -3을 붙여요. 앞서 쓴 주소를 모아 넘겨요.
  *
- * @returns {(city: string, from: string) => string} ex: '밴쿠버-2025', 두 번째면 '밴쿠버-2025-2'
+ * @param {import('@/types').Stop[]} stops 시각 순. 먼저 간 쪽이 번호 없는 주소를 받아요
+ * @returns {import('@/types').Stop[]}
  */
-function createSlugMaker() {
-  const counts = new Map();
-  return (city, from) => {
-    const base = `${city}-${toLocalYear(from)}`;
-    const count = (counts.get(base) ?? 0) + 1;
-    counts.set(base, count);
-    return count === 1 ? base : `${base}-${count}`;
-  };
+function attachChapterSlugs(stops) {
+  const takenSlugs = new Set();
+
+  return stops.map((stop) => {
+    if (!stop.chapter) return stop;
+
+    const slug = chapterSlug(stop, takenSlugs);
+    if (slug) takenSlugs.add(slug);
+    return { ...stop, slug };
+  });
 }
 
 /**
@@ -220,13 +224,10 @@ function createSlugMaker() {
  * @returns {import('@/types').Stop[]}
  */
 function buildStops(groupStops, placeByStopId, transitPhotoIds, lookup) {
-  const makeSlug = createSlugMaker();
-
-  return groupStops
+  const stops = groupStops
     .filter((stop) => !stop.isHome)
     .map((stop) => {
       const stopPhotos = stop.photoIds.map((id) => lookup.photoById.get(id));
-      const from = withOffset(stopPhotos[0]);
       const { city, country, cc } = placeByStopId.get(stop.id);
 
       return {
@@ -237,11 +238,11 @@ function buildStops(groupStops, placeByStopId, transitPhotoIds, lookup) {
         city,
         country,
         cc,
-        from,
+        from: withOffset(stopPhotos[0]),
         to: withOffset(stopPhotos.at(-1)),
         days: stop.days,
         chapter: stop.chapter,
-        slug: stop.chapter ? makeSlug(city, from) : null,
+        slug: null, // 챕터만 attachChapterSlugs가 채워요
         // 사진 중 하나라도 경유 보정에 있으면 경유 지점입니다.
         transit: stop.photoIds.some((id) => transitPhotoIds.has(id)),
         photoIds: stop.photoIds,
@@ -250,6 +251,8 @@ function buildStops(groupStops, placeByStopId, transitPhotoIds, lookup) {
         coverFileKey: stopPhotos.find((photo) => photo.fileKey)?.fileKey ?? null,
       };
     });
+
+  return attachChapterSlugs(stops);
 }
 
 // 5. 구간
