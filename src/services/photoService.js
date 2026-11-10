@@ -1,4 +1,4 @@
-import { toUploadedImagePaths } from '@/utils/photoFileKey';
+import { toUploadedImageFolders, toUploadedImagePaths } from '@/utils/photoFileKey';
 
 import { getSupabase } from './getSupabase';
 
@@ -101,6 +101,46 @@ export async function savePhotoImage(fileKey, images) {
   );
   const failed = results.find((result) => result.error);
   if (failed) throw failed.error;
+}
+
+// list는 한 번에 이만큼만 줘요(기본값은 100). 사진이 더 많으면 offset을 늘려 다시 받아요.
+const LIST_PAGE_SIZE = 1000;
+
+/**
+ * 버킷 폴더 안의 파일 경로를 끝까지 받아요.
+ *
+ * @param {ReturnType<import('@supabase/supabase-js').SupabaseClient['storage']['from']>} bucket
+ * @param {string} folder 예: 'u1/full'
+ * @returns {Promise<string[]>} 예: ['u1/full/p_a.webp']. list는 폴더를 뺀 이름만 줘서 폴더를 붙여요
+ */
+async function listFilePaths(bucket, folder) {
+  const paths = [];
+  for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
+    const { data, error } = await bucket.list(folder, { limit: LIST_PAGE_SIZE, offset });
+    if (error) throw error;
+
+    paths.push(...data.map((file) => `${folder}/${file.name}`));
+    if (data.length < LIST_PAGE_SIZE) return paths;
+  }
+}
+
+/**
+ * 이미 올라간 내 이미지의 경로를 모두 받아요. 창을 닫아 못 올린 이미지를 찾을 때 써요.
+ * 보기용·썸네일은 따로 올라가서 하나만 있을 수 있으니, 두 폴더를 다 받아요.
+ *
+ * @param {string} ownerId
+ * @returns {Promise<Set<string>>} toUploadedImagePaths가 주는 경로와 같은 모양. 예: 'u1/thumb/p_a.webp'
+ */
+export async function getUploadedImagePaths(ownerId) {
+  const supabase = await getSupabase();
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  const folders = toUploadedImageFolders(ownerId);
+
+  const [fullPaths, thumbPaths] = await Promise.all([
+    listFilePaths(bucket, folders.full),
+    listFilePaths(bucket, folders.thumb),
+  ]);
+  return new Set([...fullPaths, ...thumbPaths]);
 }
 
 // 비공개 버킷이라 주소에 기한이 있어요. 한 화면을 보는 동안은 넉넉하게 한 시간으로 잡았어요.

@@ -20,7 +20,16 @@ export function toUploadedFileKey(ownerId, photoId) {
 }
 
 /**
- * fileKey가 가리키는 photos 버킷 안의 경로예요. 경로 규칙은 BE의 storage 마이그레이션을 따라요.
+ * 한 사람의 이미지가 들어 있는 photos 버킷 안의 폴더예요. 경로 규칙은 BE의 storage 마이그레이션을 따라요.
+ * @param {string} ownerId
+ * @returns {{ full: string, thumb: string }} 예: { full: 'u1/full', thumb: 'u1/thumb' }
+ */
+export function toUploadedImageFolders(ownerId) {
+  return { full: `${ownerId}/full`, thumb: `${ownerId}/thumb` };
+}
+
+/**
+ * fileKey가 가리키는 photos 버킷 안의 경로예요.
  * @param {string | null | undefined} fileKey
  * @returns {{ full: string, thumb: string } | null} 올린 사진이 아니면(데모 사진, 이미지 없음) null
  */
@@ -31,8 +40,9 @@ export function toUploadedImagePaths(fileKey) {
   if (parts.length !== 2 || parts.some((part) => !part)) return null;
 
   const [ownerId, photoId] = parts;
+  const folders = toUploadedImageFolders(ownerId);
   return {
-    full: `${ownerId}/full/${photoId}.webp`,
-    thumb: `${ownerId}/thumb/${photoId}.webp`,
+    full: `${folders.full}/${photoId}.webp`,
+    thumb: `${folders.thumb}/${photoId}.webp`,
   };
 }
