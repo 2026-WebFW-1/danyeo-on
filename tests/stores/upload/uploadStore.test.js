@@ -1,13 +1,23 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { savePhotoImage, savePhotos } from '@/services/photoService';
+import {
+  getMyData,
+  getUploadedImagePaths,
+  savePhotoImage,
+  savePhotos,
+} from '@/services/photoService';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
 vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
-vi.mock('@/services/photoService', () => ({ savePhotoImage: vi.fn(), savePhotos: vi.fn() }));
+vi.mock('@/services/photoService', () => ({
+  getMyData: vi.fn(),
+  getUploadedImagePaths: vi.fn(),
+  savePhotoImage: vi.fn(),
+  savePhotos: vi.fn(),
+}));
 
 const { getState } = useUploadStore;
 const photoFile = (name) => new File(['사진'], name, { type: 'image/jpeg' });
@@ -322,14 +332,20 @@ describe('save', () => {
     });
   });
 
-  test('이미 저장한 사진은 두 벌로 저장하지 않고 이미지도 다시 올리지 않아요', async () => {
-    // given: a는 전에 저장한 사진
+  test('이미 저장한 사진은 두 벌로 저장하지 않고, 다 올라간 이미지는 다시 올리지 않아요', async () => {
+    // given: a는 전에 저장했고 이미지도 다 올라간 사진
     await pick(['a.jpg', 'b.jpg']);
     vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
     vi.mocked(savePhotos).mockImplementation(async ([existing, fresh]) => ({
       saved: [fresh.id],
       skipped: [existing.id],
     }));
+    vi.mocked(getMyData).mockResolvedValue({
+      photos: [{ fileName: 'a.jpg', takenAt: TAKEN_AT, fileKey: 'photos:u1/p_old_a' }],
+    });
+    vi.mocked(getUploadedImagePaths).mockResolvedValue(
+      new Set(['u1/full/p_old_a.webp', 'u1/thumb/p_old_a.webp']),
+    );
 
     // when
     await getState().save('u1');
@@ -339,6 +355,146 @@ describe('save', () => {
     const [[rows]] = vi.mocked(savePhotos).mock.calls;
     expect(uploadedKeys()).toEqual([rows[1].fileKey]);
     expect(getState().saveResult).toEqual({ saved: 1, existing: 1 });
+  });
+
+  describe('이어 올리기', () => {
+    /** 전에 저장된 사진 행이에요. getMyData가 주는 모양이에요. */
+    const savedRow = (fileName, fileKey) => ({ fileName, takenAt: TAKEN_AT, fileKey });
+    /** 그 키의 이미지가 버킷에 올라간 경로예요. */
+    const pathsOf = (fileKey, sizes = ['full', 'thumb']) => {
+      const photoId = fileKey.split('/').at(-1);
+      return sizes.map((size) => `u1/${size}/${photoId}.webp`);
+    };
+
+    beforeEach(() => {
+      // 고른 사진이 전부 전에 저장한 사진이에요.
+      vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+        saved: [],
+        skipped: photos.map((photo) => photo.id),
+      }));
+    });
+
+    test('전에 저장했지만 이미지가 없는 사진은 원래 fileKey로 이어서 올려요', async () => {
+      // given: a는 다 올라갔고, b는 창을 닫아 못 올렸어요
+      await pick(['a.jpg', 'b.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
+      vi.mocked(getMyData).mockResolvedValue({
+        photos: [savedRow('a.jpg', 'photos:u1/p_old_a'), savedRow('b.jpg', 'photos:u1/p_old_b')],
+      });
+      vi.mocked(getUploadedImagePaths).mockResolvedValue(new Set(pathsOf('photos:u1/p_old_a')));
+
+      // when
+      await getState().save('u1');
+      await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+      // then
+      expect(uploadedKeys()).toEqual(['photos:u1/p_old_b']);
+      expect(getState().imageUpload.total).toBe(1);
+      expect(getState().saveResult).toEqual({ saved: 0, existing: 2 });
+    });
+
+    test('보기용·썸네일 중 하나만 올라간 사진도 다시 올려요', async () => {
+      // given: 썸네일만 올라가고 보기용은 못 올렸어요
+      await pick(['a.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+      vi.mocked(getMyData).mockResolvedValue({ photos: [savedRow('a.jpg', 'photos:u1/p_old_a')] });
+      vi.mocked(getUploadedImagePaths).mockResolvedValue(
+        new Set(pathsOf('photos:u1/p_old_a', ['thumb'])),
+      );
+
+      // when
+      await getState().save('u1');
+      await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+      // then
+      expect(uploadedKeys()).toEqual(['photos:u1/p_old_a']);
+    });
+
+    test('이미지 없이 저장한 사진과 데모 사진은 이어 올리지 않아요', async () => {
+      // given
+      await pick(['a.jpg', 'b.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
+      vi.mocked(getMyData).mockResolvedValue({
+        photos: [savedRow('a.jpg', null), savedRow('b.jpg', 'demo:x/seojin/b.webp')],
+      });
+      vi.mocked(getUploadedImagePaths).mockResolvedValue(new Set());
+
+      // when
+      await getState().save('u1');
+
+      // then
+      expect(getState().saveStatus).toBe('saved');
+      expect(getState().imageUpload.total).toBe(0);
+      expect(savePhotoImage).not.toHaveBeenCalled();
+    });
+
+    test('이번에 미리 볼 수 없는 사진은 이어 올리지 않아요', async () => {
+      // given: 전에 저장한 사진인데, 이번에 고른 파일은 썸네일을 못 만들었어요
+      vi.mocked(resizeThumbnail).mockResolvedValue(null);
+      await pick(['a.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+
+      // when
+      await getState().save('u1');
+
+      // then: 올릴 수 없으니 저장된 행을 찾으러 가지도 않아요
+      expect(getMyData).not.toHaveBeenCalled();
+      expect(savePhotoImage).not.toHaveBeenCalled();
+    });
+
+    test('새로 저장한 사진만 있으면 저장된 행을 다시 받지 않아요', async () => {
+      // given
+      vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+        saved: photos.map((photo) => photo.id),
+        skipped: [],
+      }));
+      await pick(['a.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+
+      // when
+      await getState().save('u1');
+      await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+      // then
+      expect(getMyData).not.toHaveBeenCalled();
+      expect(getUploadedImagePaths).not.toHaveBeenCalled();
+    });
+
+    test('이어 올릴 사진을 찾는 도중 비우면 결과를 덮거나 이미지를 올리지 않아요', async () => {
+      // given: 버킷 목록을 받는 중
+      await pick(['a.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+      vi.mocked(getMyData).mockResolvedValue({ photos: [savedRow('a.jpg', 'photos:u1/p_old_a')] });
+      const listing = Promise.withResolvers();
+      vi.mocked(getUploadedImagePaths).mockReturnValueOnce(listing.promise);
+      const saving = getState().save('u1');
+      await vi.waitFor(() => expect(getUploadedImagePaths).toHaveBeenCalled());
+
+      // when
+      getState().reset();
+      listing.resolve(new Set());
+      await saving;
+
+      // then
+      expect(getState()).toMatchObject({ saveStatus: 'idle', saveResult: null });
+      expect(savePhotoImage).not.toHaveBeenCalled();
+    });
+
+    test('이어 올릴 사진을 못 찾으면 실패 상태가 돼요', async () => {
+      // given
+      await pick(['a.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
+      vi.mocked(getMyData).mockRejectedValue(new Error('네트워크'));
+      vi.mocked(getUploadedImagePaths).mockResolvedValue(new Set());
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // when
+      await getState().save('u1');
+
+      // then
+      expect(getState().saveStatus).toBe('failed');
+      expect(savePhotoImage).not.toHaveBeenCalled();
+    });
   });
 
   test('저장하지 못하면 실패 상태가 되고 이미지는 올리지 않아요', async () => {

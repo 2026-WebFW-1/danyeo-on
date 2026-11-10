@@ -16,8 +16,11 @@
 
 ## 1. 저장 (`save`)
 
-같은 폴더를 다시 넣어도 두 벌로 저장되지 않습니다. 이미 저장한 사진의 이미지는 다시 올리지 않습니다.
-창을 닫으면 JS가 멈추면서 올리기도 멈춥니다. 그때 못 올린 이미지를 이어서 올리는 기능은 #26에 남겨 두었습니다(코드가 커서 뺐음).
+같은 폴더를 다시 넣어도 두 벌로 저장되지 않습니다. 이미지가 다 올라간 사진은 다시 올리지 않습니다.
+창을 닫으면 JS가 멈추면서 올리기도 멈춥니다. 같은 폴더를 다시 넣고 저장하면, 이미 저장된 사진 중 보기용·썸네일이 둘 다 올라가지 않은 사진만 원래 `fileKey`로 이어서 올립니다.
+
+- 이번에 만든 ID는 저장되지 않으니, `getMyData()`로 받은 행 중 `dedupeKey`(촬영 시각, 파일 이름)가 같은 행의 `fileKey`를 씁니다.
+- 원래 `fileKey`가 `null`(그때 미리 볼 수 없던 사진)이면 이어 올리지 않습니다. 행의 `fileKey`를 바꾸는 건 BE 수정이 필요해서 뺐습니다.
 
 ```mermaid
 sequenceDiagram
@@ -39,12 +42,22 @@ sequenceDiagram
     Svc->>DB: rpc('save_photos')
     DB-->>Store: { saved, skipped } (skipped = 같은 이름·촬영 시각이 이미 있음)
 
+    opt 건너뛴 사진 중 이번에 미리 볼 수 있는 사진이 있음 (이어 올리기)
+        par
+            Store->>Svc: getMyData() (원래 행의 fileKey)
+        and
+            Store->>Svc: getUploadedImagePaths(ownerId)
+            Svc->>S3: list(full·thumb 폴더, 1000개씩 끝까지)
+        end
+        Store->>Store: 원래 fileKey가 photos:이고 보기용·썸네일 중 하나라도 없으면 이어 올릴 대상
+    end
+
     alt 실패
         Store->>Store: saveStatus = 'failed' (다시 누르면 처음부터, 저장은 두 벌이 되지 않음)
     else 성공
         Store->>Store: jobId 바뀌었으면 멈춤 (그사이 다시 고른 것)
         Store->>Store: saveStatus = 'saved', saveResult = { saved, existing }
-        Store-)Store: uploadImages(새로 저장한 사진 중 fileKey 있는 것) (기다리지 않음)
+        Store-)Store: uploadImages(새로 저장한 사진 중 fileKey 있는 것 + 이어 올릴 대상) (기다리지 않음)
     end
 ```
 
