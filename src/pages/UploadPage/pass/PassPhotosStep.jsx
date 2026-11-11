@@ -1,3 +1,5 @@
+import PassTimeline from './PassTimeline';
+
 /**
  * 사진을 시간순 한 줄로 훑으며 빈칸을 채우는 화면 (13h″ 지나가며 정리, #129)
  *
@@ -20,6 +22,7 @@ export default function PassPhotosStep() {
             <h1 className="mt-3 text-5xl font-bold text-ink 2xl:text-6xl">지나가면서 정리할게요</h1>
             <p className="mt-3 text-lg break-keep text-muted">애매한 건 천천히 지나가요.</p>
           </div>
+          <PassTimeline currentIndex={0} />
         </header>
       </div>
     </main>
