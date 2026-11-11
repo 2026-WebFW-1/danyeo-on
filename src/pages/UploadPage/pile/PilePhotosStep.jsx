@@ -17,14 +17,14 @@ import SavePhotos from './SavePhotos';
  * 13a″로 돌아갈 길이 이것뿐이라, 다 모으기 전에도 늘 보여 줍니다.
  * @param {object} props
  * @param {() => void} props.onReset [다시 고르기]를 누르면 불러요. 13a″로 돌아가요
+ * @param {() => void} props.onNext 다 모은 뒤 [다음]을 누르면 불러요. 13h″로 넘어가요
  */
-export default function PilePhotosStep({ onReset }) {
+export default function PilePhotosStep({ onReset, onNext }) {
   const photoCount = useUploadStore((state) => state.photos.length);
   const totalCount = useUploadStore((state) => state.files.length);
   const noPreviewCount = useUploadStore((state) => state.noPreviewCount);
   const isDone = useUploadStore((state) => state.isDone);
 
-  // TODO(titanfall7274): 13h″ 지나가며 정리 이슈가 생기면 isDone일 때 넘어가고, 저장은 정리 뒤로 옮기기
   return (
     <main className="flex flex-1 flex-col justify-center bg-canvas">
       <div className="mx-auto grid w-full max-w-360 grid-cols-[auto_1fr] items-center gap-10 px-30 py-14 2xl:max-w-400">
@@ -53,6 +53,15 @@ export default function PilePhotosStep({ onReset }) {
               `사진 ${photoCount}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
           </p>
           {isDone && <SavePhotos />}
+          {isDone && (
+            <button
+              type="button"
+              onClick={onNext}
+              className="mt-4 h-14 w-45 bg-nav text-lg font-bold text-white"
+            >
+              다음
+            </button>
+          )}
           <button
             type="button"
             onClick={onReset}
