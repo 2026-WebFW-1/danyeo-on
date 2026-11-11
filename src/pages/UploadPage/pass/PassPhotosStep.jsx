@@ -1,3 +1,4 @@
+import PassStrip from './PassStrip';
 import PassTimeline from './PassTimeline';
 
 /**
@@ -24,6 +25,9 @@ export default function PassPhotosStep() {
           </div>
           <PassTimeline currentIndex={0} />
         </header>
+        <section aria-label="사진 정리" className="flex flex-1 flex-col justify-center py-4">
+          <PassStrip currentIndex={0} />
+        </section>
       </div>
     </main>
   );
