@@ -51,10 +51,27 @@ jobs:
         if: steps.project.outputs.exists == 'true'
         run: pnpm lint
 
-      # 테스트가 실제 Chromium에서 돌아서 브라우저와 시스템 라이브러리를 같이 설치해요
-      - name: 테스트용 브라우저 설치
+      # 테스트가 실제 Chromium에서 돌아요. 받은 브라우저는 Playwright 버전으로 캐시해요
+      - name: Playwright 버전 확인
+        id: playwright
         if: steps.project.outputs.exists == 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: 테스트용 브라우저 캐시
+        id: playwright-cache
+        if: steps.project.outputs.exists == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # 시스템 라이브러리는 러너에 이미 있어서 --with-deps(apt)를 쓰지 않아요.
+      # apt 서버를 못 찾으면 이 단계에서 10분을 넘겨 job이 죽었어요(#133).
+      # 러너 이미지가 바뀌어 브라우저가 안 뜨면 `playwright install-deps chromium`을 다시 넣어요.
+      - name: 테스트용 브라우저 설치
+        if: steps.project.outputs.exists == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 3
+        run: pnpm exec playwright install chromium
 
       # 테스트 파일이 아직 없는 브랜치에서도 통과하도록 --passWithNoTests를 붙여요
       - name: 테스트
