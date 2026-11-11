@@ -2,11 +2,12 @@ import { useState } from 'react';
 
 import { useUploadStore } from '@/stores/upload/uploadStore';
 
+import PassPhotosStep from './pass/PassPhotosStep';
 import PilePhotosStep from './pile/PilePhotosStep';
 import SelectPhotosStep from './select/SelectPhotosStep';
 
 /**
- * 사진 올리기 페이지. 13a″ 고르기 > 포개지며 쌓이기(#87) > 13h″ 지나가며 정리
+ * 사진 올리기 페이지. 13a″ 고르기 > 포개지며 쌓이기(#87) > 13h″ 지나가며 정리(#129)
  *
  * 단계는 이 페이지에, 다음 페이지에서도 쓸 원본·썸네일은 스토어에 둡니다.
  * 화면 모양은 그리지 않습니다. 각 단계 컴포넌트(SelectPhotosStep, PilePhotosStep …)가 그립니다.
@@ -39,5 +40,9 @@ export default function UploadPage() {
     return <SelectPhotosStep onPick={handlePick} />;
   }
 
-  return <PilePhotosStep onReset={handleReset} />;
+  if (step === 'pass') {
+    return <PassPhotosStep />;
+  }
+
+  return <PilePhotosStep onReset={handleReset} onNext={() => setStep('pass')} />;
 }
