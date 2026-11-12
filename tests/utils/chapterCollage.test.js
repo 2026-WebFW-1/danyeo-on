@@ -188,8 +188,23 @@ describe('selectChapterCollage', () => {
 
       const { memos, cards } = select({ posts });
 
-      expect(memos).toEqual([{ id: 'b', text: '짧은 메모' }]);
+      expect(memos).toEqual([{ id: 'b', text: '짧은 메모', date: '2025-01-01' }]);
       expect(cards).toEqual([]);
+    });
+
+    test('글에서 온 메모에는 그 글의 날짜가 붙어서, 눌러서 그 글을 고칠 수 있어요', () => {
+      const posts = [
+        post('a'),
+        post('b', { title: '', body: '첫 메모', date: '2025-01-03' }),
+        post('c', { title: '', body: '둘째 메모', date: '2025-01-05' }),
+      ];
+
+      const { memos } = select({ posts });
+
+      expect(memos.toSorted((a, b) => a.id.localeCompare(b.id))).toEqual([
+        { id: 'b', text: '첫 메모', date: '2025-01-03' },
+        { id: 'c', text: '둘째 메모', date: '2025-01-05' },
+      ]);
     });
 
     test('제목도 본문도 없는 글은 어디에도 그리지 않아요', () => {
@@ -201,10 +216,11 @@ describe('selectChapterCollage', () => {
       expect(memos).toEqual([]);
     });
 
-    test('사진별 글도 메모 글이에요', () => {
+    test('사진별 글도 메모 글이에요(날짜가 없어서 눌러 고치는 글은 아니에요)', () => {
       const { memos } = select({ posts: [post('a')], notes: { p1: '사진 한 장의 글' } });
 
       expect(memos).toEqual([{ id: 'note-p1', text: '사진 한 장의 글' }]);
+      expect(memos[0]).not.toHaveProperty('date');
     });
 
     test('빈 사진별 글은 버려요', () => {
