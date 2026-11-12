@@ -11,9 +11,10 @@ import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import ChapterPage from '@/pages/ChapterPage/ChapterPage';
 import { getPhotoNotes } from '@/services/noteService';
-import { getPosts } from '@/services/postService';
+import { getPosts, savePost } from '@/services/postService';
 import { usePostStore } from '@/stores/postStore';
 import { getNextStop } from '@/utils/chapters';
+import { formatPostDate } from '@/utils/postForm';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
@@ -325,5 +326,77 @@ describe('ChapterPage 아래 줄과 이동', () => {
     expect(headline()).toBe('런던에서 보낸 25일');
     expect(continueLink().textContent).toContain('전체 기록 보기');
     expect(continueLink().getAttribute('href')).toBe(`/places?trip=${london.tripId}`);
+  });
+});
+
+describe('ChapterPage 글 고치기', () => {
+  // 글이 이 하나뿐이면 콜라주를 무작위로 골라도 hero는 늘 이 글이라, 같은 모양으로 확인할 수 있어요.
+  const post0712 = seojinSeed.posts.find((post) => post.date === '2025-07-12');
+  const editButton = () =>
+    container.querySelector(`button[aria-label="${formatPostDate(post0712.date)} 글 고치기"]`);
+  const editor = () => container.querySelector('section[aria-label="글 고치기"]');
+  const findButton = (text) =>
+    [...container.querySelectorAll('button')].find((button) => button.textContent === text);
+
+  /** 사람이 입력한 것처럼 값을 바꿔요. React가 알아채도록 원래 setter로 넣어요. */
+  const type = async (element, value) => {
+    const { set } = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value');
+    await act(async () => {
+      set.call(element, value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+
+  beforeEach(() => {
+    vi.mocked(getPosts).mockResolvedValue([post0712]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('글 카드를 누르면 그 글과 그날 사진·설명이 있는 편집기가 열려요', async () => {
+    await render();
+    expect(container.textContent).toContain('계속 여행하기');
+
+    await act(async () => editButton().click());
+
+    expect(editor()).not.toBeNull();
+    expect(container.querySelector('input[name="title"]').value).toBe(post0712.title);
+    expect(editor().textContent).toContain('2025.07.12 (토) · Day 15');
+    expect(editor().querySelector('figcaption').textContent).toBe(
+      'IMG_0188.JPG · 2025.07.12 13:10 · 밴쿠버',
+    );
+    expect(container.textContent).not.toContain('계속 여행하기');
+    expect(headline()).toBe('밴쿠버에서 보낸 57일');
+  });
+
+  test('저장하면 콜라주로 돌아오고, 바뀐 제목이 글 카드에 보여요', async () => {
+    await render();
+    await act(async () => editButton().click());
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    await type(container.querySelector('input[name="title"]'), '다리 위에서');
+    await act(async () => findButton('저장').click());
+    await act(async () => vi.advanceTimersByTime(1000));
+
+    expect(savePost).toHaveBeenCalledWith(
+      expect.objectContaining({ id: post0712.id, date: '2025-07-12', title: '다리 위에서' }),
+    );
+    expect(editor()).toBeNull();
+    expect(titles()).toEqual(['다리 위에서']);
+    expect(container.textContent).toContain('계속 여행하기');
+  });
+
+  test('저장해도 챕터 화면이 불러오는 중 안내로 되돌아가지 않아요', async () => {
+    await render();
+    await act(async () => editButton().click());
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    await type(container.querySelector('textarea[name="body"]'), '본문도 고쳤어요');
+    await act(async () => findButton('저장').click());
+
+    expect(container.textContent).not.toContain('챕터를 불러오는 중이에요');
+    expect(editor()).not.toBeNull();
   });
 });

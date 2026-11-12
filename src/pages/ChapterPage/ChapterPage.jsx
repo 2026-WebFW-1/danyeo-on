@@ -7,7 +7,7 @@ import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { usePhotoNotes } from '@/hooks/usePhotoNotes';
 import { usePostStore } from '@/stores/postStore';
 import { findChapterBySlug, getNextStop, selectChapters } from '@/utils/chapters';
-import { selectStopPhotos } from '@/utils/selectStopPhotos';
+import { selectStopPhotoDetails, selectStopPhotos } from '@/utils/selectStopPhotos';
 import { selectPostsOfStop } from '@/utils/tripStops';
 
 import ChapterNotice from './ChapterNotice';
@@ -35,6 +35,8 @@ const NO_PHOTO_IDS = [];
  *  - 사진별 글은 지점의 사진 전부 것을 한 번에 읽어요(글이 있는 사진만 돌아와요). 어느 사진의 글이 메모 카드가 될지는
  *    ChapterView가 무작위로 골라서, 읽기 전에는 알 수 없어요. 글을 받는 것과 동시에 읽어요. 다른 화면과 나눠 쓰지 않아서 스토어를 쓰지 않아요.
  *  - 다른 챕터로 넘어가면(주소만 바뀌어요) 맨 위부터 보여요. [계속 여행하기]는 맨 아래에 있어서 그대로면 아래에 머물러요.
+ *  - 글을 고치는 화면(14a)은 ChapterView 안에서 열려요. 글은 usePostStore에서 받아 넘기고, 고치기·저장은 PostEditor가 스토어로 해요.
+ *    저장해도 스토어의 status는 그대로 'ready'라서 이 페이지가 안내 화면으로 되돌아가지 않아요.
  *
  * @see ChapterView
  */
@@ -53,6 +55,11 @@ export default function ChapterPage() {
   );
   const photos = useMemo(
     () => (stop ? selectStopPhotos(stop, myPhotos) : NO_PHOTOS),
+    [stop, myPhotos],
+  );
+  // 글을 고칠 때 그날 사진의 파일 이름·촬영 시각이 필요해서, id와 fileKey만 있는 photos와 따로 한 번 더 골라요.
+  const stopPhotos = useMemo(
+    () => (stop ? selectStopPhotoDetails(stop, myPhotos) : NO_PHOTOS),
     [stop, myPhotos],
   );
 
@@ -94,6 +101,7 @@ export default function ChapterPage() {
       chapter={chapter}
       posts={posts}
       photos={photos}
+      stopPhotos={stopPhotos}
       notes={notes}
       nextStop={nextStop}
     />
