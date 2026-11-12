@@ -41,7 +41,8 @@ export function pickHeroPhoto(post, photos, coverFileKey) {
  * @property {{ post: import('@/types').Post, photo: import('@/types').PhotoRef | null } | null} hero
  *   사진이 위에 붙는 큰 카드
  * @property {import('@/types').Post[]} cards 글 카드 칸(둘)에 들어갈 글
- * @property {{ id: string, text: string }[]} memos 메모 카드 칸(둘)에 들어갈 글
+ * @property {{ id: string, text: string, date?: string }[]} memos 메모 카드 칸(둘)에 들어갈 글.
+ *   글(posts)에서 온 것에는 그 글의 날짜(date)가 있고, 사진별 글에는 없어요
  * @property {import('@/types').PhotoRef[]} photos 사진 칸(다섯)에 들어갈 사진(hero 사진은 빼요)
  * @property {string[]} stickers 스티커 칸(넷)에 들어갈 글자
  */
@@ -70,7 +71,7 @@ export function selectChapterCollage({ stop, posts, photos, notes = {}, seed }) 
 
   const postMemos = posts
     .filter((post) => !hasTitle(post) && hasBody(post))
-    .map((post) => ({ id: post.id, text: post.body }));
+    .map((post) => ({ id: post.id, text: post.body, date: post.date }));
   const photoMemos = Object.entries(notes)
     .filter(([, text]) => text.trim() !== '')
     .map(([photoId, text]) => ({ id: `note-${photoId}`, text }));

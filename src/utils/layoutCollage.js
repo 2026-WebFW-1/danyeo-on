@@ -23,6 +23,7 @@ import {
  * @property {import('@/types').Post} [post] hero · card
  * @property {import('@/types').PhotoRef | null} [photo] hero(위에 붙는 사진) · photo
  * @property {string} [text] memo
+ * @property {string} [date] memo가 글(posts)에서 온 것이면 그 글의 날짜예요. 눌러서 고칠 때 써요
  * @property {string} [label] sticker
  * @property {'large' | 'medium' | 'small'} [size] sticker 글자 크기
  */
@@ -50,7 +51,7 @@ function fillSlots(slots, values, toItem) {
  * @param {{ post: import('@/types').Post, photo: import('@/types').PhotoRef | null } | null} [input.hero]
  *   사진이 위에 붙는 큰 카드
  * @param {import('@/types').Post[]} [input.cards] 글 카드(둘까지)
- * @param {{ id: string, text: string }[]} [input.memos] 메모 카드(둘까지)
+ * @param {{ id: string, text: string, date?: string }[]} [input.memos] 메모 카드(둘까지)
  * @param {import('@/types').PhotoRef[]} [input.photos] 콜라주에 흩어 놓을 사진(다섯까지, hero 사진은 빼고)
  * @param {string[]} [input.stickers] 스티커 글자(넷까지)
  * @returns {CollageItem[]} 쌓이는 순서(z)가 작은 것부터예요
@@ -81,6 +82,7 @@ export function layoutCollage({ hero = null, cards = [], memos = [], photos = []
       kind: 'memo',
       ...slot,
       text: memo.text,
+      date: memo.date,
     })),
     ...fillSlots(PHOTO_SLOTS, photos, (slot, photo) => ({
       key: `photo-${photo.id}`,

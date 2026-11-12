@@ -1,4 +1,18 @@
 /**
+ * 한 지점의 사진을 파일 이름·촬영 시각까지 그대로 돌려줘요.
+ * 지점의 photoIds 순서를 그대로 따르고, 사진 목록에 없는 id는 건너뛰어요.
+ * 02에서 글을 고칠 때 그날 사진과 그 설명(파일 이름 · 촬영 시각)을 보여 주는 데 써요.
+ *
+ * @param {Pick<import('@/types').Stop, 'photoIds'>} stop
+ * @param {import('@/types').Photo[]} photos 로그인한 사람의 사진 전부(getMyData의 photos)
+ * @returns {import('@/types').Photo[]}
+ */
+export function selectStopPhotoDetails(stop, photos) {
+  const photosById = new Map(photos.map((photo) => [photo.id, photo]));
+  return stop.photoIds.flatMap((id) => photosById.get(id) ?? []);
+}
+
+/**
  * 한 지점의 사진을 Lightbox·PhotoGrid에 넘길 목록으로 만들어요.
  * 지점의 photoIds 순서를 그대로 따르고, 사진 목록에 없는 id는 건너뛰어요.
  * 이미지가 없는 사진(fileKey: null)은 그대로 남겨서 회색 칸으로 보여 줘요.
@@ -9,12 +23,7 @@
  * @returns {import('@/types').PhotoRef[]}
  */
 export function selectStopPhotos(stop, photos) {
-  const photosById = new Map(photos.map((photo) => [photo.id, photo]));
-
-  const refs = stop.photoIds.flatMap((id) => {
-    const photo = photosById.get(id);
-    return photo ? [{ id: photo.id, fileKey: photo.fileKey }] : [];
-  });
+  const refs = selectStopPhotoDetails(stop, photos).map(({ id, fileKey }) => ({ id, fileKey }));
 
   if (refs.length === 0 && stop.coverFileKey) return [{ id: stop.id, fileKey: stop.coverFileKey }];
   return refs;

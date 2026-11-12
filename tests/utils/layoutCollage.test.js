@@ -56,6 +56,18 @@ describe('layoutCollage', () => {
     expect(byKind(items, 'memo')[0]).toMatchObject({ x: 1007.8, rotate: 1.5, text: '메모 m0' });
   });
 
+  test('글에서 온 메모의 날짜는 그대로 넘기고, 날짜 없는 메모는 날짜 없이 둬요', () => {
+    const items = layoutCollage({
+      memos: [{ id: 'm0', text: '글 메모', date: '2025-07-12' }, memo('m1')],
+    });
+
+    const [fromPost, fromPhoto] = byKind(items, 'memo').toSorted((a, b) =>
+      a.text.localeCompare(b.text),
+    );
+    expect(fromPost).toMatchObject({ text: '글 메모', date: '2025-07-12' });
+    expect(fromPhoto.date).toBeUndefined();
+  });
+
   test('쌓이는 순서(z)가 작은 것부터 줘요', () => {
     const items = layoutCollage(SAMPLE);
 
