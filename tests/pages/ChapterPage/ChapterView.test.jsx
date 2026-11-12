@@ -448,6 +448,9 @@ describe('ChapterView 글 고치기', () => {
     });
 
     test('다시 열면 앞에서 쓰다 만 내용이 아니라 글 그대로 시작해요', async () => {
+      // 고친 게 있으면 [취소]가 닫을지 물어볼 수 있어요(window.confirm). Vitest 브라우저 모드는 confirm을 경고만
+      // 찍고 false를 돌려주는 함수로 바꿔 두어서 편집기가 안 닫혀요. 닫겠다고 답하도록 가짜로 바꿔요.
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
       await open(post0712);
       await type(container.querySelector('input[name="title"]'), '쓰다 만 제목');
       await act(async () => findButton('취소').click());
