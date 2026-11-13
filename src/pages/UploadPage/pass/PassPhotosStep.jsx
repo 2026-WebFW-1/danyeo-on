@@ -127,7 +127,7 @@ export default function PassPhotosStep() {
                 step={Object.keys(answers).length + 1}
                 total={askTotal}
                 onAnswer={handleAnswer}
-                className="mx-auto mt-4 xl:absolute xl:top-8 xl:left-[calc(50%+8.5rem)] xl:mt-0"
+                className="absolute -top-20 right-0 left-[calc(50%+8rem)] h-72"
               />
             )}
           </div>
