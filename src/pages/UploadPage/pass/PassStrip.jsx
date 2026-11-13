@@ -46,6 +46,7 @@ function getJourneyColor(position) {
  */
 export default function PassStrip({ currentIndex, moveMs, isAsking }) {
   const photos = useUploadStore((state) => state.photos);
+  const answers = useUploadStore((state) => state.passAnswers);
   const start = Math.max(0, currentIndex - SIDE_COUNT);
   const visiblePhotos = photos.slice(start, currentIndex + SIDE_COUNT + 1);
   // 잘라 낸 앞 사진 자리만큼 여백을 둬서, 이동 거리를 전체 순서로 셀 수 있게 합니다.
@@ -105,7 +106,12 @@ export default function PassStrip({ currentIndex, moveMs, isAsking }) {
             <li
               key={photo.id}
               aria-current={isCurrent ? 'true' : 'false'}
-              className={cn('w-51 p-3', !isColored && 'bg-white')}
+              // 빼 둔 사진은 자리는 그대로 두고 흐리게 그려요. 빼면 줄이 당겨지며 다른 사진이 움직여요.
+              className={cn(
+                'w-51 p-3',
+                !isColored && 'bg-white',
+                answers[photo.id] === 'exclude' && 'opacity-30 grayscale',
+              )}
               style={
                 isColored
                   ? {

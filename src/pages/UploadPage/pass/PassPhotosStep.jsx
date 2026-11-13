@@ -37,13 +37,14 @@ const HEADINGS = {
  */
 export default function PassPhotosStep() {
   const photos = useUploadStore((state) => state.photos);
+  // 사진 id별 답이에요. 페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요.
+  const answers = useUploadStore((state) => state.passAnswers);
+  const answerPass = useUploadStore((state) => state.answerPass);
   // 지나가는 동안 가운데에 있는 사진의 순서입니다. 사진 줄, 손글씨, 버튼이 같이 봐서 여기에 둡니다.
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   // 줄이 끝까지 지나갔는지예요. 지나간 뒤에는 currentIndex 대신 남은 질문 자리를 가운데에 둬요.
   const [isPassed, setIsPassed] = useState(false);
-  // 사진 id별 답이에요. 아직 이 화면에서만 써서 스토어로 올리지 않았어요.
-  const [answers, setAnswers] = useState({});
 
   // 아래 값은 모두 photos·currentIndex·isPassed·answers로 계산할 수 있어서 상태로 두지 않았어요.
   const lastIndex = Math.max(0, photos.length - 1);
@@ -86,8 +87,7 @@ export default function PassPhotosStep() {
 
   // 답을 남기면 findAskIndex가 다음 질문을 찾아서, 사진 줄이 그 자리로 옮겨 가요.
   const handleAnswer = (answer) => {
-    const photo = photos[askIndex];
-    setAnswers((prev) => ({ ...prev, [photo.id]: answer }));
+    answerPass(photos[askIndex].id, answer);
   };
 
   const heading = HEADINGS[phase];
