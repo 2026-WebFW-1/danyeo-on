@@ -56,7 +56,7 @@ export default function PassTimeline({ currentIndex, moveMs }) {
       aria-valuemax={100}
       aria-valuenow={percent}
       aria-valuetext={`전체 ${total}장 중 ${passedCount}장 지남`}
-      className="w-full max-w-65 justify-self-center lg:justify-self-end"
+      className="w-full max-w-90 justify-self-center lg:justify-self-end"
     >
       <svg
         viewBox="10 10 500 150"
@@ -90,7 +90,7 @@ export default function PassTimeline({ currentIndex, moveMs }) {
           />
         ))}
       </svg>
-      <p className="mt-1 flex justify-between text-xs text-muted">
+      <p className="mt-2 flex justify-between text-md text-muted">
         <span>
           {passedCount} / {total}장
         </span>

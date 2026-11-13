@@ -9,7 +9,7 @@ const CELL_STEP = 216;
 // 가운데 사진 칸 폭(w-62, 248px)의 절반
 const CURRENT_HALF = 124;
 // 지금 사진을 어떻게 처리하는지 사진 줄 위에 보여 주는 말입니다.
-const KIND_LABELS = { auto: '그냥 넣음', show: '편집본 · 천천히' };
+const KIND_LABELS = { auto: '시간순으로 넣어요', show: '편집본은 원본 옆에 둬요' };
 // 칸 크기가 사진 줄과 같은 빠르기로 바뀌게 해요. 시간은 moveMs로 맞춰요.
 const SIZE_TRANSITION = 'transition-[width,height] ease-linear motion-reduce:transition-none';
 
@@ -40,7 +40,7 @@ export default function PassStrip({ currentIndex, moveMs }) {
       <span className="absolute top-0 left-1/2 h-16 w-px -translate-x-1/2 bg-accent/40" />
       {/* 지금 사진의 처리 방식. 사진이 0장이면 getPassKind에 넘길 사진이 없어서 그리지 않아요 */}
       {currentPhoto && (
-        <p className="relative mx-auto w-fit rounded-pill bg-accent px-3 py-1 text-xs font-medium text-white">
+        <p className="relative mx-auto w-fit rounded-pill bg-accent px-5 py-2 text-xl font-bold text-white">
           {KIND_LABELS[getPassKind(currentPhoto)]}
         </p>
       )}
