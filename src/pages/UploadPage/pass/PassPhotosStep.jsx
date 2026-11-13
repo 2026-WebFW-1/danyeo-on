@@ -1,3 +1,8 @@
+import { useState, useEffect } from 'react';
+
+import { useUploadStore } from '@/stores/upload/uploadStore';
+import { calcStayMs } from '@/utils/upload/pass/calcStayMs';
+
 import PassControls from './PassControls';
 import PassStrip from './PassStrip';
 import PassTimeline from './PassTimeline';
@@ -5,13 +10,33 @@ import PassTimeline from './PassTimeline';
 /**
  * 사진을 시간순 한 줄로 훑으며 빈칸을 채우는 화면 (13h″ 지나가며 정리, #129)
  *
- * 책임: 확실한 사진은 그냥 넣고, 애매한 사진은 천천히 지나가며 보여 줍니다.
- * 지금은 껍데기만 있고, 사진 줄이 저절로 지나가는 동작과 분류는 다음 이슈에서 붙입니다.
+ * 사진마다 calcStayMs만큼 머물렀다가 저절로 다음 장으로 넘어가고, 마지막 장에서 멈춥니다.
+ * 사진 종류는 아직 파일 이름으로 정하는 임시 판정(getPassKind)이고, 진짜 분류는 다음 이슈에서 붙입니다.
  *
  * 호출: UploadPage가 쌓기 화면에서 [다음]을 누르면 그립니다.
  * <PassPhotosStep />
  */
 export default function PassPhotosStep() {
+  const photos = useUploadStore((state) => state.photos);
+  // 지금 가운데에 있는 사진의 순서입니다. 사진 줄, 손글씨, 버튼이 같이 봐서 여기에 둡니다.
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // photos와 currentIndex만 있으면 isLast와 stayMs를 계산할 수 있기 때문에 상태로 관리하지 않았습니다.
+  const isLast = currentIndex >= photos.length - 1;
+  const stayMs = calcStayMs(photos, currentIndex);
+
+  // timer는 React 밖의 일입니다.(컨벤션 상 외부 동기화)
+  // 사진마다 머무는 시간이 달라서 setInterval 대신 한 장마다 타이머를 새로 걸어요
+  useEffect(() => {
+    if (isLast) return;
+
+    const timer = setTimeout(() => {
+      setCurrentIndex(currentIndex + 1);
+    }, stayMs);
+
+    return () => clearTimeout(timer);
+  }, [currentIndex, isLast, stayMs]);
+
   return (
     <main className="flex flex-1 flex-col bg-canvas">
       <div className="mx-auto flex w-full max-w-360 flex-1 flex-col px-6 pt-6 pb-4 lg:px-16 2xl:max-w-400">
@@ -24,10 +49,10 @@ export default function PassPhotosStep() {
             <h1 className="mt-3 text-5xl font-bold text-ink 2xl:text-6xl">지나가면서 정리할게요</h1>
             <p className="mt-3 text-lg break-keep text-muted">애매한 건 천천히 지나가요.</p>
           </div>
-          <PassTimeline currentIndex={0} />
+          <PassTimeline currentIndex={currentIndex} />
         </header>
         <section aria-label="사진 정리" className="flex flex-1 flex-col justify-center py-4">
-          <PassStrip currentIndex={0} />
+          <PassStrip currentIndex={currentIndex} />
           <PassControls />
         </section>
       </div>
