@@ -11,8 +11,10 @@ import PassControls from './PassControls';
 import PassStrip from './PassStrip';
 import PassTimeline from './PassTimeline';
 
-// 줄이 끝난 뒤 질문 자리로 되감거나 다음 질문으로 옮겨 가는 시간이에요.
-// 한 장 머무는 시간(250~300ms)으로 몇십 장을 되감으면 어디로 갔는지 놓쳐요.
+// 줄이 끝난 뒤 첫 질문 자리로 되감는 시간이에요. 방금 다 본 사진을 다시 보여 줄 필요는 없어서
+// 되감는다는 것만 알 수 있게 빠르게 넘겨요.
+const REWIND_MS = 200;
+// 답한 뒤 다음 질문 자리로 옮겨 가는 시간이에요. 줄 어디쯤으로 가는지 보이게 천천히 가요.
 const SEEK_MS = 700;
 
 // 지나가는 중, 끝에서 묻는 중, 다 정리함에 따라 바뀌는 머리말이에요.
@@ -54,6 +56,8 @@ export default function PassPhotosStep() {
   const shownIndex = phase === 'pass' ? currentIndex : isAsking ? askIndex : lastIndex;
   const askTotal = photos.filter((photo) => getPassKind(photo) === 'ask').length;
   const excludedCount = Object.values(answers).filter((answer) => answer === 'exclude').length;
+  // 아직 하나도 답하지 않았으면 끝에서 첫 질문으로 되감는 중이에요.
+  const hasAnswer = Object.keys(answers).length > 0;
 
   // timer는 React 밖의 일입니다.(컨벤션 상 외부 동기화)
   // 사진마다 머무는 시간이 달라서 setInterval 대신 한 장마다 타이머를 새로 걸어요
@@ -114,7 +118,7 @@ export default function PassPhotosStep() {
           <div className="relative">
             <PassStrip
               currentIndex={shownIndex}
-              moveMs={isPassed ? SEEK_MS : stayMs}
+              moveMs={!isPassed ? stayMs : hasAnswer ? SEEK_MS : REWIND_MS}
               isAsking={isAsking}
             />
             {isAsking && (
