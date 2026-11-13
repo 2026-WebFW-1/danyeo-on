@@ -9,7 +9,11 @@ const CELL_STEP = 216;
 // 칸 폭(w-51, 204px)의 절반. 가운데 사진의 한가운데를 화면 가운데에 맞추는 데 써요.
 const CELL_HALF = 102;
 // 지금 사진을 어떻게 처리하는지 사진 줄 위에 보여 주는 말입니다.
-const KIND_LABELS = { auto: '시간순으로 넣어요', show: '편집본은 원본 옆에 둬요' };
+const KIND_LABELS = {
+  auto: '시간순으로 넣어요',
+  show: '편집본은 원본 옆에 둬요',
+  ask: '끝에서 물어볼게요',
+};
 
 /**
  * 손글씨(PassTimeline) 그라데이션에서 position(0 ~ 1) 자리의 색이에요.
@@ -29,14 +33,18 @@ function getJourneyColor(position) {
  * 편집본은 카드 배경을 손글씨에서 그 자리의 색으로 칠해요. 크기나 속도를 바꾸면 줄이 꿀렁거리거나
  * 흐름이 끊겨서, 모든 사진을 같은 크기·같은 빠르기로 두고 색으로만 구분해요.
  *
+ * 묻는 중(isAsking)에는 13i″처럼 지금 칸을 점선으로 비우고 사진을 줄 위로 띄워요.
+ * 어느 사진을 묻는지와 줄 어디쯤인지가 같이 보이게 하려고, 질문을 따로 모으지 않고 줄로 돌아와요.
+ *
  * 호출: PassPhotosStep 머리말 아래에서 그려요.
- * <PassStrip currentIndex={0} moveMs={600} />
+ * <PassStrip currentIndex={0} moveMs={600} isAsking={false} />
  *
  * @param {object} props
  * @param {number} props.currentIndex 지금 지나가는 사진의 순서
  * @param {number} props.moveMs 다음 장으로 옮겨 가는 시간
+ * @param {boolean} props.isAsking 지금 사진을 물어보는 중인지
  */
-export default function PassStrip({ currentIndex, moveMs }) {
+export default function PassStrip({ currentIndex, moveMs, isAsking }) {
   const photos = useUploadStore((state) => state.photos);
   const start = Math.max(0, currentIndex - SIDE_COUNT);
   const visiblePhotos = photos.slice(start, currentIndex + SIDE_COUNT + 1);
@@ -51,8 +59,19 @@ export default function PassStrip({ currentIndex, moveMs }) {
     <div className="relative -mx-6 overflow-hidden mask-x-from-85% pt-3 pb-4 lg:-mx-16">
       {/* 지금 위치를 가리키는 세로선. 가운데 사진 뒤로 지나가요 */}
       <span className="absolute top-0 left-1/2 h-16 w-px -translate-x-1/2 bg-accent/40" />
+      {/* 묻는 사진은 줄 위로 띄워요. 아래 점선 칸에 살짝 걸치게 해서 어디서 빠져나왔는지 보여요 */}
+      {isAsking && currentPhoto && (
+        <div className="relative z-10 mx-auto -mb-12 w-51 -rotate-2 border-2 border-accent bg-white p-3 shadow-lg">
+          {currentPhoto.src ? (
+            <img src={currentPhoto.src} alt="" className="size-45 object-cover" />
+          ) : (
+            <div className="size-45 bg-line" />
+          )}
+          <p className="mt-2 truncate font-mono text-sm text-ink">{currentPhoto.filename}</p>
+        </div>
+      )}
       {/* 지금 사진의 처리 방식. 사진이 0장이면 getPassKind에 넘길 사진이 없어서 그리지 않아요 */}
-      {currentPhoto && (
+      {!isAsking && currentPhoto && (
         <p className="relative mx-auto w-fit rounded-pill bg-accent px-5 py-2 text-xl font-bold text-white">
           {KIND_LABELS[getPassKind(currentPhoto)]}
         </p>
@@ -69,6 +88,18 @@ export default function PassStrip({ currentIndex, moveMs }) {
           const order = start + index;
           const isCurrent = order === currentIndex;
           const isEdited = getPassKind(photo) === 'show';
+          if (isCurrent && isAsking) {
+            // 칸 크기는 다른 칸과 같게 둬서 줄이 꿀렁거리지 않아요.
+            return (
+              <li
+                key={photo.id}
+                aria-current="true"
+                className="flex w-51 items-end justify-center self-stretch border-2 border-dashed border-accent pb-3"
+              >
+                <span className="text-sm font-bold text-accent">여기</span>
+              </li>
+            );
+          }
           return (
             <li
               key={photo.id}
