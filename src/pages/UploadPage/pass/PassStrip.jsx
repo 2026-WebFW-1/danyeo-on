@@ -1,67 +1,106 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { cn } from '@/utils/cn';
+import { getPassKind } from '@/utils/upload/pass/getPassKind';
 
 // 가운데 사진 양옆으로 몇 장씩 그릴지. 300장을 다 그리지 않으려고 둡니다.
 const SIDE_COUNT = 6;
 // 지나간 사진 한 칸의 폭(w-51, 204px)과 칸 사이(gap-3, 12px). 가운데 사진을 화면 가운데에 두는 데 써요.
 const CELL_STEP = 216;
-// 가운데 사진 칸 폭(w-62, 248px)의 절반
-const CURRENT_HALF = 124;
+// 칸 폭(w-51, 204px)의 절반. 가운데 사진의 한가운데를 화면 가운데에 맞추는 데 써요.
+const CELL_HALF = 102;
+// 지금 사진을 어떻게 처리하는지 사진 줄 위에 보여 주는 말입니다.
+const KIND_LABELS = { auto: '시간순으로 넣어요', show: '편집본은 원본 옆에 둬요' };
 
 /**
- * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 한 장만 크게 보여요.
+ * 손글씨(PassTimeline) 그라데이션에서 position(0 ~ 1) 자리의 색이에요.
+ * 그라데이션과 같은 세 토큰을 같은 방식(srgb)으로 섞어요.
+ * @param {number} position
+ * @returns {string} CSS 색
+ */
+function getJourneyColor(position) {
+  if (position <= 0.5) {
+    return `color-mix(in srgb, var(--color-accent) ${position * 200}%, var(--color-journey-start))`;
+  }
+  return `color-mix(in srgb, var(--color-journey-end) ${(position - 0.5) * 200}%, var(--color-accent))`;
+}
+
+/**
+ * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 사진에 테두리를 둘러요.
+ * 편집본은 카드 배경을 손글씨에서 그 자리의 색으로 칠해요. 크기나 속도를 바꾸면 줄이 꿀렁거리거나
+ * 흐름이 끊겨서, 모든 사진을 같은 크기·같은 빠르기로 두고 색으로만 구분해요.
  *
  * 호출: PassPhotosStep 머리말 아래에서 그려요.
- * <PassStrip currentIndex={0} />
+ * <PassStrip currentIndex={0} moveMs={600} />
  *
  * @param {object} props
  * @param {number} props.currentIndex 지금 지나가는 사진의 순서
+ * @param {number} props.moveMs 다음 장으로 옮겨 가는 시간
  */
-export default function PassStrip({ currentIndex }) {
+export default function PassStrip({ currentIndex, moveMs }) {
   const photos = useUploadStore((state) => state.photos);
   const start = Math.max(0, currentIndex - SIDE_COUNT);
   const visiblePhotos = photos.slice(start, currentIndex + SIDE_COUNT + 1);
-  // 줄의 왼쪽 끝을 화면 가운데에 두고, 가운데 사진 앞의 칸 수만큼 왼쪽으로 당겨요.
-  const offset = (currentIndex - start) * CELL_STEP + CURRENT_HALF;
+  // 잘라 낸 앞 사진 자리만큼 여백을 둬서, 이동 거리를 전체 순서로 셀 수 있게 합니다.
+  // 화면 안 순서로 세면 7번째 장부터 값이 그대로라 transition이 걸리지 않습니다.
+  const skippedWidth = start * CELL_STEP;
+  const currentPhoto = photos[currentIndex];
+  const offset = currentIndex * CELL_STEP + CELL_HALF;
 
   return (
     // 사진 줄만 바깥 여백으로 확장해 문서 전체에 가로 스크롤이 생기지 않게 합니다.
     <div className="relative -mx-6 overflow-hidden mask-x-from-85% pt-3 pb-4 lg:-mx-16">
       {/* 지금 위치를 가리키는 세로선. 가운데 사진 뒤로 지나가요 */}
       <span className="absolute top-0 left-1/2 h-16 w-px -translate-x-1/2 bg-accent/40" />
-      {/* 분류 로직이 붙으면 지금 사진의 처리 방식으로 바뀝니다. */}
-      <p className="relative mx-auto w-fit rounded-pill bg-accent px-3 py-1 text-xs font-medium text-white">
-        ① 파일 이름으로 넣음 · 안 멈춤
-      </p>
+      {/* 지금 사진의 처리 방식. 사진이 0장이면 getPassKind에 넘길 사진이 없어서 그리지 않아요 */}
+      {currentPhoto && (
+        <p className="relative mx-auto w-fit rounded-pill bg-accent px-5 py-2 text-xl font-bold text-white">
+          {KIND_LABELS[getPassKind(currentPhoto)]}
+        </p>
+      )}
       <ol
-        className="relative left-1/2 mt-4 flex w-max items-center gap-3"
-        style={{ marginLeft: -offset }}
+        className="relative left-1/2 mt-4 flex w-max items-center gap-3 transition-transform ease-linear motion-reduce:transition-none"
+        style={{
+          paddingLeft: skippedWidth,
+          transform: `translateX(${-offset}px)`,
+          transitionDuration: `${moveMs}ms`,
+        }}
       >
         {visiblePhotos.map((photo, index) => {
-          const isCurrent = start + index === currentIndex;
+          const order = start + index;
+          const isCurrent = order === currentIndex;
+          const isEdited = getPassKind(photo) === 'show';
           return (
             <li
               key={photo.id}
               aria-current={isCurrent ? 'true' : 'false'}
-              className={cn('bg-white p-3', isCurrent ? 'w-62 shadow-lg' : 'w-51')}
+              className={cn('w-51 p-3', !isEdited && 'bg-white')}
+              style={
+                isEdited
+                  ? {
+                      backgroundColor: getJourneyColor(
+                        photos.length > 1 ? order / (photos.length - 1) : 0,
+                      ),
+                    }
+                  : undefined
+              }
             >
               {photo.src ? (
                 <img
                   src={photo.src}
                   alt=""
                   className={cn(
-                    'object-cover',
-                    isCurrent ? 'size-56 outline-2 -outline-offset-2 outline-accent' : 'size-45',
+                    'size-45 object-cover',
+                    isCurrent && 'outline-2 -outline-offset-2 outline-accent',
                   )}
                 />
               ) : (
-                <div className={cn('bg-line', isCurrent ? 'size-56' : 'size-45')} />
+                <div className="size-45 bg-line" />
               )}
               {/* 촬영 시각이 스토어에 생기면 날짜(07.03 10:15)로 바뀝니다. */}
               <p
                 className={cn(
                   'mt-2 truncate font-mono text-sm',
-                  isCurrent ? 'text-accent' : 'text-dim',
+                  isEdited ? 'text-white' : isCurrent ? 'text-accent' : 'text-dim',
                 )}
               >
                 {photo.filename}
