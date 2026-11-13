@@ -15,17 +15,20 @@ const KIND_LABELS = { auto: '그냥 넣음', show: '편집본 · 천천히' };
  * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 한 장만 크게 보여요.
  *
  * 호출: PassPhotosStep 머리말 아래에서 그려요.
- * <PassStrip currentIndex={0} />
+ * <PassStrip currentIndex={0} moveMs={400} />
  *
  * @param {object} props
  * @param {number} props.currentIndex 지금 지나가는 사진의 순서
+ * @param {number} props.moveMs 다음 장으로 옮겨 가는 시간
  */
-export default function PassStrip({ currentIndex }) {
+export default function PassStrip({ currentIndex, moveMs }) {
   const photos = useUploadStore((state) => state.photos);
   const start = Math.max(0, currentIndex - SIDE_COUNT);
   const visiblePhotos = photos.slice(start, currentIndex + SIDE_COUNT + 1);
-  // 줄의 왼쪽 끝을 화면 가운데에 두고, 가운데 사진 앞의 칸 수만큼 왼쪽으로 당겨요.
-  const offset = (currentIndex - start) * CELL_STEP + CURRENT_HALF;
+  // 잘라 낸 앞 사진 자리만큼 여백을 둬서, 이동 거리를 전체 순서로 셀 수 있게 합니다.
+  // 화면 안 순서로 세면 7번째 장부터 값이 그대로라 transition이 걸리지 않습니다.
+  const skippedWidth = start * CELL_STEP;
+  const offset = currentIndex * CELL_STEP + CURRENT_HALF;
   const currentPhoto = photos[currentIndex];
 
   return (
@@ -40,8 +43,12 @@ export default function PassStrip({ currentIndex }) {
         </p>
       )}
       <ol
-        className="relative left-1/2 mt-4 flex w-max items-center gap-3"
-        style={{ marginLeft: -offset }}
+        className="relative left-1/2 mt-4 flex w-max items-center gap-3 transition-transform ease-out motion-reduce:transition-none"
+        style={{
+          paddingLeft: skippedWidth,
+          transform: `translateX(${-offset}px)`,
+          transitionDuration: `${moveMs}ms`,
+        }}
       >
         {visiblePhotos.map((photo, index) => {
           const isCurrent = start + index === currentIndex;

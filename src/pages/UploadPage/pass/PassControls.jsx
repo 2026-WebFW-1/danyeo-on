@@ -2,15 +2,16 @@
  * 사진 줄 아래 한 줄이에요. 왼쪽에 지금 날짜, 가운데에 [일시정지]·[되돌리기], 오른쪽에 안내를 둬요.
  *
  * 호출: PassPhotosStep 사진 줄 아래에서 그려요.
- * <PassControls isPaused={false} isFirst onPause={...} onUndo={...} />
+ * <PassControls isPaused={false} isFirst isLast={false} onPause={...} onUndo={...} />
  *
  * @param {object} props
  * @param {boolean} props.isPaused 멈춰 있으면 [다시 재생]을 보여 줘요
  * @param {boolean} props.isFirst 첫 장이면 더 되돌릴 곳이 없어서 [되돌리기]를 막아요
+ * @param {boolean} props.isLast 마지막 장이면 더 넘어갈 곳이 없어서 [일시정지]를 막아요
  * @param {() => void} props.onPause 멈춰 있을 때 누르면 다시 재생돼요
  * @param {() => void} props.onUndo 이전 사진으로 돌아가요
  */
-export default function PassControls({ isPaused, isFirst, onPause, onUndo }) {
+export default function PassControls({ isPaused, isFirst, isLast, onPause, onUndo }) {
   return (
     // 양옆 칸을 1fr로 같게 둬서 버튼이 사진 줄 가운데(지금 사진) 바로 아래에 와요.
     <div className="mt-6 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
@@ -20,7 +21,8 @@ export default function PassControls({ isPaused, isFirst, onPause, onUndo }) {
         <button
           type="button"
           onClick={onPause}
-          className="inline-flex h-11 items-center gap-2 rounded-pill bg-nav px-6 text-md font-bold text-white transition-colors hover:bg-body focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          disabled={isLast}
+          className="inline-flex h-11 items-center gap-2 rounded-pill bg-nav px-6 text-md font-bold text-white transition-colors hover:bg-body focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40"
         >
           <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4 fill-current">
             {isPaused ? (
