@@ -20,6 +20,7 @@ export default function PassPhotosStep() {
   const photos = useUploadStore((state) => state.photos);
   // 지금 가운데에 있는 사진의 순서입니다. 사진 줄, 손글씨, 버튼이 같이 봐서 여기에 둡니다.
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // photos와 currentIndex만 있으면 isLast와 stayMs를 계산할 수 있기 때문에 상태로 관리하지 않았습니다.
   const isLast = currentIndex >= photos.length - 1;
@@ -28,14 +29,25 @@ export default function PassPhotosStep() {
   // timer는 React 밖의 일입니다.(컨벤션 상 외부 동기화)
   // 사진마다 머무는 시간이 달라서 setInterval 대신 한 장마다 타이머를 새로 걸어요
   useEffect(() => {
-    if (isLast) return;
+    if (isLast || isPaused) return;
 
     const timer = setTimeout(() => {
       setCurrentIndex(currentIndex + 1);
     }, stayMs);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, isLast, stayMs]);
+  }, [currentIndex, isLast, isPaused, stayMs]);
+
+  // 버튼 하나로 멈추고 다시 재생합니다.
+  const handlePause = () => {
+    setIsPaused((prev) => !prev);
+  };
+
+  // 되돌린 사진이 바로 다시 지나가 버리지 않게 같이 멈춥니다.
+  const handleUndo = () => {
+    setCurrentIndex(Math.max(0, currentIndex - 1));
+    setIsPaused(true);
+  };
 
   return (
     <main className="flex flex-1 flex-col bg-canvas">
@@ -53,7 +65,12 @@ export default function PassPhotosStep() {
         </header>
         <section aria-label="사진 정리" className="flex flex-1 flex-col justify-center py-4">
           <PassStrip currentIndex={currentIndex} />
-          <PassControls />
+          <PassControls
+            isPaused={isPaused}
+            isFirst={currentIndex === 0}
+            onPause={handlePause}
+            onUndo={handleUndo}
+          />
         </section>
       </div>
     </main>
