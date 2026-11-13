@@ -26,7 +26,7 @@ export default function PassColorTip({ className }) {
         >
           <span className="block size-7 bg-line" />
         </span>
-        편집본
+        편집본 · 물어볼 사진
       </li>
     </ul>
   );

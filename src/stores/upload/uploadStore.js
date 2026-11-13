@@ -21,6 +21,7 @@ const INITIAL_STATE = {
   saveStatus: 'idle',
   saveResult: null,
   imageUpload: INITIAL_IMAGE_UPLOAD,
+  passAnswers: {},
 };
 // 기다리는 사이 번호가 바뀌었으면 그 작업은 취소된 거예요.
 // 화면에 쓰지 않는 값이라 상태에 두지 않았어요.
@@ -45,6 +46,9 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
  * @property {(targets: { order: number, fileKey: string }[]) => Promise<void>} uploadImages
  *   저장한(saved) 사진의 이미지를 동시에 3장씩 올려요. order는 고른 순서, fileKey는 저장할 때 정한 키예요
+ * @property {Record<string, 'exclude' | 'later'>} passAnswers 지나가며 정리 끝에서 물어본 사진의 답(사진 id별).
+ *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 아직 저장에는 쓰지 않아요(저장이 정리보다 먼저예요)
+ * @property {(photoId: string, answer: 'exclude' | 'later') => void} answerPass
  * @property {() => void} reset 작업을 중단하고 이미지 주소와 파일을 놓아줘요
  */
 
@@ -119,6 +123,10 @@ export const useUploadStore = create((set, get) => ({
       }
     };
     await Promise.all(Array.from({ length: IMAGE_UPLOAD_CONCURRENCY }, work));
+  },
+
+  answerPass: (photoId, answer) => {
+    set((state) => ({ passAnswers: { ...state.passAnswers, [photoId]: answer } }));
   },
 
   reset: () => {

@@ -150,6 +150,22 @@ describe('reset', () => {
   });
 });
 
+describe('answerPass', () => {
+  test('사진마다 답을 남기고, 비우면 답도 지워요', () => {
+    // given
+    getState().answerPass('3-photo.jpg', 'exclude');
+    getState().answerPass('7-beach.jpg', 'later');
+
+    // when
+    const answers = getState().passAnswers;
+    getState().reset();
+
+    // then
+    expect(answers).toEqual({ '3-photo.jpg': 'exclude', '7-beach.jpg': 'later' });
+    expect(getState().passAnswers).toEqual({});
+  });
+});
+
 describe('uploadImages', () => {
   const full = new Blob(['보기용'], { type: 'image/webp' });
   const targetsOf = (count) =>
