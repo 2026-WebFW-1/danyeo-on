@@ -10,12 +10,14 @@ const CELL_STEP = 216;
 const CURRENT_HALF = 124;
 // 지금 사진을 어떻게 처리하는지 사진 줄 위에 보여 주는 말입니다.
 const KIND_LABELS = { auto: '그냥 넣음', show: '편집본 · 천천히' };
+// 칸 크기가 사진 줄과 같은 빠르기로 바뀌게 해요. 시간은 moveMs로 맞춰요.
+const SIZE_TRANSITION = 'transition-[width,height] ease-linear motion-reduce:transition-none';
 
 /**
  * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 한 장만 크게 보여요.
  *
  * 호출: PassPhotosStep 머리말 아래에서 그려요.
- * <PassStrip currentIndex={0} moveMs={400} />
+ * <PassStrip currentIndex={0} moveMs={600} />
  *
  * @param {object} props
  * @param {number} props.currentIndex 지금 지나가는 사진의 순서
@@ -43,7 +45,7 @@ export default function PassStrip({ currentIndex, moveMs }) {
         </p>
       )}
       <ol
-        className="relative left-1/2 mt-4 flex w-max items-center gap-3 transition-transform ease-out motion-reduce:transition-none"
+        className="relative left-1/2 mt-4 flex w-max items-center gap-3 transition-transform ease-linear motion-reduce:transition-none"
         style={{
           paddingLeft: skippedWidth,
           transform: `translateX(${-offset}px)`,
@@ -53,10 +55,12 @@ export default function PassStrip({ currentIndex, moveMs }) {
         {visiblePhotos.map((photo, index) => {
           const isCurrent = start + index === currentIndex;
           return (
+            // 가운데 칸만 넓어서, 폭이 한 번에 바뀌면 줄이 44px 튀어요. 옮기는 동안 같이 바꿔요.
             <li
               key={photo.id}
               aria-current={isCurrent ? 'true' : 'false'}
-              className={cn('bg-white p-3', isCurrent ? 'w-62 shadow-lg' : 'w-51')}
+              className={cn('bg-white p-3', SIZE_TRANSITION, isCurrent ? 'w-62 shadow-lg' : 'w-51')}
+              style={{ transitionDuration: `${moveMs}ms` }}
             >
               {photo.src ? (
                 <img
@@ -64,11 +68,16 @@ export default function PassStrip({ currentIndex, moveMs }) {
                   alt=""
                   className={cn(
                     'object-cover',
+                    SIZE_TRANSITION,
                     isCurrent ? 'size-56 outline-2 -outline-offset-2 outline-accent' : 'size-45',
                   )}
+                  style={{ transitionDuration: `${moveMs}ms` }}
                 />
               ) : (
-                <div className={cn('bg-line', isCurrent ? 'size-56' : 'size-45')} />
+                <div
+                  className={cn('bg-line', SIZE_TRANSITION, isCurrent ? 'size-56' : 'size-45')}
+                  style={{ transitionDuration: `${moveMs}ms` }}
+                />
               )}
               {/* 촬영 시각이 스토어에 생기면 날짜(07.03 10:15)로 바뀝니다. */}
               <p

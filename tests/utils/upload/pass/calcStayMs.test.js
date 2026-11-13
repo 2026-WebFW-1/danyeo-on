@@ -70,4 +70,44 @@ describe('calcStayMs', () => {
     // then
     expect(stayMs).toBeGreaterThan(0);
   });
+
+  test('사진이 많을수록 일반 사진이 빨리 지나가요', () => {
+    // given: 일반 사진만 24장, 300장
+    const fewPhotos = makePhotos(Array.from({ length: 24 }, (_, i) => `${i}.jpg`));
+    const manyPhotos = makePhotos(Array.from({ length: 300 }, (_, i) => `${i}.jpg`));
+
+    // when
+    const few = calcStayMs(fewPhotos, 0);
+    const many = calcStayMs(manyPhotos, 0);
+
+    // then
+    expect(many).toBeLessThan(few);
+  });
+
+  test('사진이 아무리 많아도 일반 사진이 정해진 빠르기보다 빨라지지 않아요', () => {
+    // given: 일반 사진만 300장, 3000장
+    const manyPhotos = makePhotos(Array.from({ length: 300 }, (_, i) => `${i}.jpg`));
+    const tooManyPhotos = makePhotos(Array.from({ length: 3000 }, (_, i) => `${i}.jpg`));
+
+    // when
+    const many = calcStayMs(manyPhotos, 0);
+    const tooMany = calcStayMs(tooManyPhotos, 0);
+
+    // then
+    expect(tooMany).toBe(many);
+  });
+
+  test('사진이 많아도 편집본 바로 옆은 일반 사진보다 느려요', () => {
+    // given: 300장 중 가운데(150번)만 편집본
+    const filenames = Array.from({ length: 300 }, (_, i) => `${i}.jpg`);
+    filenames[150] = '150-edited.jpg';
+    const photos = makePhotos(filenames);
+
+    // when
+    const beside = calcStayMs(photos, 149);
+    const far = calcStayMs(photos, 0);
+
+    // then
+    expect(beside).toBeGreaterThan(far);
+  });
 });

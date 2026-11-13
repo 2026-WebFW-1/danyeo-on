@@ -23,7 +23,7 @@ const STROKE = 'fill-none stroke-12 [stroke-linecap:round] [stroke-linejoin:roun
  * 전체 사진 중 지금 어디를 지나가는지 보여 주는 손글씨예요. 지나간 만큼 "My Journey" 획이 색으로 채워져요.
  *
  * 호출: PassPhotosStep 머리말 오른쪽에서 그려요.
- * <PassTimeline currentIndex={0} moveMs={400} />
+ * <PassTimeline currentIndex={0} moveMs={600} />
  *
  * @param {object} props
  * @param {number} props.currentIndex 지금 지나가는 사진의 순서
@@ -70,7 +70,7 @@ export default function PassTimeline({ currentIndex, moveMs }) {
           pathLength={1}
           strokeDasharray="1 1"
           stroke={`url(#${gradientId})`}
-          className={`${STROKE} transition-[stroke-dashoffset] ease-out motion-reduce:transition-none`}
+          className={`${STROKE} transition-[stroke-dashoffset] ease-linear motion-reduce:transition-none`}
           style={{ strokeDashoffset: 1 - position, transitionDuration: `${moveMs}ms` }}
         />
       </svg>
