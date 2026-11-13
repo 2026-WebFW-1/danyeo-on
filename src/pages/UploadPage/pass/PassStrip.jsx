@@ -6,15 +6,28 @@ import { getPassKind } from '@/utils/upload/pass/getPassKind';
 const SIDE_COUNT = 6;
 // 지나간 사진 한 칸의 폭(w-51, 204px)과 칸 사이(gap-3, 12px). 가운데 사진을 화면 가운데에 두는 데 써요.
 const CELL_STEP = 216;
-// 가운데 사진 칸 폭(w-62, 248px)의 절반
-const CURRENT_HALF = 124;
+// 칸 폭(w-51, 204px)의 절반. 가운데 사진의 한가운데를 화면 가운데에 맞추는 데 써요.
+const CELL_HALF = 102;
 // 지금 사진을 어떻게 처리하는지 사진 줄 위에 보여 주는 말입니다.
 const KIND_LABELS = { auto: '시간순으로 넣어요', show: '편집본은 원본 옆에 둬요' };
-// 칸 크기가 사진 줄과 같은 빠르기로 바뀌게 해요. 시간은 moveMs로 맞춰요.
-const SIZE_TRANSITION = 'transition-[width,height] ease-linear motion-reduce:transition-none';
 
 /**
- * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 한 장만 크게 보여요.
+ * 손글씨(PassTimeline) 그라데이션에서 position(0 ~ 1) 자리의 색이에요.
+ * 그라데이션과 같은 세 토큰을 같은 방식(srgb)으로 섞어요.
+ * @param {number} position
+ * @returns {string} CSS 색
+ */
+function getJourneyColor(position) {
+  if (position <= 0.5) {
+    return `color-mix(in srgb, var(--color-accent) ${position * 200}%, var(--color-journey-start))`;
+  }
+  return `color-mix(in srgb, var(--color-journey-end) ${(position - 0.5) * 200}%, var(--color-accent))`;
+}
+
+/**
+ * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 사진에 테두리를 둘러요.
+ * 편집본은 카드 배경을 손글씨에서 그 자리의 색으로 칠해요. 크기나 속도를 바꾸면 줄이 꿀렁거리거나
+ * 흐름이 끊겨서, 모든 사진을 같은 크기·같은 빠르기로 두고 색으로만 구분해요.
  *
  * 호출: PassPhotosStep 머리말 아래에서 그려요.
  * <PassStrip currentIndex={0} moveMs={600} />
@@ -30,8 +43,8 @@ export default function PassStrip({ currentIndex, moveMs }) {
   // 잘라 낸 앞 사진 자리만큼 여백을 둬서, 이동 거리를 전체 순서로 셀 수 있게 합니다.
   // 화면 안 순서로 세면 7번째 장부터 값이 그대로라 transition이 걸리지 않습니다.
   const skippedWidth = start * CELL_STEP;
-  const offset = currentIndex * CELL_STEP + CURRENT_HALF;
   const currentPhoto = photos[currentIndex];
+  const offset = currentIndex * CELL_STEP + CELL_HALF;
 
   return (
     // 사진 줄만 바깥 여백으로 확장해 문서 전체에 가로 스크롤이 생기지 않게 합니다.
@@ -53,37 +66,41 @@ export default function PassStrip({ currentIndex, moveMs }) {
         }}
       >
         {visiblePhotos.map((photo, index) => {
-          const isCurrent = start + index === currentIndex;
+          const order = start + index;
+          const isCurrent = order === currentIndex;
+          const isEdited = getPassKind(photo) === 'show';
           return (
-            // 가운데 칸만 넓어서, 폭이 한 번에 바뀌면 줄이 44px 튀어요. 옮기는 동안 같이 바꿔요.
             <li
               key={photo.id}
               aria-current={isCurrent ? 'true' : 'false'}
-              className={cn('bg-white p-3', SIZE_TRANSITION, isCurrent ? 'w-62 shadow-lg' : 'w-51')}
-              style={{ transitionDuration: `${moveMs}ms` }}
+              className={cn('w-51 p-3', !isEdited && 'bg-white')}
+              style={
+                isEdited
+                  ? {
+                      backgroundColor: getJourneyColor(
+                        photos.length > 1 ? order / (photos.length - 1) : 0,
+                      ),
+                    }
+                  : undefined
+              }
             >
               {photo.src ? (
                 <img
                   src={photo.src}
                   alt=""
                   className={cn(
-                    'object-cover',
-                    SIZE_TRANSITION,
-                    isCurrent ? 'size-56 outline-2 -outline-offset-2 outline-accent' : 'size-45',
+                    'size-45 object-cover',
+                    isCurrent && 'outline-2 -outline-offset-2 outline-accent',
                   )}
-                  style={{ transitionDuration: `${moveMs}ms` }}
                 />
               ) : (
-                <div
-                  className={cn('bg-line', SIZE_TRANSITION, isCurrent ? 'size-56' : 'size-45')}
-                  style={{ transitionDuration: `${moveMs}ms` }}
-                />
+                <div className="size-45 bg-line" />
               )}
               {/* 촬영 시각이 스토어에 생기면 날짜(07.03 10:15)로 바뀝니다. */}
               <p
                 className={cn(
                   'mt-2 truncate font-mono text-sm',
-                  isCurrent ? 'text-accent' : 'text-dim',
+                  isEdited ? 'text-white' : isCurrent ? 'text-accent' : 'text-dim',
                 )}
               >
                 {photo.filename}
