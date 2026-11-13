@@ -30,7 +30,7 @@ function getJourneyColor(position) {
 
 /**
  * 사진이 시간순 한 줄로 지나가는 줄이에요. 가운데(currentIndex) 사진에 테두리를 둘러요.
- * 편집본은 카드 배경을 손글씨에서 그 자리의 색으로 칠해요. 크기나 속도를 바꾸면 줄이 꿀렁거리거나
+ * 편집본과 물어볼 사진은 카드 배경을 손글씨에서 그 자리의 색으로 칠해요. 크기나 속도를 바꾸면 줄이 꿀렁거리거나
  * 흐름이 끊겨서, 모든 사진을 같은 크기·같은 빠르기로 두고 색으로만 구분해요.
  *
  * 묻는 중(isAsking)에는 13i″처럼 지금 칸을 점선으로 비우고 사진을 줄 위로 띄워요.
@@ -87,7 +87,8 @@ export default function PassStrip({ currentIndex, moveMs, isAsking }) {
         {visiblePhotos.map((photo, index) => {
           const order = start + index;
           const isCurrent = order === currentIndex;
-          const isEdited = getPassKind(photo) === 'show';
+          // 편집본과 물어볼 사진은 그냥 넣는 사진이 아니라서 색 카드로 눈에 띄게 해요.
+          const isColored = getPassKind(photo) !== 'auto';
           if (isCurrent && isAsking) {
             // 칸 크기는 다른 칸과 같게 둬서 줄이 꿀렁거리지 않아요.
             return (
@@ -104,9 +105,9 @@ export default function PassStrip({ currentIndex, moveMs, isAsking }) {
             <li
               key={photo.id}
               aria-current={isCurrent ? 'true' : 'false'}
-              className={cn('w-51 p-3', !isEdited && 'bg-white')}
+              className={cn('w-51 p-3', !isColored && 'bg-white')}
               style={
-                isEdited
+                isColored
                   ? {
                       backgroundColor: getJourneyColor(
                         photos.length > 1 ? order / (photos.length - 1) : 0,
@@ -131,7 +132,7 @@ export default function PassStrip({ currentIndex, moveMs, isAsking }) {
               <p
                 className={cn(
                   'mt-2 truncate font-mono text-sm',
-                  isEdited ? 'text-white' : isCurrent ? 'text-accent' : 'text-dim',
+                  isColored ? 'text-white' : isCurrent ? 'text-accent' : 'text-dim',
                 )}
               >
                 {photo.filename}
