@@ -404,6 +404,28 @@ describe('reset', () => {
     expect(getState()).toMatchObject({ corrections: [], status: 'idle', error: null, pending: {} });
   });
 
+  test('같은 계정으로 다시 들어오면, 나가기 전에 보낸 요청이 끝난 뒤에 보내요', async () => {
+    await fetchSaved();
+    const before = deferred();
+    vi.mocked(addCorrection).mockReturnValueOnce(before.promise).mockResolvedValueOnce();
+
+    const previous = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '나가기 전' });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
+    getState().reset();
+    await fetchSaved();
+
+    const next = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '다시 들어와서' });
+    await Promise.resolve();
+    expect(addCorrection).toHaveBeenCalledTimes(1);
+
+    before.resolve();
+    await expect(previous).rejects.toEqual(ACCOUNT_CHANGED);
+    const added = await next;
+
+    expect(addCorrection).toHaveBeenCalledTimes(2);
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+  });
+
   test('앞 계정의 요청이 끝나지 않아도 새 계정의 저장은 기다리지 않아요', async () => {
     await fetchSaved();
     const stuck = deferred();

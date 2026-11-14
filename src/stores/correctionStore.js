@@ -10,28 +10,35 @@ let generation = 0;
 
 // 저장·삭제는 부른 순서대로 하나씩 보내요. 이름·이동 수단은 마지막 보정이 이기는데, 겹쳐 보내면 먼저 누른 요청이
 // 늦게 끝나 옛 값이 마지막이 될 수 있어요. 어느 보정이 같은 여행을 가리키는지는 사진 묶음을 알아야 해서
-// 스토어는 알 수 없으니, 대상별로 나누지 않고 전부 한 줄로 세워요.
-let queue = Promise.resolve();
+// 스토어는 알 수 없으니, 대상별로 나누지 않고 계정마다 한 줄로 세워요.
+// 줄을 계정별로 두는 이유: 다른 계정의 느린 요청 뒤에서 기다리지 않게 하고,
+// 로그아웃했다 같은 계정으로 다시 들어와도 앞서 보낸 요청과 순서가 뒤바뀌지 않게 해요.
+/** @type {Map<string | undefined, Promise<void>>} 계정 id → 그 계정의 마지막 요청이 끝나는 때 */
+const queues = new Map();
 
 /**
- * 앞서 부른 요청이 끝난 뒤에 task를 실행해요. 앞 요청이 실패해도 다음 요청은 실행해요.
+ * 그 계정이 앞서 부른 요청이 끝난 뒤에 task를 실행해요. 앞 요청이 실패해도 다음 요청은 실행해요.
  *
  * @template T
+ * @param {string | undefined} ownerId 요청을 부른 계정
  * @param {() => Promise<T>} task
  * @returns {Promise<T>}
  */
-async function enqueue(task) {
-  const previous = queue;
+async function enqueue(ownerId, task) {
+  const previous = queues.get(ownerId);
   let release;
-  queue = new Promise((resolve) => {
+  const current = new Promise((resolve) => {
     release = resolve;
   });
+  queues.set(ownerId, current);
 
   await previous;
   try {
     return await task();
   } finally {
     release();
+    // 뒤에 줄 선 요청이 없으면 줄을 지워요. 계정을 여러 번 바꿔도 Map이 쌓이지 않아요.
+    if (queues.get(ownerId) === current) queues.delete(ownerId);
   }
 }
 
@@ -145,7 +152,7 @@ export const useCorrectionStore = create((set, get) => ({
     if (excludeKey) startPending(set, excludeKey);
 
     try {
-      return await enqueue(async () => {
+      return await enqueue(ownerId, async () => {
         assertSameAccount(requested);
 
         // 차례가 온 뒤에 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
@@ -181,10 +188,11 @@ export const useCorrectionStore = create((set, get) => ({
    */
   remove: async (id) => {
     const requested = generation;
+    const ownerId = useAuthStore.getState().user?.id;
     startPending(set, id);
 
     try {
-      await enqueue(async () => {
+      await enqueue(ownerId, async () => {
         assertSameAccount(requested);
         // 버튼을 두 번 누르면 앞 요청이 이미 지웠어요. 서버에 다시 보내지 않아요.
         if (!get().corrections.some((correction) => correction.id === id)) return;
@@ -203,9 +211,7 @@ export const useCorrectionStore = create((set, get) => ({
   /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. */
   reset: () => {
     generation += 1;
-    // 앞 계정의 요청이 느리거나 끝나지 않아도 새 계정의 저장·삭제가 그 뒤에서 기다리지 않게, 줄을 새로 세워요.
-    // 앞 계정의 줄에 남은 요청은 차례가 오면 assertSameAccount에서 멈춰요.
-    queue = Promise.resolve();
+    // 요청 줄은 계정별이라 여기서 비우지 않아요. 앞 계정의 줄에 남은 요청은 차례가 오면 assertSameAccount에서 멈춰요.
     pendingCounts.clear();
     set(INITIAL_STATE);
   },
