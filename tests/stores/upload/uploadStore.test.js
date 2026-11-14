@@ -316,6 +316,15 @@ describe('save', () => {
     counts: { unreadable: 0, noDate: 0, noLocation: 0 },
   });
   const uploadedKeys = () => vi.mocked(savePhotoImage).mock.calls.map(([fileKey]) => fileKey);
+  // 이미지 올리기는 save가 끝난 뒤에도 뒤에서 돌아서, 다 끝날 때까지 기다려요.
+  // waitFor는 콜백이 던지는 동안 다시 불러서, 조건을 expect로 적어요.
+  const waitForUploads = () =>
+    vi.waitFor(() => {
+      const { total, uploaded, skipped, failed } = getState().imageUpload;
+      expect(uploaded + skipped + failed).toBe(total);
+    });
+  const uploadedFileNames = () => vi.mocked(resizeFull).mock.calls.map(([file]) => file.name);
+  const savedFileNames = () => vi.mocked(savePhotos).mock.calls[0][0].map((row) => row.fileName);
 
   beforeEach(() => {
     vi.mocked(resizeFull).mockResolvedValue(full);
@@ -563,5 +572,53 @@ describe('save', () => {
     // then
     expect(getState()).toMatchObject({ saveStatus: 'idle', saveResult: null });
     expect(savePhotoImage).not.toHaveBeenCalled();
+  });
+
+  describe('정리 끝의 답', () => {
+    test('빼 둔 사진은 저장하지 않아요', async () => {
+      // given
+      await pick(['a.jpg', 'b.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
+      getState().answerPass(getState().photos[1].id, 'exclude');
+
+      // when
+      await getState().save('u1');
+      await waitForUploads();
+
+      // then
+      expect(savedFileNames()).toEqual(['a.jpg']);
+      expect(getState().saveResult).toEqual({ saved: 1, existing: 0 });
+    });
+
+    test('빼 둔 사진 뒤의 사진도 제 원본으로 올려요', async () => {
+      // given: 가운데를 빼면 c의 고른 순서가 밀리기 쉬워요
+      await pick(['a.jpg', 'b.jpg', 'c.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg', 'c.jpg']));
+      getState().answerPass(getState().photos[1].id, 'exclude');
+
+      // when
+      await getState().save('u1');
+      await waitForUploads();
+
+      // then
+      const [[rows]] = vi.mocked(savePhotos).mock.calls;
+      expect(uploadedFileNames()).toEqual(['a.jpg', 'c.jpg']);
+      expect(uploadedKeys()).toEqual(rows.map((row) => row.fileKey));
+    });
+
+    test('나중에 하기로 한 사진은 저장하고 이미지도 올려요', async () => {
+      // given
+      await pick(['a.jpg', 'b.jpg']);
+      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
+      getState().answerPass(getState().photos[1].id, 'later');
+
+      // when
+      await getState().save('u1');
+      await waitForUploads();
+
+      // then
+      expect(savedFileNames()).toEqual(['a.jpg', 'b.jpg']);
+      expect(uploadedFileNames()).toEqual(['a.jpg', 'b.jpg']);
+    });
   });
 });
