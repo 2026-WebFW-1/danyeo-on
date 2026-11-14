@@ -403,4 +403,28 @@ describe('reset', () => {
 
     expect(getState()).toMatchObject({ corrections: [], status: 'idle', error: null, pending: {} });
   });
+
+  test('앞 계정의 요청이 끝나지 않아도 새 계정의 저장은 기다리지 않아요', async () => {
+    await fetchSaved();
+    const stuck = deferred();
+    vi.mocked(addCorrection).mockReturnValueOnce(stuck.promise).mockResolvedValueOnce();
+
+    const previous = getState().add({ type: 'exclude', photoId: 'p_c' });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
+    getState().reset();
+    useAuthStore.setState({ user: { id: 'u2' } });
+    vi.mocked(getCorrections).mockResolvedValue([]);
+    await getState().fetch();
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_x' });
+
+    expect(added.ownerId).toBe('u2');
+    expect(getState().corrections).toEqual([added]);
+
+    // 앞 계정의 요청은 뒤늦게 끝나도 새 계정의 목록을 건드리지 않아요.
+    stuck.resolve();
+    await expect(previous).rejects.toEqual(ACCOUNT_CHANGED);
+    expect(getState().corrections).toEqual([added]);
+    expect(getState().pending).toEqual({});
+  });
 });

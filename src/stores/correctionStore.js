@@ -203,6 +203,9 @@ export const useCorrectionStore = create((set, get) => ({
   /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. */
   reset: () => {
     generation += 1;
+    // 앞 계정의 요청이 느리거나 끝나지 않아도 새 계정의 저장·삭제가 그 뒤에서 기다리지 않게, 줄을 새로 세워요.
+    // 앞 계정의 줄에 남은 요청은 차례가 오면 assertSameAccount에서 멈춰요.
+    queue = Promise.resolve();
     pendingCounts.clear();
     set(INITIAL_STATE);
   },
