@@ -10,6 +10,7 @@ import PassColorTip from './PassColorTip';
 import PassControls from './PassControls';
 import PassStrip from './PassStrip';
 import PassTimeline from './PassTimeline';
+import SavePhotos from './SavePhotos';
 
 // 줄이 끝난 뒤 첫 질문 자리로 되감는 시간이에요. 방금 다 본 사진을 다시 보여 줄 필요는 없어서
 // 되감는다는 것만 알 수 있게 빠르게 넘겨요.
@@ -108,6 +109,7 @@ export default function PassPhotosStep() {
             </p>
             <h1 className="mt-3 text-5xl font-bold text-ink 2xl:text-6xl">{heading.title}</h1>
             <p className="mt-3 text-lg break-keep text-muted">{description}</p>
+            {phase === 'done' && <SavePhotos />}
           </div>
           {/* 멈추지 않고 흐르도록 머무는 시간 내내 다음 장으로 옮겨 가요.
               끝난 뒤 질문 자리로 되감아도 지나온 만큼은 그대로라 마지막 장 기준으로 채워 둬요 */}

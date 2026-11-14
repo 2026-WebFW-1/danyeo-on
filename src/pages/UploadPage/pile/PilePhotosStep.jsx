@@ -1,7 +1,6 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
 
 import PhotoPile from './PhotoPile';
-import SavePhotos from './SavePhotos';
 
 /**
  * 고른 사진이 포개지며 쌓이는 화면 (13a″ 다음, 13h″ 전, #87)
@@ -52,23 +51,25 @@ export default function PilePhotosStep({ onReset, onNext }) {
             {isDone &&
               `사진 ${photoCount}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
           </p>
-          {isDone && <SavePhotos />}
-          {isDone && (
+          {/* 다 모으기 전에는 [다시 고르기]만 같은 자리에 보여요 */}
+          <div className="mt-10 flex flex-col items-start gap-4">
+            {isDone && (
+              <button
+                type="button"
+                onClick={onNext}
+                className="h-14 w-45 bg-nav text-lg font-bold text-white"
+              >
+                다음
+              </button>
+            )}
             <button
               type="button"
-              onClick={onNext}
-              className="mt-4 h-14 w-45 bg-nav text-lg font-bold text-white"
+              onClick={onReset}
+              className="h-14 w-45 border border-nav bg-white text-lg font-medium text-ink"
             >
-              다음
+              다시 고르기
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onReset}
-            className="mt-10 text-md text-muted underline underline-offset-4"
-          >
-            다시 고르기
-          </button>
+          </div>
         </header>
         <PhotoPile />
       </div>

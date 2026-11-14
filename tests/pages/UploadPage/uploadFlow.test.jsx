@@ -1,6 +1,6 @@
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import App from '@/App';
@@ -29,8 +29,51 @@ vi.mock('@/services/authService', () => ({
 
 const user = { id: '내계정', email: 'seojin@demo.local', name: '서진' };
 const file = new File(['원본'], '사진.jpg', { type: 'image/jpeg' });
+// 이름에 번호가 있어 정리 화면에서 묻지 않고 지나가는 사진이에요. file은 번호가 없어서 끝에서 물어요.
+const numbered = new File(['원본'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+// 사진 줄은 한 장에 300ms쯤 머물다 저절로 지나가서, 다 지나갈 때까지 넉넉히 기다려요.
+const PASS_TIMEOUT = { timeout: 3000 };
 let container;
 let root;
+
+// flatMap
+const readPhotoOf = (order, fileName) => ({
+  order,
+  fileName,
+  takenAt: null,
+  offset: null,
+  timeUncertain: true,
+  lat: null,
+  lng: null,
+  camera: null,
+  dedupeKey: `|${fileName}`,
+});
+const findButton = (text) =>
+  [...container.querySelectorAll('button')].find((button) => button.textContent === text);
+
+/**
+ * 로그인해서 사진을 다 모으고, [다음]을 눌러 정리 화면으로 넘어가요.
+ * 다 저장하면 넘어가는 /places 자리에는 글자 하나만 둬요.
+ */
+async function openPass(files) {
+  useAuthStore.setState({ user, status: 'authenticated' });
+  await useUploadStore.getState().start(files);
+  vi.mocked(readPhotos).mockResolvedValue({
+    photos: files.map((picked, order) => readPhotoOf(order, picked.name)),
+    skipped: [],
+  });
+  await act(() =>
+    root.render(
+      <MemoryRouter initialEntries={['/upload']}>
+        <Routes>
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/places" element={<p>전체 기록</p>} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  );
+  await act(() => findButton('다음').click());
+}
 
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -159,46 +202,66 @@ test('같은 계정의 세션 갱신에서는 사진을 유지해요', async () 
   expect(useUploadStore.getState().photos[0]).toBe(photo);
 });
 
-test('다 모은 뒤 저장하기를 누르면 저장하고 올린 이미지 수를 보여 줘요', async () => {
-  // given: 로그인해서 사진을 다 모은 화면
-  useAuthStore.setState({ user, status: 'authenticated' });
-  await useUploadStore.getState().start([file]);
-  vi.mocked(readPhotos).mockResolvedValue({
-    photos: [
-      {
-        order: 0,
-        fileName: '사진.jpg',
-        takenAt: null,
-        offset: null,
-        timeUncertain: true,
-        lat: null,
-        lng: null,
-        camera: null,
-        dedupeKey: '|사진.jpg',
-      },
-    ],
-    skipped: [],
-    counts: { unreadable: 0, noDate: 1, noLocation: 1 },
-  });
+test('빼 둔 사진을 뺀 나머지를 저장하고, 다 올리면 전체 기록으로 넘어가요', async () => {
+  // given: 자리를 못 찾은 '사진.jpg'는 끝에서 물어보면 빼 둠
+  await openPass([numbered, file]);
   vi.mocked(savePhotos).mockImplementation(async (photos) => ({
     saved: photos.map((photo) => photo.id),
     skipped: [],
   }));
   vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
   vi.mocked(savePhotoImage).mockResolvedValue();
-  await act(() => root.render(<UploadPage />));
-  const saveButton = [...container.querySelectorAll('button')].find(
-    (button) => button.textContent === '저장하기',
-  );
+  await vi.waitFor(() => expect(findButton('빼 두기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('빼 두기').click());
 
   // when
-  await act(() => saveButton.click());
-  await vi.waitFor(() => expect(container.textContent).toContain('이미지를 다 올렸어요'));
+  await act(() => findButton('여행 보기').click());
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
 
   // then
-  expect(container.textContent).toContain('1장 저장했어요');
-  expect(savePhotoImage).toHaveBeenCalledWith(
+  const [[rows]] = vi.mocked(savePhotos).mock.calls;
+  expect(rows.map((row) => row.fileName)).toEqual(['IMG_0001.jpg']);
+  expect(savePhotoImage).toHaveBeenCalledExactlyOnceWith(
     expect.stringMatching(/^photos:내계정\/p_[0-9a-f]{12}$/),
     expect.anything(),
+  );
+});
+
+test('이미지를 다 올리기 전에는 넘어가지 않고 올리는 진행을 보여 줘요', async () => {
+  // given: 이미지 올리기가 끝나지 않음
+  await openPass([numbered]);
+  vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+    saved: photos.map((photo) => photo.id),
+    skipped: [],
+  }));
+  vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+  const uploading = Promise.withResolvers();
+  vi.mocked(savePhotoImage).mockReturnValue(uploading.promise);
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('여행 보기').click());
+  await vi.waitFor(() => expect(container.textContent).toContain('이미지 올리는 중 0 / 1'));
+
+  // then: 올리기가 끝나야 넘어감
+  expect(container.textContent).toContain('1장 저장했어요');
+  await act(() => uploading.resolve());
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
+});
+
+test('저장하지 못하면 안내와 다시 시도를 보여 줘요', async () => {
+  // given
+  await openPass([numbered]);
+  vi.mocked(savePhotos).mockRejectedValue(new Error('네트워크'));
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('여행 보기').click());
+
+  // then
+  await vi.waitFor(() => expect(findButton('다시 시도')).toBeDefined());
+  expect(container.querySelector('[role="alert"]').textContent).toBe(
+    '저장하지 못했어요. 다시 시도해 주세요',
   );
 });

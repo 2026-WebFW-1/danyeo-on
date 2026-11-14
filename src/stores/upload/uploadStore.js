@@ -47,7 +47,7 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {(targets: { order: number, fileKey: string }[]) => Promise<void>} uploadImages
  *   저장한(saved) 사진의 이미지를 동시에 3장씩 올려요. order는 고른 순서, fileKey는 저장할 때 정한 키예요
  * @property {Record<string, 'exclude' | 'later'>} passAnswers 지나가며 정리 끝에서 물어본 사진의 답(사진 id별).
- *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 아직 저장에는 쓰지 않아요(저장이 정리보다 먼저예요)
+ *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 'exclude'인 사진은 save가 저장하지 않아요
  * @property {(photoId: string, answer: 'exclude' | 'later') => void} answerPass
  * @property {() => void} reset 작업을 중단하고 이미지 주소와 파일을 놓아줘요
  */
@@ -149,20 +149,37 @@ export const useUploadStore = create((set, get) => ({
  * @returns {Promise<{ saved: number, existing: number, targets: { order: number, fileKey: string }[] } | null>}
  *   기다리는 사이 reset됐으면 null
  */
-async function savePicked(ownerId, { files, photos }, isCancelled) {
+async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) {
   const { photos: readResults } = await readPhotos(files);
   // 저장하면 이미지 없는 행이 남고, 같은 사진을 다시 저장해도 이미 있다며 건너뛰어서 회색 칸이 돼요.
   if (isCancelled()) return null;
 
+  // 빼 둔 사진은 읽은 뒤에 거릅니다. files를 먼저 거르면 order(고른 순서)가 밀려서
+  // uploadImage가 files[order]로 다른 원본을 올립니다.
+  const excludedOrders = new Set(
+    photos.filter((photo) => passAnswers[photo.id] === 'exclude').map((photo) => photo.order),
+  );
+
   const hasImage = new Set(photos.filter((photo) => photo.thumb).map((photo) => photo.order));
-  const rows = readResults.map(
+
+  const filteredOrder = readResults.filter(({ order }) => !excludedOrders.has(order));
+  const rows = filteredOrder.map(
     ({ order, dedupeKey, fileName, takenAt, offset, lat, lng, camera }) => {
       const id = createPhotoId();
       const fileKey = hasImage.has(order) ? toUploadedFileKey(ownerId, id) : null;
       return {
         order,
         dedupeKey,
-        photo: { id, fileName, takenAt, offset, lat, lng, camera, fileKey },
+        photo: {
+          id,
+          fileName,
+          takenAt,
+          offset,
+          lat,
+          lng,
+          camera,
+          fileKey,
+        },
       };
     },
   );
