@@ -8,6 +8,66 @@ const INITIAL_STATE = { corrections: [], status: 'idle', error: null, pending: {
 // reset할 때마다 올려요. 요청이 끝났을 때 값이 달라졌으면 앞 계정의 응답이라 버려요.
 let generation = 0;
 
+// 저장·삭제는 부른 순서대로 하나씩 보내요. 이름·이동 수단은 마지막 보정이 이기는데, 겹쳐 보내면 먼저 누른 요청이
+// 늦게 끝나 옛 값이 마지막이 될 수 있어요. 어느 보정이 같은 여행을 가리키는지는 사진 묶음을 알아야 해서
+// 스토어는 알 수 없으니, 대상별로 나누지 않고 전부 한 줄로 세워요.
+let queue = Promise.resolve();
+
+/**
+ * 앞서 부른 요청이 끝난 뒤에 task를 실행해요. 앞 요청이 실패해도 다음 요청은 실행해요.
+ *
+ * @template T
+ * @param {() => Promise<T>} task
+ * @returns {Promise<T>}
+ */
+async function enqueue(task) {
+  const previous = queue;
+  let release;
+  queue = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+  try {
+    return await task();
+  } finally {
+    release();
+  }
+}
+
+/**
+ * 요청을 부른 뒤로 계정이 바뀌었으면 던져요. 요청은 지금 세션으로 나가서, 그대로 보내면 다른 계정에 저장돼요.
+ * 이미 보낸 요청이면 앞 계정에는 반영됐지만, 지금 계정의 화면이 성공으로 받으면 안 돼요.
+ *
+ * @param {number} requested 요청을 부를 때의 generation
+ */
+function assertSameAccount(requested) {
+  if (requested !== generation) {
+    throw { status: 0, code: 'ACCOUNT_CHANGED', message: '요청하는 사이에 계정이 바뀌었어요' };
+  }
+}
+
+// 같은 열쇠의 요청이 여럿 줄 서 있을 수 있어서 개수를 세요. 마지막 요청이 끝날 때 pending에서 지워요.
+const pendingCounts = new Map();
+
+function startPending(set, key) {
+  pendingCounts.set(key, (pendingCounts.get(key) ?? 0) + 1);
+  set((state) => ({ pending: { ...state.pending, [key]: true } }));
+}
+
+function endPending(set, key, requested) {
+  // 계정이 바뀌었으면 reset이 이미 비웠어요.
+  if (requested !== generation) return;
+
+  const left = pendingCounts.get(key) - 1;
+  if (left > 0) {
+    pendingCounts.set(key, left);
+    return;
+  }
+  pendingCounts.delete(key);
+  set((state) => ({ pending: omit(state.pending, key) }));
+}
+
 function createCorrectionId() {
   return `c_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
@@ -19,7 +79,7 @@ function omit(map, key) {
 
 /**
  * 사진을 빼는 요청이 진행 중인지 볼 때 쓰는 pending의 열쇠예요.
- * 지우는 요청의 열쇠는 보정 id 그대로예요.
+ * 지우는 요청의 열쇠는 보정 id 그대로예요. 차례를 기다리는 요청도 진행 중으로 표시해요.
  *
  * @param {string} photoId
  * @returns {string} 예: 'exclude:p_c2a066'
@@ -64,8 +124,8 @@ export const useCorrectionStore = create((set, get) => ({
   },
 
   /**
-   * 보정을 저장해요. 끝난 뒤에 목록 끝에 붙어요.
-   * 실패하면 목록을 그대로 두고 던져요.
+   * 보정을 저장해요. 끝난 뒤에 목록 끝에 붙어요. 앞서 부른 저장·삭제가 끝난 뒤에 보내요.
+   * 실패하면 목록을 그대로 두고 던져요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
    *
    * 같은 사진을 두 번 빼면 하나를 지워도 사진이 돌아오지 않아요(buildJourney는 빠진 사진을 ID로만 모아요).
    * 그래서 이미 뺀 사진이면 서버에 보내지 않고 있는 보정을 돌려줘요.
@@ -78,76 +138,72 @@ export const useCorrectionStore = create((set, get) => ({
     // 불러오기 전에는 이미 뺀 사진인지 알 수 없어요.
     if (get().status !== 'ready') throw new Error('보정을 불러온 뒤에 저장할 수 있어요');
 
-    const excludeKey = input.type === 'exclude' ? getExcludeKey(input.photoId) : null;
-    if (excludeKey) {
-      const existing = get().corrections.find(
-        (correction) => correction.type === 'exclude' && correction.photoId === input.photoId,
-      );
-      if (existing) return existing;
-      // 버튼을 두 번 누르면 첫 요청이 끝나기 전이라 위에서 걸러지지 않아요.
-      if (get().pending[excludeKey]) throw new Error(`이미 빼는 중인 사진이에요: ${input.photoId}`);
-    }
-
     const requested = generation;
-    const fields = { ...input, id: createCorrectionId() };
-    if (excludeKey) set((state) => ({ pending: { ...state.pending, [excludeKey]: true } }));
+    // 끝난 뒤에 읽으면 그사이 바뀐 계정의 id가 붙을 수 있어서, 부를 때의 주인을 들고 있어요.
+    const ownerId = useAuthStore.getState().user?.id;
+    const excludeKey = input.type === 'exclude' ? getExcludeKey(input.photoId) : null;
+    if (excludeKey) startPending(set, excludeKey);
 
     try {
-      await addCorrection(fields);
-    } catch (error) {
-      if (excludeKey && requested === generation) {
-        set((state) => ({ pending: omit(state.pending, excludeKey) }));
-      }
-      throw error;
-    }
+      return await enqueue(async () => {
+        assertSameAccount(requested);
 
-    // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
-    const correction = {
-      ...fields,
-      ownerId: useAuthStore.getState().user?.id,
-      createdAt: new Date().toISOString(),
-    };
-    if (requested === generation) {
-      set((state) => ({
-        corrections: [...state.corrections, correction],
-        pending: excludeKey ? omit(state.pending, excludeKey) : state.pending,
-      }));
+        // 차례가 온 뒤에 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
+        if (input.type === 'exclude') {
+          const existing = get().corrections.find(
+            (correction) => correction.type === 'exclude' && correction.photoId === input.photoId,
+          );
+          if (existing) return existing;
+        }
+
+        const fields = { ...input, id: createCorrectionId() };
+        await addCorrection(fields);
+        assertSameAccount(requested);
+
+        // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
+        const correction = { ...fields, ownerId, createdAt: new Date().toISOString() };
+        set((state) => ({ corrections: [...state.corrections, correction] }));
+        return correction;
+      });
+    } finally {
+      if (excludeKey) endPending(set, excludeKey, requested);
     }
-    return correction;
   },
 
   /**
    * 보정을 지워요. 끝난 뒤에 목록에서 빠져요. 뺀 사진을 되돌릴 때는 그 exclude 보정을 지워요.
-   * 실패하면 목록을 그대로 두고 던져요.
+   * 앞서 부른 저장·삭제가 끝난 뒤에 보내요.
+   * 실패하면 목록을 그대로 두고 던져요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
    * 서버에 이미 없던 보정(다른 탭에서 지움)도 목록에서 빼요. 원한 결과와 서버 상태가 이미 같아서예요.
    *
    * @param {string} id
    * @returns {Promise<void>}
    */
   remove: async (id) => {
-    if (get().pending[id]) throw new Error(`이미 지우는 중인 보정이에요: ${id}`);
-
     const requested = generation;
-    set((state) => ({ pending: { ...state.pending, [id]: true } }));
+    startPending(set, id);
 
     try {
-      await removeCorrection(id);
-    } catch (error) {
-      if (requested === generation) set((state) => ({ pending: omit(state.pending, id) }));
-      throw error;
-    }
+      await enqueue(async () => {
+        assertSameAccount(requested);
+        // 버튼을 두 번 누르면 앞 요청이 이미 지웠어요. 서버에 다시 보내지 않아요.
+        if (!get().corrections.some((correction) => correction.id === id)) return;
 
-    if (requested === generation) {
-      set((state) => ({
-        corrections: state.corrections.filter((correction) => correction.id !== id),
-        pending: omit(state.pending, id),
-      }));
+        await removeCorrection(id);
+        assertSameAccount(requested);
+        set((state) => ({
+          corrections: state.corrections.filter((correction) => correction.id !== id),
+        }));
+      });
+    } finally {
+      endPending(set, id, requested);
     }
   },
 
   /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. */
   reset: () => {
     generation += 1;
+    pendingCounts.clear();
     set(INITIAL_STATE);
   },
 }));

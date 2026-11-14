@@ -19,6 +19,7 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *    error를 계속 지켜보면 계속 실패할 때 요청이 반복돼서, 들어올 때 한 번만 봐요(useLoadPosts와 같은 규칙).
  *
  * 주의할 점: add · remove는 실패하면 던져요. 부른 쪽이 잡아서 안내를 띄워요.
+ * 겹쳐 불러도 부른 순서대로 하나씩 보내요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
  * 아직 보정을 저장해도 Journey(01 · 02 · 03에 보이는 여행)는 바뀌지 않아요.
  *
  * @returns {{

@@ -28,6 +28,11 @@ const exclude = {
   createdAt: '2026-10-02T12:00:00Z',
 };
 const SAVE_FAILED = { status: 500, code: 'SAVE_FAILED', message: '서버 오류' };
+const ACCOUNT_CHANGED = {
+  status: 0,
+  code: 'ACCOUNT_CHANGED',
+  message: '요청하는 사이에 계정이 바뀌었어요',
+};
 
 /** 끝나는 때를 테스트가 정하는 약속이에요. */
 function deferred() {
@@ -167,21 +172,110 @@ describe('add', () => {
     expect(getState().corrections).toEqual([rename, exclude]);
   });
 
-  test('사진을 빼는 동안 pending에 표시하고, 같은 사진을 또 빼면 던져요', async () => {
+  test('사진을 빼는 동안 pending에 표시하고, 같은 사진을 또 빼도 한 번만 보내요', async () => {
     await fetchSaved();
     const pending = deferred();
     vi.mocked(addCorrection).mockReturnValue(pending.promise);
 
     const first = getState().add({ type: 'exclude', photoId: 'p_c' });
+    const second = getState().add({ type: 'exclude', photoId: 'p_c' });
     expect(getState().pending).toEqual({ [getExcludeKey('p_c')]: true });
-    await expect(getState().add({ type: 'exclude', photoId: 'p_c' })).rejects.toThrow(
-      '이미 빼는 중인 사진',
-    );
     pending.resolve();
-    await first;
 
+    expect(await second).toBe(await first);
     expect(addCorrection).toHaveBeenCalledTimes(1);
+    expect(getState().corrections).toHaveLength(3);
     expect(getState().pending).toEqual({});
+  });
+
+  test('앞 요청이 실패해 뒤 요청이 다시 보내는 동안에도 pending에 남아 있어요', async () => {
+    await fetchSaved();
+    const failing = deferred();
+    const retrying = deferred();
+    vi.mocked(addCorrection)
+      .mockReturnValueOnce(failing.promise)
+      .mockReturnValueOnce(retrying.promise);
+
+    const first = getState().add({ type: 'exclude', photoId: 'p_c' });
+    const second = getState().add({ type: 'exclude', photoId: 'p_c' });
+    failing.reject(SAVE_FAILED);
+    await expect(first).rejects.toEqual(SAVE_FAILED);
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(2));
+
+    expect(getState().pending).toEqual({ [getExcludeKey('p_c')]: true });
+
+    retrying.resolve();
+    await second;
+    expect(getState().pending).toEqual({});
+  });
+
+  test('겹쳐 불러도 부른 순서대로 하나씩 보내고, 목록에도 그 순서로 붙어요', async () => {
+    await fetchSaved();
+    const slow = deferred();
+    vi.mocked(addCorrection).mockReturnValueOnce(slow.promise).mockResolvedValueOnce();
+
+    const first = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '먼저 누른 이름' });
+    const second = getState().add({
+      type: 'rename',
+      anchorPhotoId: 'p_a',
+      name: '나중에 누른 이름',
+    });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
+    // 앞 요청이 끝나기 전에는 뒤 요청을 보내지 않아요.
+    await Promise.resolve();
+    expect(addCorrection).toHaveBeenCalledTimes(1);
+
+    slow.resolve();
+    await Promise.all([first, second]);
+
+    expect(getState().corrections.map((correction) => correction.name)).toEqual([
+      '졸업 여행',
+      undefined,
+      '먼저 누른 이름',
+      '나중에 누른 이름',
+    ]);
+  });
+
+  test('앞 요청이 실패해도 뒤 요청은 보내요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockRejectedValueOnce(SAVE_FAILED).mockResolvedValueOnce();
+
+    const first = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '실패' });
+    const second = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '성공' });
+
+    await expect(first).rejects.toEqual(SAVE_FAILED);
+    const added = await second;
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+  });
+
+  test('되돌리는 중인 사진을 다시 빼면, 지우기가 끝난 뒤 새 보정으로 저장해요', async () => {
+    await fetchSaved();
+    const removing = deferred();
+    vi.mocked(removeCorrection).mockReturnValue(removing.promise);
+    vi.mocked(addCorrection).mockResolvedValue();
+
+    const removed = getState().remove(exclude.id);
+    const readded = getState().add({ type: 'exclude', photoId: 'p_b' });
+    removing.resolve(true);
+    await removed;
+    const added = await readded;
+
+    expect(added.id).not.toBe(exclude.id);
+    expect(addCorrection).toHaveBeenCalledTimes(1);
+    expect(getState().corrections).toEqual([rename, added]);
+  });
+
+  test('되돌리기가 실패했으면, 다시 뺄 때 남아 있는 보정을 돌려줘요', async () => {
+    await fetchSaved();
+    const error = { status: 0, code: 'REMOVE_FAILED', message: '연결 실패' };
+    vi.mocked(removeCorrection).mockRejectedValue(error);
+
+    const removed = getState().remove(exclude.id);
+    const readded = getState().add({ type: 'exclude', photoId: 'p_b' });
+
+    await expect(removed).rejects.toEqual(error);
+    expect(await readded).toBe(exclude);
+    expect(addCorrection).not.toHaveBeenCalled();
   });
 
   test('이름은 같은 사진으로 여러 번 바꿔도 쌓아요(마지막 보정이 이겨요)', async () => {
@@ -193,18 +287,36 @@ describe('add', () => {
     expect(getState().corrections).toEqual([rename, exclude, added]);
   });
 
-  test('저장하는 사이에 reset하면(계정 바뀜) 새 계정의 목록에 붙이지 않아요', async () => {
+  test('저장하는 사이에 reset하면(계정 바뀜) 성공으로 돌려주지 않고 ACCOUNT_CHANGED로 던져요', async () => {
     await fetchSaved();
     const pending = deferred();
     vi.mocked(addCorrection).mockReturnValue(pending.promise);
 
     const request = getState().add({ type: 'exclude', photoId: 'p_c' });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
     getState().reset();
+    useAuthStore.setState({ user: { id: 'u2' } });
     pending.resolve();
-    await request;
 
+    await expect(request).rejects.toEqual(ACCOUNT_CHANGED);
     expect(getState().corrections).toEqual([]);
     expect(getState().pending).toEqual({});
+  });
+
+  test('차례를 기다리는 사이에 reset하면(계정 바뀜) 서버에 보내지 않아요', async () => {
+    await fetchSaved();
+    const slow = deferred();
+    vi.mocked(addCorrection).mockReturnValue(slow.promise);
+
+    const first = getState().add({ type: 'exclude', photoId: 'p_c' });
+    const waiting = getState().add({ type: 'exclude', photoId: 'p_d' });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
+    getState().reset();
+    slow.resolve();
+
+    await expect(first).rejects.toEqual(ACCOUNT_CHANGED);
+    await expect(waiting).rejects.toEqual(ACCOUNT_CHANGED);
+    expect(addCorrection).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -240,18 +352,34 @@ describe('remove', () => {
     expect(getState().pending).toEqual({});
   });
 
-  test('지우는 동안 pending에 표시하고, 같은 보정을 또 지우면 던져요', async () => {
+  test('지우는 동안 pending에 표시하고, 같은 보정을 또 지워도 한 번만 보내요', async () => {
     await fetchSaved();
     const pending = deferred();
     vi.mocked(removeCorrection).mockReturnValue(pending.promise);
 
     const first = getState().remove(exclude.id);
+    const second = getState().remove(exclude.id);
     expect(getState().pending).toEqual({ [exclude.id]: true });
-    await expect(getState().remove(exclude.id)).rejects.toThrow('이미 지우는 중인 보정');
     pending.resolve(true);
-    await first;
+    await Promise.all([first, second]);
 
     expect(removeCorrection).toHaveBeenCalledTimes(1);
+    expect(getState().corrections).toEqual([rename]);
+    expect(getState().pending).toEqual({});
+  });
+
+  test('지우는 사이에 reset하면(계정 바뀜) ACCOUNT_CHANGED로 던져요', async () => {
+    await fetchSaved();
+    const pending = deferred();
+    vi.mocked(removeCorrection).mockReturnValue(pending.promise);
+
+    const request = getState().remove(exclude.id);
+    await vi.waitFor(() => expect(removeCorrection).toHaveBeenCalledTimes(1));
+    getState().reset();
+    pending.resolve(true);
+
+    await expect(request).rejects.toEqual(ACCOUNT_CHANGED);
+    expect(getState().pending).toEqual({});
   });
 
   test('뺀 사진을 되돌린 뒤에는 그 사진을 다시 뺄 수 있어요', async () => {
