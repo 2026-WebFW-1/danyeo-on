@@ -1,4 +1,9 @@
+import { buildJourney } from '@/utils/journey/buildJourney';
+
 import { getSupabase } from './getSupabase';
+import { clearMyPhotos } from './myPhotosService';
+import { getMyData } from './photoService';
+import { reverseCity } from './reverseCity';
 
 // 행이 없는 계정이 받는 Journey예요. 빈 계정(empty)과 같은 모양이에요.
 const EMPTY_JOURNEY = Object.freeze({
@@ -83,4 +88,46 @@ export async function saveJourney(userId, journey) {
     throw { status: 0, code: 'SAVE_FAILED', message: error.message };
   }
   cache.delete(userId);
+}
+
+/**
+ * 내 사진·보정을 서버에서 읽어 Journey를 다시 계산하고 journeys에 써요.
+ * 사진을 저장한 뒤(#144)나 보정을 저장한 뒤 불러요. 쓴 뒤에는 Journey와 사진 목록의 기억을 지워서
+ * 03·02가 다음에 새 값을 읽어요.
+ * 도시 이름 찾기(reverseCity)가 1.1초 간격이라 지점 수만큼 시간이 걸려요.
+ * 도시 이름을 못 찾은 지점은 던지지 않고 이름 없이 계산돼요.
+ *
+ * 실패하면 { status: 0, code, message }로 거절해요. 사진·보정은 그대로라 같은 함수로 다시 시도하면 돼요.
+ *  - LOAD_FAILED: 사진·보정을 읽지 못했어요
+ *  - ACCOUNT_CHANGED: 읽는 사이 계정이 바뀌었어요(계산·저장하지 않아요)
+ *  - BUILD_FAILED: 계산하다 오류가 났어요
+ *  - SAVE_FAILED: journeys에 쓰지 못했어요(saveJourney)
+ *
+ * @param {string} userId 로그인한 사람의 id(AuthUser.id)
+ * @returns {Promise<import('@/types').Journey>} 저장한 Journey
+ */
+export async function refreshJourney(userId) {
+  let myData;
+  try {
+    myData = await getMyData();
+  } catch (error) {
+    throw { status: 0, code: 'LOAD_FAILED', message: error.message };
+  }
+  // 다른 계정의 사진으로 도시 이름을 찾느라 시간을 버리지 않게, 계산 전에 걸러요.
+  // 확인한 뒤 계정이 바뀌면 saveJourney가 RLS에 막혀 실패해요.
+  if (myData.user?.id !== userId) {
+    throw { status: 0, code: 'ACCOUNT_CHANGED', message: '읽는 사이에 계정이 바뀌었어요' };
+  }
+
+  let journey;
+  try {
+    journey = await buildJourney(myData.photos, myData.corrections, reverseCity);
+  } catch (error) {
+    throw { status: 0, code: 'BUILD_FAILED', message: error.message };
+  }
+
+  await saveJourney(userId, journey);
+  // 03·02의 썸네일도 새 사진을 읽게 비워요.
+  clearMyPhotos();
+  return journey;
 }

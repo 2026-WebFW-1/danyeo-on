@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { refreshJourney } from '@/services/journeyService';
 import {
   getMyData,
   getUploadedImagePaths,
@@ -12,6 +13,7 @@ import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
 vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
+vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 vi.mock('@/services/photoService', () => ({
   getMyData: vi.fn(),
   getUploadedImagePaths: vi.fn(),
@@ -620,5 +622,80 @@ describe('save', () => {
       expect(savedFileNames()).toEqual(['a.jpg', 'b.jpg']);
       expect(uploadedFileNames()).toEqual(['a.jpg', 'b.jpg']);
     });
+  });
+});
+
+describe('refreshJourney', () => {
+  test('save가 끝나면 이미지 올리기와 함께 Journey를 만들기 시작해요', async () => {
+    // given
+    vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+    vi.mocked(savePhotoImage).mockResolvedValue();
+    vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+      saved: photos.map((photo) => photo.id),
+      skipped: [],
+    }));
+    await getState().start([photoFile('a.jpg')]);
+    vi.mocked(readPhotos).mockResolvedValue({
+      photos: [{ order: 0, fileName: 'a.jpg', takenAt: null, dedupeKey: '|a.jpg' }],
+      skipped: [],
+    });
+    const building = Promise.withResolvers();
+    vi.mocked(refreshJourney).mockReturnValue(building.promise);
+
+    // when
+    await getState().save('u1');
+
+    // then: 이미지를 기다리지 않고 바로 만들기 시작해요
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+    expect(getState().journeyStatus).toBe('building');
+    building.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+  });
+
+  test('실패하면 failed가 되고, 다시 부르면 다시 만들어요', async () => {
+    // given
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(refreshJourney)
+      .mockRejectedValueOnce({ status: 0, code: 'SAVE_FAILED', message: '0행' })
+      .mockResolvedValueOnce({});
+
+    // when
+    await getState().refreshJourney('u1');
+
+    // then
+    expect(getState().journeyStatus).toBe('failed');
+    await getState().refreshJourney('u1');
+    expect(getState().journeyStatus).toBe('saved');
+    expect(refreshJourney).toHaveBeenCalledTimes(2);
+  });
+
+  test('만드는 도중 비우면 결과로 상태를 덮지 않아요', async () => {
+    // given
+    const building = Promise.withResolvers();
+    vi.mocked(refreshJourney).mockReturnValue(building.promise);
+    const making = getState().refreshJourney('u1');
+
+    // when
+    getState().reset();
+    building.resolve();
+    await making;
+
+    // then
+    expect(getState().journeyStatus).toBe('idle');
+  });
+
+  test('실패하는 도중 비워도 failed로 덮지 않아요', async () => {
+    // given
+    const building = Promise.withResolvers();
+    vi.mocked(refreshJourney).mockReturnValue(building.promise);
+    const making = getState().refreshJourney('u1');
+
+    // when
+    getState().reset();
+    building.reject(new Error('네트워크'));
+    await making;
+
+    // then
+    expect(getState().journeyStatus).toBe('idle');
   });
 });

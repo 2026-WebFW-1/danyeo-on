@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getSupabase } from '@/services/getSupabase';
-import { getJourney, saveJourney } from '@/services/journeyService';
+import { getJourney, refreshJourney, saveJourney } from '@/services/journeyService';
+import { clearMyPhotos } from '@/services/myPhotosService';
+import { getMyData } from '@/services/photoService';
+import { reverseCity } from '@/services/reverseCity';
+import { buildJourney } from '@/utils/journey/buildJourney';
 
 vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
+vi.mock('@/services/photoService', () => ({ getMyData: vi.fn() }));
+vi.mock('@/services/myPhotosService', () => ({ clearMyPhotos: vi.fn() }));
+vi.mock('@/utils/journey/buildJourney', () => ({ buildJourney: vi.fn() }));
 
 // 계정마다 기억이 남아서, 테스트마다 다른 계정 id를 써요.
 let nextUser = 0;
@@ -282,5 +289,93 @@ describe('saveJourney', () => {
 
     // then
     await expect(result).rejects.toEqual({ status: 0, code: 'SAVE_FAILED', message: 'no env' });
+  });
+});
+
+const myDataOf = (userId) => ({
+  user: { id: userId },
+  photos: [{ id: 'p1', ownerId: userId }],
+  corrections: [{ id: 'c1', type: 'rename' }],
+  posts: [],
+});
+
+const savedRow = (row) => ({ data: [{ owner_id: row.owner_id }], error: null });
+const noRow = () => ({ data: [], error: null });
+
+describe('refreshJourney', () => {
+  test('내 사진·보정으로 계산해서 저장하고, 사진 기억을 지워요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
+
+    // when
+    const journey = await refreshJourney(userId);
+
+    // then
+    expect(buildJourney).toHaveBeenCalledWith(
+      myDataOf(userId).photos,
+      myDataOf(userId).corrections,
+      reverseCity,
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].row).toMatchObject({ owner_id: userId, payload: journeyOf('new') });
+    expect(clearMyPhotos).toHaveBeenCalledOnce();
+    expect(journey).toEqual(journeyOf('new'));
+  });
+
+  test('읽지 못하면 LOAD_FAILED이고 계산하지 않아요', async () => {
+    // given
+    vi.mocked(getMyData).mockRejectedValue(new Error('offline'));
+
+    // when
+    const result = refreshJourney(newUserId());
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'LOAD_FAILED', message: 'offline' });
+    expect(buildJourney).not.toHaveBeenCalled();
+  });
+
+  test('읽는 사이 계정이 바뀌면 ACCOUNT_CHANGED이고 계산하지 않아요', async () => {
+    // given
+    vi.mocked(getMyData).mockResolvedValue(myDataOf('someone-else'));
+
+    // when
+    const result = refreshJourney(newUserId());
+
+    // then
+    await expect(result).rejects.toMatchObject({ status: 0, code: 'ACCOUNT_CHANGED' });
+    expect(buildJourney).not.toHaveBeenCalled();
+  });
+
+  test('계산하다 오류가 나면 BUILD_FAILED이고 저장하지 않아요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockRejectedValue(new Error('bad photo'));
+    const calls = fakeWritableSupabase(noRow, () => null);
+
+    // when
+    const result = refreshJourney(userId);
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'BUILD_FAILED', message: 'bad photo' });
+    expect(calls).toEqual([]);
+  });
+
+  test('저장하지 못하면 SAVE_FAILED이고 사진 기억은 그대로 둬요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+    fakeWritableSupabase(noRow, () => null);
+
+    // when
+    const result = refreshJourney(userId);
+
+    // then
+    await expect(result).rejects.toMatchObject({ status: 0, code: 'SAVE_FAILED' });
+    expect(clearMyPhotos).not.toHaveBeenCalled();
   });
 });

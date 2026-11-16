@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import App from '@/App';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 import * as authService from '@/services/authService';
+import { refreshJourney } from '@/services/journeyService';
 import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
@@ -15,6 +16,11 @@ import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
 vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
+// App이 쓰는 getJourney는 그대로 두고, 저장 뒤 만드는 Journey만 가짜로 바꿔요.
+vi.mock('@/services/journeyService', async (importOriginal) => ({
+  ...(await importOriginal()),
+  refreshJourney: vi.fn(),
+}));
 vi.mock('@/services/photoService', () => ({
   savePhotoImage: vi.fn(),
   savePhotos: vi.fn(),
@@ -264,4 +270,57 @@ test('저장하지 못하면 안내와 다시 시도를 보여 줘요', async ()
   expect(container.querySelector('[role="alert"]').textContent).toBe(
     '저장하지 못했어요. 다시 시도해 주세요',
   );
+});
+
+/** 사진 한 장을 저장하고 이미지도 바로 올라가게 해 둬요. */
+function savesAndUploads() {
+  vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+    saved: photos.map((photo) => photo.id),
+    skipped: [],
+  }));
+  vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+  vi.mocked(savePhotoImage).mockResolvedValue();
+}
+
+test('이미지를 다 올려도 여행을 정리하는 동안에는 넘어가지 않아요', async () => {
+  // given: Journey 만들기가 끝나지 않음
+  await openPass([numbered]);
+  savesAndUploads();
+  const building = Promise.withResolvers();
+  vi.mocked(refreshJourney).mockReturnValue(building.promise);
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('여행 보기').click());
+  await vi.waitFor(() => expect(container.textContent).toContain('이미지를 다 올렸어요'));
+
+  // then: Journey를 다 쓰면 넘어감
+  expect(container.textContent).toContain('여행을 정리하는 중…');
+  expect(refreshJourney).toHaveBeenCalledExactlyOnceWith(user.id);
+  await act(() => building.resolve());
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
+});
+
+test('여행을 만들지 못하면 안내를 보여 주고, 다시 시도하면 Journey만 다시 만들어요', async () => {
+  // given
+  await openPass([numbered]);
+  savesAndUploads();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(refreshJourney)
+    .mockRejectedValueOnce({ status: 0, code: 'SAVE_FAILED', message: '0행' })
+    .mockResolvedValueOnce({});
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('여행 보기').click());
+  await vi.waitFor(() => expect(findButton('다시 시도')).toBeDefined());
+
+  // then
+  expect(container.querySelector('[role="alert"]').textContent).toBe(
+    '여행을 만들지 못했어요. 사진은 저장돼 있어요',
+  );
+  await act(() => findButton('다시 시도').click());
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
+  expect(savePhotos).toHaveBeenCalledOnce();
+  expect(refreshJourney).toHaveBeenCalledTimes(2);
 });
