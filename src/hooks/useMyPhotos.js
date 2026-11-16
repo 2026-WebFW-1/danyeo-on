@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { getMyPhotos } from '@/services/myPhotosService';
+import { getMyPhotos, getMyPhotosVersion, subscribeMyPhotos } from '@/services/myPhotosService';
 import { useAuthStore } from '@/stores/authStore';
 
 // 아직 못 받았을 때 줄 빈 목록이에요. 같은 배열을 써야 렌더링마다 다른 값으로 보이지 않아요.
@@ -18,6 +18,7 @@ const LOADING = { photos: NO_PHOTOS, status: 'loading', error: null };
  *
  * 오류를 던지지 않아요. 못 받는 동안과 실패했을 때도 photos는 빈 배열이라, 화면은 사진 칸을 회색으로 그리면 돼요.
  * 계정이 바뀌면 'loading'을 한 번 거쳐 새 계정의 사진을 줘요. 앞 계정의 사진은 그 사이에 보이지 않아요.
+ * 새 사진을 저장해 기억이 비면(clearMyPhotos) 열린 화면도 다시 읽어요. 그 사이에는 앞 사진을 그대로 줘요(#148).
  *
  * @returns {{
  *   photos: import('@/types').Photo[],
@@ -29,6 +30,8 @@ export function useMyPhotos() {
   const userId = useAuthStore((state) => state.user?.id ?? null);
   // 결과가 어느 계정 것인지 같이 들고 있어서, 계정이 바뀐 직후 앞 계정의 결과를 내보내지 않아요.
   const [result, setResult] = useState({ userId: null, photos: NO_PHOTOS, error: null });
+  // 기억이 비면 올라가요. effect의 의존성에 둬서 다시 읽게 해요.
+  const version = useSyncExternalStore(subscribeMyPhotos, getMyPhotosVersion);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -40,7 +43,7 @@ export function useMyPhotos() {
     return () => {
       isCurrent = false;
     };
-  }, [userId]);
+  }, [userId, version]);
 
   if (!userId || result.userId !== userId) return LOADING;
   if (result.error) return { photos: NO_PHOTOS, status: 'error', error: result.error };

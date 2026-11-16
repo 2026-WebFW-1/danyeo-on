@@ -1,8 +1,13 @@
+import { createChangeSignal } from './changeSignal';
 import { getMyData } from './photoService';
 
 // 계정마다 한 번만 읽어요. 03·02·14a가 같은 사진 목록을 받고, 화면을 오가도 다시 읽지 않아요.
 // getMyData 자체에는 기억을 두지 않아요. 글을 읽는 getPosts도 getMyData를 불러서, 거기에 두면 저장하기 전의 옛 글을 받을 수 있어요.
 const cache = new Map();
+// 기억을 비우면 알려요. 이미 열린 화면의 useMyPhotos가 이걸 듣고 다시 읽어요.
+const myPhotosChanged = createChangeSignal();
+export const subscribeMyPhotos = myPhotosChanged.subscribe;
+export const getMyPhotosVersion = myPhotosChanged.getVersion;
 
 /**
  * 로그인한 사람의 사진 전부를 읽어요. 같은 계정은 처음 한 번만 읽고 모두 같은 배열을 받아요.
@@ -35,9 +40,10 @@ export function getMyPhotos(userId) {
 }
 
 /**
- * 읽어 둔 사진을 모두 비워요. 새 사진을 저장한 뒤에는 다음에 다시 읽어야 새 사진이 보여요.
- * 저장 흐름이 부르는 자리는 아직 정해지지 않았어요(#27에서 A와 정해요).
+ * 읽어 둔 사진을 모두 비우고 알려요. 열린 화면과 다음 화면이 새 사진을 읽어요.
+ * journeyService.refreshJourney가 Journey를 저장한 뒤 불러요.
  */
 export function clearMyPhotos() {
   cache.clear();
+  myPhotosChanged.notify();
 }
