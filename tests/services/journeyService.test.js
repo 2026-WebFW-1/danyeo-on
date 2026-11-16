@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getSupabase } from '@/services/getSupabase';
-import { getJourney, refreshJourney, saveJourney } from '@/services/journeyService';
+import {
+  getJourney,
+  getJourneyVersion,
+  refreshJourney,
+  saveJourney,
+  subscribeJourney,
+} from '@/services/journeyService';
 import { clearMyPhotos } from '@/services/myPhotosService';
 import { getMyData } from '@/services/photoService';
 import { reverseCity } from '@/services/reverseCity';
@@ -15,6 +21,16 @@ vi.mock('@/utils/journey/buildJourney', () => ({ buildJourney: vi.fn() }));
 // 계정마다 기억이 남아서, 테스트마다 다른 계정 id를 써요.
 let nextUser = 0;
 const newUserId = () => `u${(nextUser += 1)}`;
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 const journeyOf = (name) => ({
   home: { city: name },
@@ -244,6 +260,25 @@ describe('saveJourney', () => {
     expect(await getJourney(userId)).toEqual(journeyOf('new'));
   });
 
+  test('쓰고 나면 구독자에게 알려서 열린 화면이 다시 읽게 해요', async () => {
+    // given
+    fakeWritableSupabase(
+      (row) => ({ data: [{ owner_id: row.owner_id }], error: null }),
+      () => null,
+    );
+    const listener = vi.fn();
+    const unsubscribe = subscribeJourney(listener);
+    const before = getJourneyVersion();
+
+    // when
+    await saveJourney(newUserId(), journeyOf('a'));
+    unsubscribe();
+
+    // then
+    expect(listener).toHaveBeenCalledOnce();
+    expect(getJourneyVersion()).toBe(before + 1);
+  });
+
   test('RLS에 막혀 0행이면 SAVE_FAILED로 거절하고 기억은 그대로 둬요', async () => {
     // given
     const userId = newUserId();
@@ -377,5 +412,76 @@ describe('refreshJourney', () => {
     // then
     await expect(result).rejects.toMatchObject({ status: 0, code: 'SAVE_FAILED' });
     expect(clearMyPhotos).not.toHaveBeenCalled();
+  });
+
+  test('겹쳐 부르면 나중에 부른 계산만 저장하고, 앞서 부른 쪽도 그 결과를 받아요', async () => {
+    // given 앞 계산이 도시 이름을 찾는 사이 새 계산이 시작돼 먼저 끝나요
+    const userId = newUserId();
+    const firstBuild = deferred();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney)
+      .mockReturnValueOnce(firstBuild.promise)
+      .mockResolvedValueOnce(journeyOf('second'));
+    const calls = fakeWritableSupabase(savedRow, () => null);
+
+    // when
+    const first = refreshJourney(userId);
+    const second = refreshJourney(userId);
+    await expect(second).resolves.toEqual(journeyOf('second'));
+    firstBuild.resolve(journeyOf('first'));
+
+    // then
+    await expect(first).resolves.toEqual(journeyOf('second'));
+    expect(calls.map((call) => call.row.payload)).toEqual([journeyOf('second')]);
+  });
+
+  test('새 계산이 시작된 뒤 앞 계산이 실패해도 새 계산의 결과를 받아요', async () => {
+    // given
+    const userId = newUserId();
+    const firstBuild = deferred();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney)
+      .mockReturnValueOnce(firstBuild.promise)
+      .mockResolvedValueOnce(journeyOf('second'));
+    fakeWritableSupabase(savedRow, () => null);
+
+    // when
+    const first = refreshJourney(userId);
+    const second = refreshJourney(userId);
+    firstBuild.reject(new Error('bad photo'));
+
+    // then
+    await expect(first).resolves.toEqual(journeyOf('second'));
+    await expect(second).resolves.toEqual(journeyOf('second'));
+  });
+
+  test('앞 계산이 쓰는 중이면 새 계산은 그 쓰기가 끝난 뒤에 써요', async () => {
+    // given 앞 계산이 최신일 때 쓰기를 시작했고, 쓰는 사이 새 계산이 시작돼요
+    const userId = newUserId();
+    const firstWrite = deferred();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney)
+      .mockResolvedValueOnce(journeyOf('first'))
+      .mockResolvedValueOnce(journeyOf('second'));
+    const calls = fakeWritableSupabase(
+      (row) => (row.payload.home.city === 'first' ? firstWrite.promise : savedRow(row)),
+      () => null,
+    );
+    const first = refreshJourney(userId);
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+
+    // when
+    const second = refreshJourney(userId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // then 새 계산은 앞 쓰기를 기다려서, 마지막에 남는 건 새 계산이에요
+    expect(calls).toHaveLength(1);
+    firstWrite.resolve(savedRow({ owner_id: userId }));
+    await expect(first).resolves.toEqual(journeyOf('first'));
+    await expect(second).resolves.toEqual(journeyOf('second'));
+    expect(calls.map((call) => call.row.payload)).toEqual([
+      journeyOf('first'),
+      journeyOf('second'),
+    ]);
   });
 });

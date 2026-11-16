@@ -6,7 +6,16 @@ import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { getMyPhotos } from '@/services/myPhotosService';
 import { useAuthStore } from '@/stores/authStore';
 
-vi.mock('@/services/myPhotosService', () => ({ getMyPhotos: vi.fn() }));
+// 비움 알림은 진짜 신호로 흉내 내서, 테스트가 notify로 '기억을 비웠다'를 알려요.
+const myPhotosChanged = await vi.hoisted(async () => {
+  const { createChangeSignal } = await import('@/services/changeSignal');
+  return createChangeSignal();
+});
+vi.mock('@/services/myPhotosService', () => ({
+  getMyPhotos: vi.fn(),
+  subscribeMyPhotos: myPhotosChanged.subscribe,
+  getMyPhotosVersion: myPhotosChanged.getVersion,
+}));
 
 const photosA = [{ id: 'a', ownerId: 'u1', fileKey: 'public:/photos/a.webp' }];
 const photosB = [{ id: 'b', ownerId: 'u2', fileKey: 'public:/photos/b.webp' }];
@@ -117,5 +126,22 @@ describe('useMyPhotos', () => {
     await act(async () => first.resolve(photosA));
 
     expect(latest.photos).toBe(photosB);
+  });
+
+  test('기억을 비웠다고 알리면 열린 화면도 다시 읽고, 그 사이에는 앞 사진을 줘요', async () => {
+    const photosA2 = [...photosA, { id: 'a2', ownerId: 'u1', fileKey: 'public:/photos/a2.webp' }];
+    const reloaded = deferred();
+    vi.mocked(getMyPhotos).mockResolvedValueOnce(photosA).mockReturnValueOnce(reloaded.promise);
+    await mount();
+    expect(latest.photos).toBe(photosA);
+
+    await act(async () => myPhotosChanged.notify());
+
+    expect(getMyPhotos).toHaveBeenCalledTimes(2);
+    expect(latest).toEqual({ photos: photosA, status: 'ready', error: null });
+
+    await act(async () => reloaded.resolve(photosA2));
+
+    expect(latest.photos).toBe(photosA2);
   });
 });

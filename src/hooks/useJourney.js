@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { getJourney } from '@/services/journeyService';
+import { getJourney, getJourneyVersion, subscribeJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 
 const LOADING = { journey: null, status: 'loading', error: null };
@@ -19,6 +19,7 @@ const LOADING = { journey: null, status: 'loading', error: null };
  * 오류를 던지지 않아요. 화면이 status를 보고 로딩·오류를 직접 그려요.
  * 계정이 바뀌면 'loading'을 한 번 거쳐 새 계정의 Journey를 줘요. 앞 계정의 Journey는 그 사이에 보이지 않아요.
  * 사진을 저장하면 업로드 흐름이 journeyService.refreshJourney로 다시 계산해 저장하고 기억을 지워요(#144).
+ * 저장이 끝나면 열린 화면도 다시 읽어요. 그 사이에는 앞 Journey를 그대로 줘요(#148).
  * 보정을 저장한 뒤에도 같은 함수를 불러야 바뀌어요(보정 쪽 연결은 따로 해요).
  *
  * @returns {{
@@ -33,6 +34,8 @@ export function useJourney() {
   const userId = useAuthStore((state) => state.user?.id ?? null);
   // 결과가 어느 계정 것인지 같이 들고 있어서, 계정이 바뀐 직후 앞 계정의 결과를 내보내지 않아요.
   const [result, setResult] = useState({ userId: null, journey: null, error: null });
+  // Journey를 저장하면 올라가요. effect의 의존성에 둬서 다시 읽게 해요.
+  const version = useSyncExternalStore(subscribeJourney, getJourneyVersion);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -44,7 +47,7 @@ export function useJourney() {
     return () => {
       isCurrent = false;
     };
-  }, [userId]);
+  }, [userId, version]);
 
   if (!userId || result.userId !== userId) return LOADING;
   if (result.error) return { journey: null, status: 'error', error: result.error };

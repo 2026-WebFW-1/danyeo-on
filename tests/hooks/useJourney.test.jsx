@@ -6,7 +6,16 @@ import { useJourney } from '@/hooks/useJourney';
 import { getJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 
-vi.mock('@/services/journeyService', () => ({ getJourney: vi.fn() }));
+// 저장 알림은 진짜 신호로 흉내 내서, 테스트가 notify로 '저장이 끝났다'를 알려요.
+const journeyChanged = await vi.hoisted(async () => {
+  const { createChangeSignal } = await import('@/services/changeSignal');
+  return createChangeSignal();
+});
+vi.mock('@/services/journeyService', () => ({
+  getJourney: vi.fn(),
+  subscribeJourney: journeyChanged.subscribe,
+  getJourneyVersion: journeyChanged.getVersion,
+}));
 
 const journeyA = { home: { city: 'A' }, stops: [], legs: [], trips: [], periods: null };
 const journeyB = { home: { city: 'B' }, stops: [], legs: [], trips: [], periods: null };
@@ -98,6 +107,22 @@ describe('useJourney', () => {
     expect(getJourney).toHaveBeenLastCalledWith('u2');
 
     await act(async () => second.resolve(journeyB));
+
+    expect(latest.journey).toBe(journeyB);
+  });
+
+  test('Journey를 저장했다고 알리면 열린 화면도 다시 읽고, 그 사이에는 앞 Journey를 줘요', async () => {
+    const saved = deferred();
+    vi.mocked(getJourney).mockResolvedValueOnce(journeyA).mockReturnValueOnce(saved.promise);
+    await mount();
+    expect(latest.journey).toBe(journeyA);
+
+    await act(async () => journeyChanged.notify());
+
+    expect(getJourney).toHaveBeenCalledTimes(2);
+    expect(latest).toEqual({ journey: journeyA, status: 'ready', error: null });
+
+    await act(async () => saved.resolve(journeyB));
 
     expect(latest.journey).toBe(journeyB);
   });
