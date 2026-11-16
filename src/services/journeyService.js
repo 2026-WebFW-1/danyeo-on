@@ -55,3 +55,32 @@ export function getJourney(userId) {
   }
   return cache.get(userId);
 }
+
+/**
+ * 계산한 Journey를 journeys 테이블의 내 행(owner_id)에 덮어써요. 행이 없으면 새로 만들어요.
+ * 쓴 뒤에는 그 계정의 기억을 지워서, 다음 getJourney가 새로 쓴 Journey를 읽어요.
+ * RLS에 막히면 새 행은 오류가 나지만 있던 행은 오류 없이 0행으로 끝나서, .select()로 돌려받은 행도 봐요.
+ * 쓰는 사이 계정이 바뀌어도 owner_id가 지금 세션과 달라 0행으로 끝나요.
+ * 실패하면 { status: 0, code: 'SAVE_FAILED', message }로 거절하고, 기억은 그대로 둬요.
+ *
+ * @param {string} userId 로그인한 사람의 id(AuthUser.id)
+ * @param {import('@/types').Journey} journey buildJourney가 돌려준 값
+ * @returns {Promise<void>}
+ */
+export async function saveJourney(userId, journey) {
+  try {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from('journeys')
+      .upsert(
+        { owner_id: userId, payload: journey, updated_at: new Date().toISOString() },
+        { onConflict: 'owner_id' },
+      )
+      .select('owner_id');
+    if (error) throw error;
+    if (!data?.length) throw new Error('journeys에 쓰지 못했어요(0행)');
+  } catch (error) {
+    throw { status: 0, code: 'SAVE_FAILED', message: error.message };
+  }
+  cache.delete(userId);
+}
