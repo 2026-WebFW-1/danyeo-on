@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { IMAGE_UPLOAD_CONCURRENCY, IMAGE_UPLOAD_RETRY_DELAYS_MS } from '@/constants/upload';
+import { refreshJourney } from '@/services/journeyService';
 import {
   getMyData,
   getUploadedImagePaths,
@@ -21,6 +22,7 @@ const INITIAL_STATE = {
   saveStatus: 'idle',
   saveResult: null,
   imageUpload: INITIAL_IMAGE_UPLOAD,
+  journeyStatus: 'idle',
   passAnswers: {},
 };
 // 기다리는 사이 번호가 바뀌었으면 그 작업은 취소된 거예요.
@@ -46,6 +48,11 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
  * @property {(targets: { order: number, fileKey: string }[]) => Promise<void>} uploadImages
  *   저장한(saved) 사진의 이미지를 동시에 3장씩 올려요. order는 고른 순서, fileKey는 저장할 때 정한 키예요
+ * @property {'idle' | 'building' | 'saved' | 'failed'} journeyStatus 저장한 사진으로 Journey를 만들어 쓰는 상태(#144).
+ *   사진 저장과 따로 둬서, 실패해도 사진은 저장된 채로 Journey만 다시 만들 수 있어요.
+ *   페이지를 나갔다 와도 03으로 넘어갈 때를 알 수 있게 스토어에 둬요
+ * @property {(ownerId: string) => Promise<void>} refreshJourney 내 사진·보정 전체로 Journey를 다시 계산해 저장해요.
+ *   save가 끝나면 이미지 올리기와 함께 시작하고, 실패하면 화면의 [다시 시도]가 다시 불러요
  * @property {Record<string, 'exclude' | 'later'>} passAnswers 지나가며 정리 끝에서 물어본 사진의 답(사진 id별).
  *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 'exclude'인 사진은 save가 저장하지 않아요
  * @property {(photoId: string, answer: 'exclude' | 'later') => void} answerPass
@@ -105,6 +112,25 @@ export const useUploadStore = create((set, get) => ({
     const { targets, ...saveResult } = saved;
     set({ saveStatus: 'saved', saveResult });
     void get().uploadImages(targets);
+    // Journey는 사진 행만 있으면 계산할 수 있어서 이미지를 기다리지 않아요.
+    // 도시 이름 찾기(1.1초 간격)와 이미지 올리기가 같이 돌아서 기다리는 시간이 겹쳐요.
+    void get().refreshJourney(ownerId);
+  },
+
+  refreshJourney: async (ownerId) => {
+    const currentJob = jobId;
+    const isCancelled = () => currentJob !== jobId;
+    set({ journeyStatus: 'building' });
+    try {
+      await refreshJourney(ownerId);
+    } catch (error) {
+      if (isCancelled()) return;
+      console.error(error);
+      set({ journeyStatus: 'failed' });
+      return;
+    }
+    if (isCancelled()) return;
+    set({ journeyStatus: 'saved' });
   },
 
   uploadImages: async (targets) => {

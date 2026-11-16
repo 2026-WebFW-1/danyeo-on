@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getSupabase } from '@/services/getSupabase';
-import { getJourney } from '@/services/journeyService';
+import { getJourney, refreshJourney, saveJourney } from '@/services/journeyService';
+import { clearMyPhotos } from '@/services/myPhotosService';
+import { getMyData } from '@/services/photoService';
+import { reverseCity } from '@/services/reverseCity';
+import { buildJourney } from '@/utils/journey/buildJourney';
 
 vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
+vi.mock('@/services/photoService', () => ({ getMyData: vi.fn() }));
+vi.mock('@/services/myPhotosService', () => ({ clearMyPhotos: vi.fn() }));
+vi.mock('@/utils/journey/buildJourney', () => ({ buildJourney: vi.fn() }));
 
 // 계정마다 기억이 남아서, 테스트마다 다른 계정 id를 써요.
 let nextUser = 0;
@@ -158,5 +165,217 @@ describe('getJourney', () => {
     expect(calls.map((call) => call.value)).toEqual([userA, userB]);
     expect(a).toEqual(journeyOf(userA));
     expect(b).toEqual(journeyOf(userB));
+  });
+});
+
+// from().upsert().select()이 돌려주는 값을 흉내 내요. 부른 모양은 calls에 남겨요.
+// 읽기는 fakeSupabase처럼 payload를 돌려줘요.
+function fakeWritableSupabase(respondUpsert, readPayload) {
+  const calls = [];
+  const client = {
+    auth: {
+      getSession: async () => ({
+        data: { session: { user: { id: calls.findLast((c) => c.value)?.value } } },
+        error: null,
+      }),
+    },
+    from: (table) => ({
+      upsert: (row, options) => ({
+        select: async (columns) => {
+          calls.push({ table, row, options, columns });
+          return respondUpsert(row);
+        },
+      }),
+      select: () => ({
+        eq: (column, value) => ({
+          maybeSingle: async () => {
+            calls.push({ table, value });
+            return { data: { payload: readPayload() }, error: null };
+          },
+        }),
+      }),
+    }),
+  };
+  vi.mocked(getSupabase).mockResolvedValue(client);
+  return calls;
+}
+
+describe('saveJourney', () => {
+  test('내 owner_id 행에 payload·updated_at을 upsert해요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(
+      (row) => ({ data: [{ owner_id: row.owner_id }], error: null }),
+      () => journeyOf('a'),
+    );
+
+    // when
+    await saveJourney(userId, journeyOf('a'));
+
+    // then
+    expect(calls).toEqual([
+      {
+        table: 'journeys',
+        row: { owner_id: userId, payload: journeyOf('a'), updated_at: expect.any(String) },
+        options: { onConflict: 'owner_id' },
+        columns: 'owner_id',
+      },
+    ]);
+    expect(Number.isNaN(Date.parse(calls[0].row.updated_at))).toBe(false);
+  });
+
+  test('쓰고 나면 기억을 지워서 다음 getJourney가 새 Journey를 읽어요', async () => {
+    // given
+    const userId = newUserId();
+    let stored = journeyOf('old');
+    fakeWritableSupabase(
+      (row) => {
+        stored = row.payload;
+        return { data: [{ owner_id: row.owner_id }], error: null };
+      },
+      () => stored,
+    );
+    expect(await getJourney(userId)).toEqual(journeyOf('old'));
+
+    // when
+    await saveJourney(userId, journeyOf('new'));
+
+    // then
+    expect(await getJourney(userId)).toEqual(journeyOf('new'));
+  });
+
+  test('RLS에 막혀 0행이면 SAVE_FAILED로 거절하고 기억은 그대로 둬요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(
+      () => ({ data: [], error: null }),
+      () => journeyOf('old'),
+    );
+    await getJourney(userId);
+
+    // when
+    const result = saveJourney(userId, journeyOf('new'));
+
+    // then
+    await expect(result).rejects.toMatchObject({ status: 0, code: 'SAVE_FAILED' });
+    await getJourney(userId);
+    expect(calls.filter((call) => call.value === userId)).toHaveLength(1);
+  });
+
+  test('Supabase 오류면 SAVE_FAILED로 거절해요', async () => {
+    // given
+    fakeWritableSupabase(
+      () => ({ data: null, error: { message: 'permission denied' } }),
+      () => null,
+    );
+
+    // when
+    const result = saveJourney(newUserId(), journeyOf('a'));
+
+    // then
+    await expect(result).rejects.toEqual({
+      status: 0,
+      code: 'SAVE_FAILED',
+      message: 'permission denied',
+    });
+  });
+
+  test('연결하지 못해도 SAVE_FAILED로 거절해요', async () => {
+    // given
+    vi.mocked(getSupabase).mockRejectedValue(new Error('no env'));
+
+    // when
+    const result = saveJourney(newUserId(), journeyOf('a'));
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'SAVE_FAILED', message: 'no env' });
+  });
+});
+
+const myDataOf = (userId) => ({
+  user: { id: userId },
+  photos: [{ id: 'p1', ownerId: userId }],
+  corrections: [{ id: 'c1', type: 'rename' }],
+  posts: [],
+});
+
+const savedRow = (row) => ({ data: [{ owner_id: row.owner_id }], error: null });
+const noRow = () => ({ data: [], error: null });
+
+describe('refreshJourney', () => {
+  test('내 사진·보정으로 계산해서 저장하고, 사진 기억을 지워요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
+
+    // when
+    const journey = await refreshJourney(userId);
+
+    // then
+    expect(buildJourney).toHaveBeenCalledWith(
+      myDataOf(userId).photos,
+      myDataOf(userId).corrections,
+      reverseCity,
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].row).toMatchObject({ owner_id: userId, payload: journeyOf('new') });
+    expect(clearMyPhotos).toHaveBeenCalledOnce();
+    expect(journey).toEqual(journeyOf('new'));
+  });
+
+  test('읽지 못하면 LOAD_FAILED이고 계산하지 않아요', async () => {
+    // given
+    vi.mocked(getMyData).mockRejectedValue(new Error('offline'));
+
+    // when
+    const result = refreshJourney(newUserId());
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'LOAD_FAILED', message: 'offline' });
+    expect(buildJourney).not.toHaveBeenCalled();
+  });
+
+  test('읽는 사이 계정이 바뀌면 ACCOUNT_CHANGED이고 계산하지 않아요', async () => {
+    // given
+    vi.mocked(getMyData).mockResolvedValue(myDataOf('someone-else'));
+
+    // when
+    const result = refreshJourney(newUserId());
+
+    // then
+    await expect(result).rejects.toMatchObject({ status: 0, code: 'ACCOUNT_CHANGED' });
+    expect(buildJourney).not.toHaveBeenCalled();
+  });
+
+  test('계산하다 오류가 나면 BUILD_FAILED이고 저장하지 않아요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockRejectedValue(new Error('bad photo'));
+    const calls = fakeWritableSupabase(noRow, () => null);
+
+    // when
+    const result = refreshJourney(userId);
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'BUILD_FAILED', message: 'bad photo' });
+    expect(calls).toEqual([]);
+  });
+
+  test('저장하지 못하면 SAVE_FAILED이고 사진 기억은 그대로 둬요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+    fakeWritableSupabase(noRow, () => null);
+
+    // when
+    const result = refreshJourney(userId);
+
+    // then
+    await expect(result).rejects.toMatchObject({ status: 0, code: 'SAVE_FAILED' });
+    expect(clearMyPhotos).not.toHaveBeenCalled();
   });
 });
