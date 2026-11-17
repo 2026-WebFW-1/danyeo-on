@@ -1,4 +1,4 @@
-import { CACHE_RADIUS_KM, UNKNOWN_CITY } from '@/constants/geocode';
+import { SAME_NAME_KM, UNKNOWN_CITY } from '@/constants/geocode';
 import { calcDistanceKm } from '@/utils/distance';
 
 /**
@@ -14,11 +14,10 @@ import { calcDistanceKm } from '@/utils/distance';
 export function findSavedPlace(savedJourney, lat, lng) {
   if (!savedJourney) return null;
 
-  // reverseCity가 같은 곳으로 보는 거리(CACHE_RADIUS_KM)와 맞춰요.
   const nearby = [...savedJourney.stops, savedJourney.home]
     .filter(Boolean)
     .find(
-      (spot) => spot.city !== UNKNOWN_CITY && calcDistanceKm(spot, { lat, lng }) <= CACHE_RADIUS_KM,
+      (spot) => spot.city !== UNKNOWN_CITY && calcDistanceKm(spot, { lat, lng }) <= SAME_NAME_KM,
     );
   if (!nearby) return null;
 

@@ -37,8 +37,8 @@ export const GEOCODE_QUERY = Object.freeze({
 // 서비스로 보내는 좌표의 소수 자릿수예요. 3자리는 약 100m라서 도시 이름은 그대로고, 집 같은 정확한 위치는 밖으로 나가지 않아요.
 export const COORDINATE_DIGITS = 3;
 
-// 이 거리 안의 좌표는 같은 곳으로 보고 이전 결과를 다시 써요.
-export const CACHE_RADIUS_KM = 1;
+// 이 거리 안의 좌표는 도시 이름이 같다고 보고 찾아 둔 이름을 다시 써요(reverseCity의 기억, 저장된 Journey).
+export const SAME_NAME_KM = 1;
 export const REQUEST_TIMEOUT_MS = 8000;
 // 공개 서버는 1초에 한 번까지만 받아서, 요청을 시작하는 시각 사이를 1초보다 조금 더 띄워요.
 export const REQUEST_INTERVAL_MS = 1100;

@@ -1,5 +1,4 @@
 import {
-  CACHE_RADIUS_KM,
   COOLDOWN_MS,
   COORDINATE_DIGITS,
   FAILURE_LIMIT,
@@ -7,6 +6,7 @@ import {
   GEOCODE_URL,
   REQUEST_INTERVAL_MS,
   REQUEST_TIMEOUT_MS,
+  SAME_NAME_KM,
   UNKNOWN_PLACE,
 } from '@/constants/geocode';
 import { calcDistanceKm } from '@/utils/distance';
@@ -114,7 +114,7 @@ export function createReverseCity({
     let nearestKm = Infinity;
     for (const entry of entries) {
       const km = calcDistanceKm(entry, { lat, lng });
-      if (km <= CACHE_RADIUS_KM && km < nearestKm) {
+      if (km <= SAME_NAME_KM && km < nearestKm) {
         nearest = entry;
         nearestKm = km;
       }
