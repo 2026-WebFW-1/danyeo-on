@@ -51,6 +51,17 @@ describe('findSavedPlace', () => {
       // then
       expect(savedPlace).toBeNull();
     });
+
+    test('여행 지점을 찾을 때 저장된 집 근처인 좌표(집이 바뀌어 이전 집이 여행 지점이 됐을 때)', () => {
+      // given
+      const savedJourney = savedJourneyOf({ home: { ...HOME, city: '서울' } });
+
+      // when
+      const savedPlace = findSavedPlace(savedJourney, HOME.lat, HOME.lng);
+
+      // then
+      expect(savedPlace).toBeNull();
+    });
   });
 
   describe('저장된 이름을 돌려줘요', () => {
@@ -65,15 +76,28 @@ describe('findSavedPlace', () => {
       expect(savedPlace).toEqual(SEED_VANCOUVER);
     });
 
-    test('집 근처면 집 이름', () => {
+    test('집을 찾을 때 저장된 집 근처면 집 이름', () => {
       // given
       const savedJourney = savedJourneyOf({ home: { ...HOME, city: '서울' } });
 
       // when
-      const savedPlace = findSavedPlace(savedJourney, HOME.lat, HOME.lng);
+      const savedPlace = findSavedPlace(savedJourney, HOME.lat, HOME.lng, { isHome: true });
 
       // then
       expect(savedPlace.city).toBe('서울');
+    });
+
+    test('집을 찾을 때 저장된 지점 근처면 그 지점 이름(이전 여행 지점이 집이 됐을 때)', () => {
+      // given
+      const savedJourney = savedJourneyOf({ stops: [stopOf('p_van', VANCOUVER, SEED_VANCOUVER)] });
+
+      // when
+      const savedPlace = findSavedPlace(savedJourney, VANCOUVER.lat, VANCOUVER.lng, {
+        isHome: true,
+      });
+
+      // then
+      expect(savedPlace).toEqual(SEED_VANCOUVER);
     });
   });
 
