@@ -230,6 +230,19 @@ describe('buildJourney 규칙', () => {
     expect(journey.home.city).toBe('서울');
   });
 
+  test('집 좌표를 찾을 때만 { isHome: true }를 넘겨요', async () => {
+    // given
+    const findPlace = vi.fn(async (lat, lng) => findCity(lat, lng));
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, [], findPlace);
+
+    // then: 방콕 지점은 옵션 없이, 집은 집 좌표와 { isHome: true }로 찾아요
+    const [stopCall, homeCall] = findPlace.mock.calls;
+    expect(stopCall).toHaveLength(2);
+    expect(homeCall).toEqual([journey.home.lat, journey.home.lng, { isHome: true }]);
+  });
+
   test('집 지점이 연달아 있으면 집 하나로 보고 집 → 집 구간을 만들지 않아요', async () => {
     // given: 서울 사진 사이가 21일 넘게 비어서 서울 지점이 둘로 나뉘어요
     const photos = [

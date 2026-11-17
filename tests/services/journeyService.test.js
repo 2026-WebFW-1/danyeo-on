@@ -353,6 +353,15 @@ const savedJourneyWithVancouver = () => ({
   stops: [{ id: 'p_van', ...VANCOUVER, ...SEED_VANCOUVER }],
 });
 
+const SEOUL = { lat: 37.55789, lng: 126.92071 };
+const SEOUL_PLACE = { city: '서울', country: '한국', cc: 'KR' };
+
+// 저장된 집에는 나라 없이 도시 이름만 있어요(Journey.home).
+const savedJourneyWithSeoulHome = () => ({
+  ...journeyOf('saved'),
+  home: { ...SEOUL, city: '서울' },
+});
+
 describe('refreshJourney', () => {
   test('내 사진·보정으로 계산해서 저장하고, 사진 기억을 지워요', async () => {
     // given
@@ -559,6 +568,42 @@ describe('refreshJourney', () => {
       expect(writesOf(calls)).toHaveLength(1);
       expect(place).toEqual(FOUND_PLACE);
       expect(reverseCity).toHaveBeenCalledOnce();
+    });
+
+    test('집을 찾을 때는 저장된 집 이름을 써요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue({ ...UNKNOWN_PLACE });
+      fakeWritableSupabase(savedRow, savedJourneyWithSeoulHome);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(SEOUL.lat, SEOUL.lng, { isHome: true });
+
+      // then
+      expect(place.city).toBe('서울');
+      expect(reverseCity).not.toHaveBeenCalled();
+    });
+
+    test('집이 바뀌어 저장된 집 자리가 여행 지점이 되면 reverseCity로 나라까지 새로 찾아요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue(SEOUL_PLACE);
+      fakeWritableSupabase(savedRow, savedJourneyWithSeoulHome);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(SEOUL.lat, SEOUL.lng);
+
+      // then
+      expect(place).toEqual(SEOUL_PLACE);
+      expect(reverseCity).toHaveBeenCalledWith(SEOUL.lat, SEOUL.lng);
     });
   });
 });
