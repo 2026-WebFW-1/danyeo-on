@@ -12,6 +12,7 @@ import {
   selectPhotoSummary,
   selectSortCounts,
   selectSortTrips,
+  selectUnlocatedGroups,
 } from '@/utils/photoSort';
 
 import ExcludedTab from './ExcludedTab';
@@ -21,6 +22,7 @@ import SortHeader from './SortHeader';
 import SortSummary from './SortSummary';
 import SortTabs from './SortTabs';
 import TripTable from './TripTable';
+import UnlocatedTab from './UnlocatedTab';
 
 /**
  * 07 사진 정리 페이지
@@ -70,6 +72,10 @@ export default function PhotoSortPage() {
     () => selectSortCounts(journey, trips, excludedIds),
     [journey, trips, excludedIds],
   );
+  const unlocatedGroups = useMemo(
+    () => selectUnlocatedGroups(journey, photos, excludedIds),
+    [journey, photos, excludedIds],
+  );
   const excludedPhotos = useMemo(
     () => selectExcludedPhotos(corrections, photos),
     [corrections, photos],
@@ -103,6 +109,8 @@ export default function PhotoSortPage() {
 
   const handleRename = (tripId, name) => add({ type: 'rename', anchorPhotoId: tripId, name });
   const handleExclude = (photoId) => add({ type: 'exclude', photoId });
+  // 스토어가 부른 순서대로 하나씩 보내요. 하나라도 실패하면 던지고, 성공한 사진은 이미 묶음에서 빠져 있어요.
+  const handleExcludeMany = (photoIds) => Promise.all(photoIds.map(handleExclude));
   // 스토어가 부른 순서대로 하나씩 보내서 한꺼번에 불러도 돼요. 하나라도 실패하면 던져, 다시 누르면 남은 것만 지워요.
   const handleRestore = (photo) => Promise.all(photo.correctionIds.map((id) => remove(id)));
 
@@ -129,11 +137,12 @@ export default function PhotoSortPage() {
       {tab === 'excluded' && (
         <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} />
       )}
-      {/* TODO(endl24): 위치 확인 필요(07b)는 #155의 다음 PR에서 붙여요 */}
       {tab === 'unlocated' && (
-        <p className={`${SECTION_CLASS} pt-12 text-center text-lg text-muted`}>
-          이 탭은 준비하고 있어요.
-        </p>
+        <UnlocatedTab
+          groups={unlocatedGroups}
+          canExclude={isCorrectionsReady}
+          onExclude={handleExcludeMany}
+        />
       )}
     </main>
   );

@@ -72,7 +72,8 @@ async function click(element) {
 
 const tabs = () => [...container.querySelectorAll('nav[aria-label="사진 정리 탭"] button')];
 const currentTab = () => tabs().find((tab) => tab.getAttribute('aria-current') === 'true');
-const tripNames = () => [...container.querySelectorAll('h3')].map((h3) => h3.textContent);
+const tripNames = () =>
+  [...container.querySelectorAll('section[aria-label="여행 묶음"] h3')].map((h3) => h3.textContent);
 const renameButton = (name) => container.querySelector(`button[aria-label="${name} 이름 바꾸기"]`);
 const nameInput = () => container.querySelector('input[aria-label$="번 여행 이름"]');
 const buttonByText = (text) =>
@@ -352,5 +353,85 @@ describe('PhotoSortPage 제외한 사진', () => {
     expect(container.querySelector('[role="status"]').textContent).toContain(
       '뺀 사진을 불러오는 중',
     );
+  });
+});
+
+describe('PhotoSortPage 위치 확인 필요', () => {
+  const [early, late] = seojinSeed.photos
+    .filter((photo) => photo.takenAt)
+    .toSorted((a, b) => a.takenAt.localeCompare(b.takenAt))
+    .filter((photo, index, sorted) => index === 0 || index === sorted.length - 1);
+  const noDate = { ...early, id: 'p_nodate', takenAt: null, fileKey: null };
+  const groupTitles = () =>
+    [...container.querySelectorAll('section[aria-label="위치 확인 필요"] h3')].map(
+      (h3) => h3.textContent,
+    );
+  const excludeButton = (title) =>
+    container.querySelector(`button[aria-label^="${title} 사진"][aria-label$="타임라인에서 제외"]`);
+
+  beforeEach(() => {
+    vi.mocked(useJourney).mockReturnValue({
+      journey: { ...seojin, unlocated: ['p_nodate', late.id, early.id] },
+      status: 'ready',
+      error: null,
+    });
+    vi.mocked(useMyPhotos).mockReturnValue({
+      photos: [...seojinSeed.photos, noDate],
+      status: 'ready',
+      error: null,
+    });
+  });
+
+  const dateOf = (photo) => photo.takenAt.slice(0, 10).replaceAll('-', '.');
+
+  test('찍은 날짜별로 묶고, 날짜가 없는 사진은 맨 뒤 "날짜 없음"이에요', async () => {
+    await render('/edit/photos?tab=unlocated');
+
+    expect(groupTitles()).toEqual([dateOf(early), dateOf(late), '날짜 없음']);
+    expect(container.textContent).toContain('위치 정보가 없는 사진 3장');
+  });
+
+  test('[타임라인에서 제외]는 그 묶음의 사진을 모두 빼요', async () => {
+    await render('/edit/photos?tab=unlocated');
+
+    await click(excludeButton('날짜 없음'));
+
+    expect(corrections.add).toHaveBeenCalledTimes(1);
+    expect(corrections.add).toHaveBeenCalledWith({ type: 'exclude', photoId: 'p_nodate' });
+  });
+
+  test('뺀 사진은 묶음에서 바로 빠지고, 빼기가 실패하면 묶음에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'exclude', photoId: early.id }],
+      add: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }),
+    });
+    await render('/edit/photos?tab=unlocated');
+
+    expect(groupTitles()).toEqual([dateOf(late), '날짜 없음']);
+
+    await click(excludeButton('날짜 없음'));
+
+    expect(container.querySelector('[role="alert"]').textContent).toContain(
+      '일부 사진을 빼지 못했어요',
+    );
+  });
+
+  test('보정을 다 불러오기 전에는 제외할 수 없어요', async () => {
+    mockCorrections({ status: 'loading' });
+    await render('/edit/photos?tab=unlocated');
+
+    expect(excludeButton('날짜 없음').disabled).toBe(true);
+  });
+
+  test('위치를 확인할 사진이 없으면 안내해요', async () => {
+    vi.mocked(useJourney).mockReturnValue({
+      journey: { ...seojin, unlocated: [] },
+      status: 'ready',
+      error: null,
+    });
+    await render('/edit/photos?tab=unlocated');
+
+    expect(container.textContent).toContain('위치를 확인할 사진이 없어요');
   });
 });

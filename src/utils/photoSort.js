@@ -1,6 +1,7 @@
 import { SORT_THUMB_COUNT } from '@/constants/photoSort';
 import { formatDateRange } from '@/utils/formatDateRange';
 import { formatNo } from '@/utils/formatNo';
+import { toLocalDate } from '@/utils/localDate';
 
 /**
  * 07a 여행 표의 도시 칩 하나예요.
@@ -36,6 +37,9 @@ import { formatNo } from '@/utils/formatNo';
  */
 
 const isExclude = (correction) => correction.type === 'exclude';
+
+// 날짜 없는 사진 묶음의 열쇠예요.
+const NO_DATE_KEY = 'none';
 
 /**
  * 지금 빠져 있는 사진 ID예요.
@@ -149,6 +153,57 @@ export function selectExcludedPhotos(corrections, photos) {
   }
 
   return [...byPhotoId.values()];
+}
+
+/**
+ * 07b 위치 확인 필요의 날짜 묶음 하나예요.
+ *
+ * @typedef {object} UnlocatedGroup
+ * @property {string} key 'YYYY-MM-DD' 또는 날짜가 없으면 'none'
+ * @property {string | null} date 예: '2025.01.04'. 날짜가 없으면 null
+ * @property {import('@/types').PhotoRef[]} photos 찍은 순서
+ */
+
+/**
+ * 위치가 없어 지점에 못 넣은 사진(journey.unlocated)을 찍은 날짜별로 묶어요.
+ * 날짜 순서이고, 날짜가 없는 사진은 맨 뒤 "날짜 없음" 묶음이에요. 뺀 사진은 바로 빠져요(selectExcludedIds).
+ * 사진을 못 받았으면 날짜를 알 수 없어서 모두 날짜 없음 묶음에 들어가요.
+ *
+ * @param {import('@/types').Journey | null | undefined} journey
+ * @param {import('@/types').Photo[]} photos
+ * @param {Set<string>} excludedIds
+ * @returns {UnlocatedGroup[]}
+ */
+export function selectUnlocatedGroups(journey, photos, excludedIds) {
+  if (!journey) return [];
+
+  const photoById = new Map(photos.map((photo) => [photo.id, photo]));
+  /** @type {Map<string, { takenAt: string | null, ref: import('@/types').PhotoRef }[]>} */
+  const byDate = new Map();
+
+  for (const id of journey.unlocated) {
+    if (excludedIds.has(id)) continue;
+    const photo = photoById.get(id);
+    const takenAt = photo?.takenAt ?? null;
+    const key = takenAt ? toLocalDate(takenAt) : NO_DATE_KEY;
+    if (!byDate.has(key)) byDate.set(key, []);
+    byDate.get(key).push({ takenAt, ref: { id, fileKey: photo?.fileKey ?? null } });
+  }
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => {
+      if (a === NO_DATE_KEY) return 1;
+      if (b === NO_DATE_KEY) return -1;
+      return a.localeCompare(b);
+    })
+    .map(([key, items]) => ({
+      key,
+      date: key === NO_DATE_KEY ? null : formatDateRange(key, key),
+      // takenAt은 시간대 없는 현지 시각이라 글자 순서가 곧 시각 순서예요.
+      photos: items
+        .toSorted((a, b) => (a.takenAt ?? '').localeCompare(b.takenAt ?? ''))
+        .map((item) => item.ref),
+    }));
 }
 
 /**

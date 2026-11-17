@@ -20,3 +20,7 @@ export const SORT_NAME_MAX_LENGTH = 30;
 // ⋯로 펼친 여행 사진과 제외한 사진을 한 번에 그리는 수예요. 올린 사진은 칸마다 서명 주소를 받아서,
 // 수백 장을 한꺼번에 그리면 요청이 몰려요. 나머지는 [더 보기]로 이만큼씩 늘려요.
 export const SORT_PHOTO_PAGE_SIZE = 48;
+
+// 07b 날짜 묶음마다 미리 보여 줄 사진 수예요. 1200px 폭에서 날짜 칸(260px)을 빼고 128px 칸이 한 줄에 들어가는 만큼이에요.
+// 나머지는 +N으로 적어요(피그마 07b).
+export const SORT_GROUP_PREVIEW_COUNT = 6;
