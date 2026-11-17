@@ -1,6 +1,6 @@
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import App from '@/App';
@@ -59,9 +59,15 @@ const readPhotoOf = (order, fileName) => ({
 const findButton = (text) =>
   [...container.querySelectorAll('button')].find((button) => button.textContent === text);
 
+/** /places 자리예요. 어느 여행 탭으로 넘어왔는지 보이게 주소의 ?trip=도 붙여 보여 줘요. */
+function PlacesStub() {
+  const { search } = useLocation();
+  return <p>전체 기록{search}</p>;
+}
+
 /**
  * 로그인해서 사진을 다 모으고, [다음]을 눌러 정리 화면으로 넘어가요.
- * 다 저장하면 넘어가는 /places 자리에는 글자 하나만 둬요.
+ * 다 저장하면 넘어가는 /places 자리에는 PlacesStub을 둬요.
  */
 async function openPass(files) {
   useAuthStore.setState({ user, status: 'authenticated' });
@@ -75,7 +81,7 @@ async function openPass(files) {
       <MemoryRouter initialEntries={['/upload']}>
         <Routes>
           <Route path="/upload" element={<UploadPage />} />
-          <Route path="/places" element={<p>전체 기록</p>} />
+          <Route path="/places" element={<PlacesStub />} />
         </Routes>
       </MemoryRouter>,
     ),
@@ -302,6 +308,26 @@ test('이미지를 다 올려도 여행을 정리하는 동안에는 넘어가�
   expect(refreshJourney).toHaveBeenCalledExactlyOnceWith(user.id);
   await act(() => building.resolve(EMPTY_JOURNEY));
   await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
+});
+
+test('새로 저장한 사진이 든 여행 탭으로 넘어가요', async () => {
+  // given: Journey에 이번에 저장한 사진이 든 여행이 있음
+  await openPass([numbered]);
+  savesAndUploads();
+  vi.mocked(refreshJourney).mockImplementation(async () => {
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    return {
+      stops: [{ id: 'tokyo', photoIds: [rows[0].id] }],
+      trips: [{ id: 'japan', stopIds: ['tokyo'] }],
+    };
+  });
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('여행 보기').click());
+
+  // then
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록?trip=japan'));
 });
 
 test('여행을 만들지 못하면 안내를 보여 주고, 다시 시도하면 Journey만 다시 만들어요', async () => {

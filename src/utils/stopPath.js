@@ -1,7 +1,12 @@
 import { TRIP_PARAM } from '@/constants/journey';
 
-// 03 전체 기록에서 그 여행의 탭을 여는 주소예요.
-function getTripPath(tripId) {
+/**
+ * 03 전체 기록에서 그 여행의 탭을 여는 주소예요.
+ *
+ * @param {string} tripId
+ * @returns {string} 예: '/places?trip=p_356b49'
+ */
+export function getTripPath(tripId) {
   return `/places?${TRIP_PARAM}=${encodeURIComponent(tripId)}`;
 }
 
