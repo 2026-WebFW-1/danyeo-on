@@ -27,6 +27,8 @@ export default function App() {
         useUploadStore.getState().reset();
         usePostStore.getState().reset();
         useCorrectionStore.getState().reset();
+        // 지난번에 보정을 바꾼 뒤 Journey를 다 계산하지 못했으면 이어서 계산합니다.
+        if (state.user) useCorrectionStore.getState().resumeJourneyRefresh();
       }
     });
     useAuthStore.getState().init();

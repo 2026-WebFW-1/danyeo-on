@@ -20,7 +20,8 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *
  * 주의할 점: add · remove는 실패하면 던져요. 부른 쪽이 잡아서 안내를 띄워요.
  * 겹쳐 불러도 부른 순서대로 하나씩 보내요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
- * 아직 보정을 저장해도 Journey(01 · 02 · 03에 보이는 여행)는 바뀌지 않아요.
+ * 저장·삭제가 끝나면 스토어가 Journey(01 · 02 · 03에 보이는 여행)를 다시 계산해 저장해요. add · remove는 그 계산을 기다리지 않아요.
+ * 계산 상태는 journeyStatus로 보고, 'failed'면 [다시 시도]에서 refreshJourney()를 불러요. refreshJourney는 던지지 않아요.
  *
  * @returns {{
  *   corrections: import('@/types').Correction[],
@@ -28,6 +29,8 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *   error: { status: number, code: string, message: string } | null,
  *   add: (input: import('@/types').CorrectionInput) => Promise<import('@/types').Correction>,
  *   remove: (id: string) => Promise<void>,
+ *   journeyStatus: 'idle' | 'building' | 'saved' | 'failed',
+ *   refreshJourney: () => Promise<void>,
  * }}
  */
 export function useCorrections() {
@@ -37,6 +40,8 @@ export function useCorrections() {
   const add = useCorrectionStore((state) => state.add);
   const remove = useCorrectionStore((state) => state.remove);
   const fetchCorrections = useCorrectionStore((state) => state.fetch);
+  const journeyStatus = useCorrectionStore((state) => state.journeyStatus);
+  const refreshJourney = useCorrectionStore((state) => state.refreshJourney);
 
   useEffect(() => {
     if (status === 'idle') fetchCorrections();
@@ -46,5 +51,5 @@ export function useCorrections() {
     if (useCorrectionStore.getState().status === 'error') fetchCorrections();
   }, [fetchCorrections]);
 
-  return { corrections, status, error, add, remove };
+  return { corrections, status, error, add, remove, journeyStatus, refreshJourney };
 }

@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 
 import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 
-const INITIAL_STATE = { corrections: [], status: 'idle', error: null, pending: {} };
+const INITIAL_STATE = {
+  corrections: [],
+  status: 'idle',
+  error: null,
+  pending: {},
+  journeyStatus: 'idle',
+};
 
 // reset할 때마다 올려요. 요청이 끝났을 때 값이 달라졌으면 앞 계정의 응답이라 버려요.
 let generation = 0;
@@ -75,6 +82,127 @@ function endPending(set, key, requested) {
   set((state) => ({ pending: omit(state.pending, key) }));
 }
 
+// 가장 나중에 시작한 Journey 계산의 번호예요. 앞선 계산이 늦게 끝나 상태를 덮지 않게 해요.
+let refreshId = 0;
+
+// 보정을 서버에 보내기 전에 "이 계정은 Journey를 다시 계산해야 함"을 브라우저에 남기고, 계산이 저장되면 지워요.
+// 계산이 첫 번에 20초 남짓 걸려서, 그사이 탭을 닫거나 계정을 바꾸거나 실패한 채 떠나면 보정만 저장되고
+// Journey는 옛 상태로 남아요. 표시가 남아 있으면 그 계정으로 다시 들어올 때 이어서 계산해요(resumeJourneyRefresh).
+// 다른 기기에는 남지 않아요.
+// 표시에는 남길 때마다 새 값을 넣어요. 같은 계정을 연 다른 탭도 같은 표시를 보고 바꿔서, 계산이 끝났을 때
+// 값이 그대로인지로 그사이 어느 탭에서든 보정이 바뀌었는지 알 수 있어요.
+const getStaleKey = (ownerId) => `danyeo-on:journey-stale:${ownerId}`;
+
+/** @type {Map<string, string>} 계정 id → 표시 값. 브라우저 저장소를 못 쓰면(사생활 보호 모드 등) 이 탭에서는 여기를 봐요 */
+const memoryMarks = new Map();
+/** @type {Set<string>} 마지막 표시를 저장소에 쓰지 못한 계정 */
+const memoryOnlyOwners = new Set();
+/** @type {Set<string>} 지금 보정을 서버에 보내는 중인 계정 */
+const writingOwners = new Set();
+/** @type {Map<string, number>} 계정 id → 이 탭에서 그 계정의 가장 나중 계산 번호 */
+const latestRefreshOf = new Map();
+
+function markJourneyStale(ownerId) {
+  const mark = crypto.randomUUID();
+  memoryMarks.set(ownerId, mark);
+  try {
+    localStorage.setItem(getStaleKey(ownerId), mark);
+    memoryOnlyOwners.delete(ownerId);
+  } catch {
+    memoryOnlyOwners.add(ownerId);
+  }
+}
+
+/** @returns {string | null} 표시 값. 없으면 null */
+function getStaleMark(ownerId) {
+  if (!memoryOnlyOwners.has(ownerId)) {
+    try {
+      return localStorage.getItem(getStaleKey(ownerId));
+    } catch {
+      // 읽지 못하면 이 탭의 표시를 봐요.
+    }
+  }
+  return memoryMarks.get(ownerId) ?? null;
+}
+
+function clearStaleMark(ownerId) {
+  memoryMarks.delete(ownerId);
+  memoryOnlyOwners.delete(ownerId);
+  try {
+    localStorage.removeItem(getStaleKey(ownerId));
+  } catch {
+    // 지우지 못하면 다음에 들어올 때 한 번 더 계산할 뿐이에요.
+  }
+}
+
+/**
+ * 저장이 끝난 계산이 모든 보정을 읽었으면 표시를 지우고, 아니면 다시 남겨요.
+ * 시작할 때 보내는 중이던 보정은 못 읽었을 수 있어요. 계산하는 사이 표시가 바뀌었거나(이 탭이나 다른 탭에서 새 보정)
+ * 지워졌으면(다른 탭의 계산이 먼저 저장) 이 계산이 더 새 Journey를 덮었을 수 있어서, 다음에 들어올 때 다시 계산해요.
+ *
+ * @param {string} ownerId
+ * @param {string | null} markAtStart 계산을 시작할 때의 표시 값
+ * @param {boolean} wasWriting 계산을 시작할 때 이 탭에서 보정을 보내는 중이었는지
+ */
+function settleStaleMark(ownerId, markAtStart, wasWriting) {
+  if (!wasWriting && getStaleMark(ownerId) === markAtStart) clearStaleMark(ownerId);
+  else markJourneyStale(ownerId);
+}
+
+/**
+ * 보정 하나를 서버에 보내요. 보내기 전에 표시를 남겨서, 저장된 뒤 계산하지 못해도 다음에 들어올 때 계산해요.
+ *
+ * @param {string | undefined} ownerId
+ * @param {() => Promise<unknown>} write
+ */
+async function writeCorrection(ownerId, write) {
+  if (ownerId) {
+    markJourneyStale(ownerId);
+    writingOwners.add(ownerId);
+  }
+  try {
+    return await write();
+  } finally {
+    writingOwners.delete(ownerId);
+  }
+}
+
+/**
+ * 그 계정의 Journey를 다시 계산해 저장하고 journeyStatus에 진행 상태를 둬요. 실패해도 던지지 않아요.
+ * 겹쳐 부르면 journeyService가 마지막 계산만 저장하고 모두 그 결과를 받아서, 상태도 마지막 계산을 따라가요.
+ *
+ * @param {(partial: object) => void} set
+ * @param {string | undefined} ownerId 계산할 계정
+ * @returns {Promise<void>}
+ */
+async function startRefresh(set, ownerId) {
+  if (!ownerId) return;
+
+  const requested = generation;
+  refreshId += 1;
+  const currentRefresh = refreshId;
+  // 계정이 바뀌었거나 새 계산이 시작됐으면 이 계산의 결과로 상태를 바꾸지 않아요.
+  const isStale = () => requested !== generation || currentRefresh !== refreshId;
+  latestRefreshOf.set(ownerId, currentRefresh);
+  const wasWriting = writingOwners.has(ownerId);
+  const markAtStart = getStaleMark(ownerId);
+  set({ journeyStatus: 'building' });
+  try {
+    await refreshJourney(ownerId);
+  } catch (error) {
+    if (isStale()) return;
+    console.error(error);
+    set({ journeyStatus: 'failed' });
+    return;
+  }
+  // 계정이 바뀐 뒤에 끝났어도 그 계정의 표시는 정리해요. 이 탭에서 그 계정의 계산을 또 시작했으면 그 계산에 맡겨요.
+  // 앞 계산은 뒤 계산의 결과를 받아서(#148), 여기서 다시 남기면 연달아 고칠 때마다 다음 로그인에 또 계산해요.
+  if (latestRefreshOf.get(ownerId) === currentRefresh)
+    settleStaleMark(ownerId, markAtStart, wasWriting);
+  if (isStale()) return;
+  set({ journeyStatus: 'saved' });
+}
+
 function createCorrectionId() {
   return `c_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
@@ -102,7 +230,8 @@ export function getExcludeKey(photoId) {
  * 화면에서는 useCorrections로 불러 두고 써요. 값 하나만 필요하면 골라서 꺼내요:
  * useCorrectionStore((state) => state.pending[correction.id])
  *
- * 아직 보정을 저장해도 Journey가 바뀌지 않아요(buildJourney로 다시 계산해 저장하는 일은 따로 해요).
+ * 보정을 저장·삭제하면 Journey를 다시 계산해 journeys에 써요(#151). 그러면 01 · 02 · 03이 새 Journey를 다시 읽어요.
+ * 07 밖(01의 이동 수단 바꾸기)에서 고쳐도 빠지지 않게, 화면이 아니라 스토어가 불러요.
  */
 export const useCorrectionStore = create((set, get) => ({
   /** @type {import('@/types').Correction[]} 만든 순서. buildJourney에 그대로 넘길 수 있어요 */
@@ -113,6 +242,12 @@ export const useCorrectionStore = create((set, get) => ({
   error: INITIAL_STATE.error,
   /** @type {Record<string, true>} 진행 중인 요청. 열쇠는 지울 때 보정 id, 사진을 뺄 때 getExcludeKey(photoId) */
   pending: INITIAL_STATE.pending,
+  /**
+   * 보정을 바꾼 뒤 Journey를 다시 계산해 쓰는 상태예요. 07이 "여행을 정리하는 중…"과 [다시 시도]를 그릴 때 봐요.
+   * 보정 저장과 따로 둬서, 계산이 실패해도 보정은 저장된 채로 Journey만 다시 만들 수 있어요(업로드의 journeyStatus와 같은 틀).
+   * @type {'idle' | 'building' | 'saved' | 'failed'}
+   */
+  journeyStatus: INITIAL_STATE.journeyStatus,
 
   /** 보정을 불러와요. 실패해도 던지지 않고 status를 'error'로 둬요. */
   fetch: async () => {
@@ -133,6 +268,7 @@ export const useCorrectionStore = create((set, get) => ({
   /**
    * 보정을 저장해요. 끝난 뒤에 목록 끝에 붙어요. 앞서 부른 저장·삭제가 끝난 뒤에 보내요.
    * 실패하면 목록을 그대로 두고 던져요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
+   * 저장하면 Journey 계산을 시작하지만 기다리지 않아요. 계산 상태는 journeyStatus로 봐요.
    *
    * 같은 사진을 두 번 빼면 하나를 지워도 사진이 돌아오지 않아요(buildJourney는 빠진 사진을 ID로만 모아요).
    * 그래서 이미 뺀 사진이면 서버에 보내지 않고 있는 보정을 돌려줘요.
@@ -164,12 +300,13 @@ export const useCorrectionStore = create((set, get) => ({
         }
 
         const fields = { ...input, id: createCorrectionId() };
-        await addCorrection(fields);
+        await writeCorrection(ownerId, () => addCorrection(fields));
         assertSameAccount(requested);
 
         // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
         const correction = { ...fields, ownerId, createdAt: new Date().toISOString() };
         set((state) => ({ corrections: [...state.corrections, correction] }));
+        void startRefresh(set, ownerId);
         return correction;
       });
     } finally {
@@ -182,6 +319,7 @@ export const useCorrectionStore = create((set, get) => ({
    * 앞서 부른 저장·삭제가 끝난 뒤에 보내요.
    * 실패하면 목록을 그대로 두고 던져요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
    * 서버에 이미 없던 보정(다른 탭에서 지움)도 목록에서 빼요. 원한 결과와 서버 상태가 이미 같아서예요.
+   * 지우면 Journey 계산을 시작하지만 기다리지 않아요. 계산 상태는 journeyStatus로 봐요.
    *
    * @param {string} id
    * @returns {Promise<void>}
@@ -197,18 +335,32 @@ export const useCorrectionStore = create((set, get) => ({
         // 버튼을 두 번 누르면 앞 요청이 이미 지웠어요. 서버에 다시 보내지 않아요.
         if (!get().corrections.some((correction) => correction.id === id)) return;
 
-        await removeCorrection(id);
+        await writeCorrection(ownerId, () => removeCorrection(id));
         assertSameAccount(requested);
         set((state) => ({
           corrections: state.corrections.filter((correction) => correction.id !== id),
         }));
+        // 서버에 이미 없던 보정이어도 계산해요. 지운 쪽 탭이 계산하지 못하고 닫혔을 수 있어요.
+        void startRefresh(set, ownerId);
       });
     } finally {
       endPending(set, id, requested);
     }
   },
 
-  /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. */
+  /** Journey 계산을 다시 해요. journeyStatus가 'failed'일 때 [다시 시도]가 불러요. 던지지 않아요. */
+  refreshJourney: () => startRefresh(set, useAuthStore.getState().user?.id),
+
+  /**
+   * 지난번에 보정을 보낸 뒤 Journey를 다 계산하지 못했으면 이어서 계산해요. 로그인하면 App이 불러요. 던지지 않아요.
+   * 탭을 닫았거나, 계산하는 사이 계정을 바꿨거나, 계산이 실패한 채 떠났을 때예요.
+   */
+  resumeJourneyRefresh: async () => {
+    const ownerId = useAuthStore.getState().user?.id;
+    if (ownerId && getStaleMark(ownerId) !== null) await startRefresh(set, ownerId);
+  },
+
+  /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. 앞 계정의 계산은 끝나도 journeyStatus를 바꾸지 않아요. */
   reset: () => {
     generation += 1;
     // 요청 줄은 계정별이라 여기서 비우지 않아요. 앞 계정의 줄에 남은 요청은 차례가 오면 assertSameAccount에서 멈춰요.

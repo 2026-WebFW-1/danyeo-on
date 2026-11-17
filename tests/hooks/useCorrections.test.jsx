@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { useCorrections } from '@/hooks/useCorrections';
 import { addCorrection, getCorrections } from '@/services/correctionService';
+import { refreshJourney } from '@/services/journeyService';
+import { useAuthStore } from '@/stores/authStore';
 import { useCorrectionStore } from '@/stores/correctionStore';
 
 vi.mock('@/services/correctionService', () => ({
@@ -11,6 +13,7 @@ vi.mock('@/services/correctionService', () => ({
   addCorrection: vi.fn(),
   removeCorrection: vi.fn(),
 }));
+vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 
 const LOAD_FAILED = { status: 0, code: 'LOAD_FAILED', message: 'x' };
 const exclude = { id: 'c_a', ownerId: 'u1', type: 'exclude', photoId: 'p_a', createdAt: 'x' };
@@ -42,6 +45,9 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   useCorrectionStore.getState().reset();
+  useAuthStore.setState({ user: null });
+  localStorage.clear();
+  vi.restoreAllMocks();
   vi.resetAllMocks();
 });
 
@@ -129,5 +135,24 @@ describe('useCorrections', () => {
     });
 
     expect(latest.corrections).toEqual([added]);
+  });
+
+  test('저장한 뒤 Journey 계산 상태를 돌려주고, 실패하면 refreshJourney로 다시 계산해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthStore.setState({ user: { id: 'u1' } });
+    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(refreshJourney).mockRejectedValueOnce(LOAD_FAILED).mockResolvedValueOnce();
+    await mount();
+    expect(latest.journeyStatus).toBe('idle');
+
+    await act(async () => {
+      await latest.add({ type: 'exclude', photoId: 'p_b' });
+    });
+    await vi.waitFor(() => expect(latest.journeyStatus).toBe('failed'));
+
+    await act(async () => latest.refreshJourney());
+
+    expect(refreshJourney).toHaveBeenCalledTimes(2);
+    expect(latest.journeyStatus).toBe('saved');
   });
 });
