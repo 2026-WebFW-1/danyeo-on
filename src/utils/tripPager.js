@@ -33,13 +33,13 @@ export function selectTripPage(trips, tripId) {
  * @returns {string | null}
  */
 export function findFirstTripOfPhotos(journey, photoIds) {
-  const newIds = new Set(photoIds);
-  const stopIds = new Set(
+  const targetPhotoIds = new Set(photoIds);
+  const matchedStopIds = new Set(
     journey.stops
-      .filter((stop) => stop.photoIds.some((id) => newIds.has(id)))
+      .filter((stop) => stop.photoIds.some((id) => targetPhotoIds.has(id)))
       .map((stop) => stop.id),
   );
   // journey.trips는 시간 순서라서, 처음 걸리는 여행이 가장 이른 여행이에요.
-  const trip = journey.trips.find((t) => t.stopIds.some((id) => stopIds.has(id)));
-  return trip?.id ?? null;
+  const firstTrip = journey.trips.find((trip) => trip.stopIds.some((id) => matchedStopIds.has(id)));
+  return firstTrip?.id ?? null;
 }
