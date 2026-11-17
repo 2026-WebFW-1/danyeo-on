@@ -50,6 +50,8 @@ function mockCorrections(overrides = {}) {
     error: null,
     add: vi.fn().mockResolvedValue({}),
     remove: vi.fn(),
+    addMany: vi.fn().mockResolvedValue([]),
+    removeMany: vi.fn().mockResolvedValue(),
     journeyStatus: 'idle',
     refreshJourney: vi.fn(),
     ...overrides,
@@ -253,12 +255,14 @@ describe('PhotoSortPage 사진 빼기', () => {
 
     await click(buttonsByText('빼기')[0]);
 
-    expect(corrections.add).toHaveBeenCalledWith({ type: 'exclude', photoId: bangkokPhotoIds[0] });
+    expect(corrections.addMany).toHaveBeenCalledWith([
+      { type: 'exclude', photoId: bangkokPhotoIds[0] },
+    ]);
   });
 
   test('빼기가 실패하면 그 사진 칸에 안내해요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockCorrections({ add: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
+    mockCorrections({ addMany: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
     await render('/edit/photos');
 
     await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
@@ -317,7 +321,7 @@ describe('PhotoSortPage 제외한 사진', () => {
         { id: 'c_1', type: 'exclude', photoId },
         { id: 'c_2', type: 'exclude', photoId },
       ],
-      remove: vi.fn().mockResolvedValue(),
+      removeMany: vi.fn().mockResolvedValue(),
     });
     await render('/edit/photos?tab=excluded');
 
@@ -325,16 +329,14 @@ describe('PhotoSortPage 제외한 사진', () => {
 
     await click(buttonByText('복구'));
 
-    expect(corrections.remove).toHaveBeenCalledTimes(2);
-    expect(corrections.remove).toHaveBeenCalledWith('c_2');
-    expect(corrections.remove).toHaveBeenCalledWith('c_1');
+    expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_2', 'c_1']);
   });
 
   test('복구가 실패하면 그 사진 칸에 안내해요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     mockCorrections({
       corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
-      remove: vi.fn().mockRejectedValue({ code: 'REMOVE_FAILED' }),
+      removeMany: vi.fn().mockRejectedValue({ code: 'REMOVE_FAILED' }),
     });
     await render('/edit/photos?tab=excluded');
 
@@ -352,5 +354,23 @@ describe('PhotoSortPage 제외한 사진', () => {
     expect(container.querySelector('[role="status"]').textContent).toContain(
       '뺀 사진을 불러오는 중',
     );
+  });
+});
+
+describe('PhotoSortPage 이름을 정한 사진 빼기', () => {
+  test('이름을 정한 기준 사진을 빼면, 남은 사진으로 같은 이름을 먼저 걸고 빼요', async () => {
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'rename', anchorPhotoId: bangkok.id, name: '졸업 전 여행' }],
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="졸업 전 여행 사진 펼쳐 빼기"]'));
+    await click(buttonsByText('빼기')[0]);
+
+    expect(bangkokPhotoIds[0]).toBe(bangkok.id);
+    expect(corrections.addMany).toHaveBeenCalledExactlyOnceWith([
+      { type: 'rename', anchorPhotoId: bangkokPhotoIds[1], name: '졸업 전 여행' },
+      { type: 'exclude', photoId: bangkok.id },
+    ]);
   });
 });

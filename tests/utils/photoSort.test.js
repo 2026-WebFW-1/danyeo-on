@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import {
+  buildTripExcludeInputs,
   selectExcludedIds,
   selectExcludedPhotos,
   selectPhotoSummary,
@@ -188,5 +189,50 @@ describe('selectPhotoSummary', () => {
 
     expect(selectPhotoSummary(photos)).toEqual({ total: 3, located: 2, unlocated: 1 });
     expect(selectPhotoSummary([])).toEqual({ total: 0, located: 0, unlocated: 0 });
+  });
+});
+
+describe('buildTripExcludeInputs', () => {
+  const bangkok = tripByName('방콕 · 다낭');
+  const [anchor, second, third] = photoIdsOf(bangkok);
+  const rowWith = (corrections, excludedIds = NONE) =>
+    selectSortTrips(seojin, corrections, [], excludedIds).find((row) => row.id === bangkok.id);
+
+  test('자동 이름이거나 기준 사진이 아니면 빼기만 해요', () => {
+    expect(buildTripExcludeInputs(rowWith([]), anchor)).toEqual([
+      { type: 'exclude', photoId: anchor },
+    ]);
+    expect(buildTripExcludeInputs(rowWith([rename(anchor, '졸업 전 여행')]), second)).toEqual([
+      { type: 'exclude', photoId: second },
+    ]);
+  });
+
+  test('이름을 정한 기준 사진을 빼면, 남은 첫 사진으로 같은 이름을 먼저 걸어요', () => {
+    expect(buildTripExcludeInputs(rowWith([rename(anchor, '졸업 전 여행')]), anchor)).toEqual([
+      { type: 'rename', anchorPhotoId: second, name: '졸업 전 여행' },
+      { type: 'exclude', photoId: anchor },
+    ]);
+  });
+
+  test('이미 뺀 사진으로는 옮기지 않아요', () => {
+    const row = rowWith([rename(anchor, '졸업 전 여행')], new Set([second]));
+
+    expect(buildTripExcludeInputs(row, anchor)[0]).toEqual({
+      type: 'rename',
+      anchorPhotoId: third,
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('남은 사진이 없으면 빼기만 해요', () => {
+    const lastOnly = {
+      ...rowWith([]),
+      renameAnchorId: anchor,
+      photos: [{ id: anchor, fileKey: null }],
+    };
+
+    expect(buildTripExcludeInputs(lastOnly, anchor)).toEqual([
+      { type: 'exclude', photoId: anchor },
+    ]);
   });
 });

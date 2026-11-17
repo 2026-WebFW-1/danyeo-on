@@ -23,6 +23,7 @@ import { formatNo } from '@/utils/formatNo';
  * @property {import('@/types').PhotoRef[]} thumbs 앞에서부터 SORT_THUMB_COUNT장
  * @property {number} photoCount 경유 지점의 사진은 빼요(selectTripStats와 같은 기준)
  * @property {import('@/types').PhotoRef[]} photos ⋯로 펼쳐 뺄 수 있는 사진. 경유 지점의 사진도 들어 있어요
+ * @property {string | null} renameAnchorId 지금 이름을 정한 rename의 기준 사진. 자동 이름이면 null
  */
 
 /**
@@ -86,6 +87,7 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
     return {
       id: trip.id,
       name: rename?.name ?? trip.name,
+      renameAnchorId: rename?.anchorPhotoId ?? null,
       dateRange: formatDateRange(trip.from, trip.to),
       cities: cityStops.map((stop) => ({ id: stop.id, city: stop.city, days: stop.days })),
       thumbs: cityPhotoIds.slice(0, SORT_THUMB_COUNT).map(toRef),
@@ -98,6 +100,27 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
   return trips
     .filter((trip) => trip.photos.length > 0)
     .map((trip, index) => ({ ...trip, no: formatNo(index + 1) }));
+}
+
+/**
+ * 07a에서 사진 하나를 뺄 때 저장할 보정이에요.
+ *
+ * 빼는 사진이 지금 이름을 정한 rename의 기준 사진이면, 남은 사진을 기준으로 같은 이름을 먼저 다시 걸어요.
+ * buildJourney는 뺀 사진을 먼저 지우고 남은 사진에서 rename의 기준 사진을 찾아서, 그대로 빼면 다시 계산할 때 이름이
+ * 자동 이름으로 돌아가요. 이름을 먼저 저장해야 빼기가 실패해도 이름이 남아요(useCorrectionStore.addMany가 차례로 보내요).
+ *
+ * @param {SortTripRow} trip
+ * @param {string} photoId
+ * @returns {import('@/types').CorrectionInput[]}
+ */
+export function buildTripExcludeInputs(trip, photoId) {
+  const exclude = { type: 'exclude', photoId };
+  if (trip.renameAnchorId !== photoId) return [exclude];
+
+  const nextAnchor = trip.photos.find((photo) => photo.id !== photoId);
+  // 마지막 사진이면 여행이 사라져서 이름을 옮길 곳이 없어요.
+  if (!nextAnchor) return [exclude];
+  return [{ type: 'rename', anchorPhotoId: nextAnchor.id, name: trip.name }, exclude];
 }
 
 /**

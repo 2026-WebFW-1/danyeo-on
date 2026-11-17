@@ -203,6 +203,50 @@ async function startRefresh(set, ownerId) {
   set({ journeyStatus: 'saved' });
 }
 
+/**
+ * 차례가 온 보정 하나를 저장하고 목록 끝에 붙여요. add · addMany가 써요.
+ * 차례가 온 뒤에 이미 뺀 사진인지 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
+ *
+ * @returns {Promise<{ correction: import('@/types').Correction, isWritten: boolean }>}
+ *   isWritten: 서버에 보냈으면 true. 이미 뺀 사진이라 있는 보정을 돌려줬으면 false
+ */
+async function saveOne(get, set, input, ownerId, requested) {
+  assertSameAccount(requested);
+
+  if (input.type === 'exclude') {
+    const existing = get().corrections.find(
+      (correction) => correction.type === 'exclude' && correction.photoId === input.photoId,
+    );
+    if (existing) return { correction: existing, isWritten: false };
+  }
+
+  const fields = { ...input, id: createCorrectionId() };
+  await writeCorrection(ownerId, () => addCorrection(fields));
+  assertSameAccount(requested);
+
+  // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
+  const correction = { ...fields, ownerId, createdAt: new Date().toISOString() };
+  set((state) => ({ corrections: [...state.corrections, correction] }));
+  return { correction, isWritten: true };
+}
+
+/**
+ * 차례가 온 보정 하나를 지우고 목록에서 빼요. remove · removeMany가 써요.
+ *
+ * @returns {Promise<boolean>} 서버에 보냈으면 true. 목록에 이미 없으면(버튼을 두 번 누름) 보내지 않고 false
+ */
+async function deleteOne(get, set, id, ownerId, requested) {
+  assertSameAccount(requested);
+  if (!get().corrections.some((correction) => correction.id === id)) return false;
+
+  await writeCorrection(ownerId, () => removeCorrection(id));
+  assertSameAccount(requested);
+  set((state) => ({
+    corrections: state.corrections.filter((correction) => correction.id !== id),
+  }));
+  return true;
+}
+
 function createCorrectionId() {
   return `c_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
@@ -289,28 +333,53 @@ export const useCorrectionStore = create((set, get) => ({
 
     try {
       return await enqueue(ownerId, async () => {
-        assertSameAccount(requested);
-
-        // 차례가 온 뒤에 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
-        if (input.type === 'exclude') {
-          const existing = get().corrections.find(
-            (correction) => correction.type === 'exclude' && correction.photoId === input.photoId,
-          );
-          if (existing) return existing;
-        }
-
-        const fields = { ...input, id: createCorrectionId() };
-        await writeCorrection(ownerId, () => addCorrection(fields));
-        assertSameAccount(requested);
-
-        // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
-        const correction = { ...fields, ownerId, createdAt: new Date().toISOString() };
-        set((state) => ({ corrections: [...state.corrections, correction] }));
-        void startRefresh(set, ownerId);
+        const { correction, isWritten } = await saveOne(get, set, input, ownerId, requested);
+        if (isWritten) void startRefresh(set, ownerId);
         return correction;
       });
     } finally {
       if (excludeKey) endPending(set, excludeKey, requested);
+    }
+  },
+
+  /**
+   * 보정 여럿을 준 순서대로 저장하고, Journey 계산은 끝에 한 번만 시작해요.
+   * 07b 묶음 빼기처럼 한꺼번에 고칠 때 써요. add를 여러 번 부르면 보정마다 전체 사진을 다시 읽어 계산해요.
+   * 하나씩 add와 같은 규칙으로 저장해요(이미 뺀 사진은 보내지 않아요). 중간에 실패하면 거기서 멈추고 던지지만,
+   * 앞서 저장한 보정은 목록에 남고 그만큼 계산해요. 다시 부르면 이미 뺀 사진은 건너뛰어요.
+   *
+   * @param {import('@/types').CorrectionInput[]} inputs
+   * @returns {Promise<import('@/types').Correction[]>} inputs와 같은 순서
+   */
+  addMany: async (inputs) => {
+    if (get().status !== 'ready') throw new Error('보정을 불러온 뒤에 저장할 수 있어요');
+
+    const requested = generation;
+    const ownerId = useAuthStore.getState().user?.id;
+    const excludeKeys = inputs
+      .filter((input) => input.type === 'exclude')
+      .map((input) => getExcludeKey(input.photoId));
+    excludeKeys.forEach((key) => startPending(set, key));
+
+    try {
+      return await enqueue(ownerId, async () => {
+        let hasWritten = false;
+        try {
+          const saved = [];
+          // 차례대로 보내요. 앞 보정이 저장된 뒤에 다음을 보내야, 중간에 실패해도 준 순서의 앞부분만 남아요.
+          for (const input of inputs) {
+            const { correction, isWritten } = await saveOne(get, set, input, ownerId, requested);
+            hasWritten ||= isWritten;
+            saved.push(correction);
+          }
+          return saved;
+        } finally {
+          // 계정이 바뀌었으면 계산하지 않아요. 표시가 남아 그 계정으로 다시 들어올 때 계산해요.
+          if (hasWritten && requested === generation) void startRefresh(set, ownerId);
+        }
+      });
+    } finally {
+      excludeKeys.forEach((key) => endPending(set, key, requested));
     }
   },
 
@@ -331,20 +400,39 @@ export const useCorrectionStore = create((set, get) => ({
 
     try {
       await enqueue(ownerId, async () => {
-        assertSameAccount(requested);
-        // 버튼을 두 번 누르면 앞 요청이 이미 지웠어요. 서버에 다시 보내지 않아요.
-        if (!get().corrections.some((correction) => correction.id === id)) return;
-
-        await writeCorrection(ownerId, () => removeCorrection(id));
-        assertSameAccount(requested);
-        set((state) => ({
-          corrections: state.corrections.filter((correction) => correction.id !== id),
-        }));
         // 서버에 이미 없던 보정이어도 계산해요. 지운 쪽 탭이 계산하지 못하고 닫혔을 수 있어요.
-        void startRefresh(set, ownerId);
+        if (await deleteOne(get, set, id, ownerId, requested)) void startRefresh(set, ownerId);
       });
     } finally {
       endPending(set, id, requested);
+    }
+  },
+
+  /**
+   * 보정 여럿을 차례로 지우고, Journey 계산은 끝에 한 번만 시작해요. [복구]가 같은 사진의 exclude를 모두 지울 때 써요.
+   * 중간에 실패하면 거기서 멈추고 던지지만, 앞서 지운 보정은 목록에서 빠지고 그만큼 계산해요.
+   *
+   * @param {string[]} ids
+   * @returns {Promise<void>}
+   */
+  removeMany: async (ids) => {
+    const requested = generation;
+    const ownerId = useAuthStore.getState().user?.id;
+    ids.forEach((id) => startPending(set, id));
+
+    try {
+      await enqueue(ownerId, async () => {
+        let hasDeleted = false;
+        try {
+          for (const id of ids) {
+            hasDeleted = (await deleteOne(get, set, id, ownerId, requested)) || hasDeleted;
+          }
+        } finally {
+          if (hasDeleted && requested === generation) void startRefresh(set, ownerId);
+        }
+      });
+    } finally {
+      ids.forEach((id) => endPending(set, id, requested));
     }
   },
 

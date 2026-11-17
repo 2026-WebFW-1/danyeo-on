@@ -7,6 +7,7 @@ import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { selectJourneyTotals } from '@/utils/journeyTotals';
 import {
+  buildTripExcludeInputs,
   selectExcludedIds,
   selectExcludedPhotos,
   selectPhotoSummary,
@@ -34,6 +35,7 @@ import TripTable from './TripTable';
  *  - 보정을 저장하면 Journey를 다시 계산하는 데 20초쯤 걸려요(#151). 그동안 Journey는 앞 값이라,
  *    이름 · 뺀 사진 · 탭 개수는 보정 목록으로 덮어 보여 줘요(utils/photoSort).
  *  - 이름은 그 여행 첫 사진(여행 ID)에 걸어요. 어느 사진이든 그 여행에 들어 있으면 buildJourney가 같은 여행을 찾아요.
+ *    그 사진을 빼면 남은 사진으로 이름을 옮겨 걸어요(buildTripExcludeInputs).
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
@@ -48,7 +50,8 @@ export default function PhotoSortPage() {
     corrections,
     status: correctionStatus,
     add,
-    remove,
+    addMany,
+    removeMany,
     journeyStatus,
     refreshJourney,
   } = useCorrections();
@@ -102,9 +105,9 @@ export default function PhotoSortPage() {
   };
 
   const handleRename = (tripId, name) => add({ type: 'rename', anchorPhotoId: tripId, name });
-  const handleExclude = (photoId) => add({ type: 'exclude', photoId });
-  // 스토어가 부른 순서대로 하나씩 보내서 한꺼번에 불러도 돼요. 하나라도 실패하면 던져, 다시 누르면 남은 것만 지워요.
-  const handleRestore = (photo) => Promise.all(photo.correctionIds.map((id) => remove(id)));
+  const handleExclude = (trip, photoId) => addMany(buildTripExcludeInputs(trip, photoId));
+  // 같은 사진의 exclude를 모두 지우고 Journey 계산은 한 번만 해요. 실패하면 던져, 다시 누르면 남은 것만 지워요.
+  const handleRestore = (photo) => removeMany(photo.correctionIds);
 
   return (
     <main className="flex-1 bg-canvas pb-30">
