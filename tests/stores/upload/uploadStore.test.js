@@ -24,10 +24,13 @@ vi.mock('@/services/photoService', () => ({
 const { getState } = useUploadStore;
 const photoFile = (name) => new File(['사진'], name, { type: 'image/jpeg' });
 const thumb = new Blob(['썸네일'], { type: 'image/webp' });
+// refreshJourney가 돌려주는 Journey예요. 여행이 없어서 newTripId는 null이에요.
+const EMPTY_JOURNEY = { stops: [], trips: [] };
 
 beforeEach(() => {
   getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(thumb);
+  vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
 });
 
 afterEach(() => {
@@ -648,8 +651,34 @@ describe('refreshJourney', () => {
     // then: 이미지를 기다리지 않고 바로 만들기 시작해요
     expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
     expect(getState().journeyStatus).toBe('building');
-    building.resolve();
+    building.resolve(EMPTY_JOURNEY);
     await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+  });
+
+  test('다 만들면 새로 저장한 사진이 든 여행을 newTripId에 둬요', async () => {
+    // given: 'a.jpg'를 새로 저장했고, Journey에서 그 사진이 일본 여행에 들어감
+    vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+    vi.mocked(savePhotoImage).mockResolvedValue();
+    vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+      saved: photos.map((photo) => photo.id),
+      skipped: [],
+    }));
+    await getState().start([photoFile('a.jpg')]);
+    vi.mocked(readPhotos).mockResolvedValue({
+      photos: [{ order: 0, fileName: 'a.jpg', takenAt: null, dedupeKey: '|a.jpg' }],
+      skipped: [],
+    });
+    vi.mocked(refreshJourney).mockImplementation(async () => ({
+      stops: [{ id: 'tokyo', photoIds: getState().newPhotoIds }],
+      trips: [{ id: 'japan', stopIds: ['tokyo'] }],
+    }));
+
+    // when
+    await getState().save('u1');
+
+    // then
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+    expect(getState().newTripId).toBe('japan');
   });
 
   test('실패하면 failed가 되고, 다시 부르면 다시 만들어요', async () => {
@@ -657,7 +686,7 @@ describe('refreshJourney', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(refreshJourney)
       .mockRejectedValueOnce({ status: 0, code: 'SAVE_FAILED', message: '0행' })
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce(EMPTY_JOURNEY);
 
     // when
     await getState().refreshJourney('u1');

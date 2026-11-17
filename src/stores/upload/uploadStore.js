@@ -9,6 +9,7 @@ import {
   savePhotos,
 } from '@/services/photoService';
 import { createPhotoId, toUploadedFileKey, toUploadedImagePaths } from '@/utils/photoFileKey';
+import { findFirstTripOfPhotos } from '@/utils/tripPager';
 import { toDedupeKey } from '@/utils/upload/dedupeKey';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
@@ -21,8 +22,10 @@ const INITIAL_STATE = {
   isDone: false,
   saveStatus: 'idle',
   saveResult: null,
+  newPhotoIds: [],
   imageUpload: INITIAL_IMAGE_UPLOAD,
   journeyStatus: 'idle',
+  newTripId: null,
   passAnswers: {},
 };
 // 기다리는 사이 번호가 바뀌었으면 그 작업은 취소된 거예요.
@@ -41,6 +44,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {'idle' | 'saving' | 'saved' | 'failed'} saveStatus 사진 정보 저장 상태
  * @property {{ saved: number, existing: number } | null} saveResult 저장한 뒤의 수.
  *   existing은 전에 저장해서 건너뛴 사진이에요
+ * @property {string[]} newPhotoIds 이번 save에서 새로 저장한 사진 id예요. 이미 있던 사진은 빠져요.
+ *   Journey를 다시 만들 때([다시 시도] 포함) 이 사진이 든 여행으로 넘어가려고 스토어에 둬요
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
  * @property {(files: File[]) => Promise<void>} start 이전 작업을 비우고 한 장씩 줄여요
@@ -51,8 +56,11 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {'idle' | 'building' | 'saved' | 'failed'} journeyStatus 저장한 사진으로 Journey를 만들어 쓰는 상태(#144).
  *   사진 저장과 따로 둬서, 실패해도 사진은 저장된 채로 Journey만 다시 만들 수 있어요.
  *   페이지를 나갔다 와도 03으로 넘어갈 때를 알 수 있게 스토어에 둬요
+ * @property {string | null} newTripId Journey를 만든 뒤 [여행 보기]가 열 여행 id예요(U106).
+ *   새로 저장한 사진이 든 여행 중 가장 이른 것이고, 그런 여행이 없으면 null이에요
  * @property {(ownerId: string) => Promise<void>} refreshJourney 내 사진·보정 전체로 Journey를 다시 계산해 저장해요.
- *   save가 끝나면 이미지 올리기와 함께 시작하고, 실패하면 화면의 [다시 시도]가 다시 불러요
+ *   save가 끝나면 이미지 올리기와 함께 시작하고, 실패하면 화면의 [다시 시도]가 다시 불러요.
+ *   끝나면 newPhotoIds가 든 여행을 newTripId에 둬요
  * @property {Record<string, 'exclude' | 'later'>} passAnswers 지나가며 정리 끝에서 물어본 사진의 답(사진 id별).
  *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 'exclude'인 사진은 save가 저장하지 않아요
  * @property {(photoId: string, answer: 'exclude' | 'later') => void} answerPass
@@ -109,8 +117,8 @@ export const useUploadStore = create((set, get) => ({
     }
     if (isCancelled()) return;
 
-    const { targets, ...saveResult } = saved;
-    set({ saveStatus: 'saved', saveResult });
+    const { targets, newPhotoIds, ...saveResult } = saved;
+    set({ saveStatus: 'saved', saveResult, newPhotoIds });
     void get().uploadImages(targets);
     // Journey는 사진 행만 있으면 계산할 수 있어서 이미지를 기다리지 않아요.
     // 도시 이름 찾기(1.1초 간격)와 이미지 올리기가 같이 돌아서 기다리는 시간이 겹쳐요.
@@ -121,8 +129,9 @@ export const useUploadStore = create((set, get) => ({
     const currentJob = jobId;
     const isCancelled = () => currentJob !== jobId;
     set({ journeyStatus: 'building' });
+    let journey;
     try {
-      await refreshJourney(ownerId);
+      journey = await refreshJourney(ownerId);
     } catch (error) {
       if (isCancelled()) return;
       console.error(error);
@@ -130,7 +139,7 @@ export const useUploadStore = create((set, get) => ({
       return;
     }
     if (isCancelled()) return;
-    set({ journeyStatus: 'saved' });
+    set({ journeyStatus: 'saved', newTripId: findFirstTripOfPhotos(journey, get().newPhotoIds) });
   },
 
   uploadImages: async (targets) => {
@@ -172,7 +181,12 @@ export const useUploadStore = create((set, get) => ({
  * @param {string} ownerId
  * @param {UploadState} state
  * @param {() => boolean} isCancelled 그사이 reset됐는지예요
- * @returns {Promise<{ saved: number, existing: number, targets: { order: number, fileKey: string }[] } | null>}
+ * @returns {Promise<{
+ *   saved: number,
+ *   existing: number,
+ *   newPhotoIds: string[],
+ *   targets: { order: number, fileKey: string }[],
+ * } | null>}
  *   기다리는 사이 reset됐으면 null
  */
 async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) {
@@ -224,6 +238,7 @@ async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) 
   return {
     saved: saved.length,
     existing: skipped.length,
+    newPhotoIds: saved,
     targets: [...newTargets, ...resumeTargets],
   };
 }

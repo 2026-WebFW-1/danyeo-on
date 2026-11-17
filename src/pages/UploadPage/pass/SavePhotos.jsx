@@ -2,11 +2,13 @@ import { Navigate } from 'react-router';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { getTripPath } from '@/utils/stopPath';
 
 const PLACE_PATH = '/places';
 
 /**
- * 정리가 끝난 사진을 저장하고, 이미지를 다 올리고 Journey를 저장하면 03 전체 기록으로 넘어가요(#142, #144).
+ * 정리가 끝난 사진을 저장하고, 이미지를 다 올리고 Journey를 저장하면 03 전체 기록의 이번 여행 탭으로 넘어가요
+ * (#142, #144, #150). 새로 저장한 사진이 든 여행이 없으면(전부 이미 있던 사진 등) 탭을 고르지 않고 넘어가요.
  *
  * 호출: PassPhotosStep이 "다 정리했어요"일 때 그려요.
  * <SavePhotos />
@@ -25,6 +27,7 @@ export default function SavePhotos() {
   const saveResult = useUploadStore((state) => state.saveResult);
   const imageUpload = useUploadStore((state) => state.imageUpload);
   const journeyStatus = useUploadStore((state) => state.journeyStatus);
+  const newTripId = useUploadStore((state) => state.newTripId);
 
   if (saveStatus === 'saved') {
     const done = imageUpload.uploaded + imageUpload.skipped + imageUpload.failed;
@@ -33,7 +36,9 @@ export default function SavePhotos() {
     const isUploaded = done >= imageUpload.total;
 
     // 뒤로 가기로 다 끝난 정리 화면에 돌아오지 않게 replace로 넘어갑니다.
-    if (isUploaded && journeyStatus === 'saved') return <Navigate to={PLACE_PATH} replace />;
+    if (isUploaded && journeyStatus === 'saved') {
+      return <Navigate to={newTripId ? getTripPath(newTripId) : PLACE_PATH} replace />;
+    }
 
     return (
       <div className="mt-6 text-md text-muted">
