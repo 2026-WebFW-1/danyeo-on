@@ -21,6 +21,7 @@ const INITIAL_STATE = {
   isDone: false,
   saveStatus: 'idle',
   saveResult: null,
+  newPhotoIds: [],
   imageUpload: INITIAL_IMAGE_UPLOAD,
   journeyStatus: 'idle',
   passAnswers: {},
@@ -41,6 +42,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {'idle' | 'saving' | 'saved' | 'failed'} saveStatus 사진 정보 저장 상태
  * @property {{ saved: number, existing: number } | null} saveResult 저장한 뒤의 수.
  *   existing은 전에 저장해서 건너뛴 사진이에요
+ * @property {string[]} newPhotoIds 이번 save에서 새로 저장한 사진 id예요. 이미 있던 사진은 빠져요.
+ *   Journey를 다시 만들 때([다시 시도] 포함) 이 사진이 든 여행으로 넘어가려고 스토어에 둬요
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
  * @property {(files: File[]) => Promise<void>} start 이전 작업을 비우고 한 장씩 줄여요
@@ -109,8 +112,8 @@ export const useUploadStore = create((set, get) => ({
     }
     if (isCancelled()) return;
 
-    const { targets, ...saveResult } = saved;
-    set({ saveStatus: 'saved', saveResult });
+    const { targets, newPhotoIds, ...saveResult } = saved;
+    set({ saveStatus: 'saved', saveResult, newPhotoIds });
     void get().uploadImages(targets);
     // Journey는 사진 행만 있으면 계산할 수 있어서 이미지를 기다리지 않아요.
     // 도시 이름 찾기(1.1초 간격)와 이미지 올리기가 같이 돌아서 기다리는 시간이 겹쳐요.
@@ -172,7 +175,12 @@ export const useUploadStore = create((set, get) => ({
  * @param {string} ownerId
  * @param {UploadState} state
  * @param {() => boolean} isCancelled 그사이 reset됐는지예요
- * @returns {Promise<{ saved: number, existing: number, targets: { order: number, fileKey: string }[] } | null>}
+ * @returns {Promise<{
+ *   saved: number,
+ *   existing: number,
+ *   newPhotoIds: string[],
+ *   targets: { order: number, fileKey: string }[],
+ * } | null>}
  *   기다리는 사이 reset됐으면 null
  */
 async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) {
@@ -224,6 +232,7 @@ async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) 
   return {
     saved: saved.length,
     existing: skipped.length,
+    newPhotoIds: saved,
     targets: [...newTargets, ...resumeTargets],
   };
 }
