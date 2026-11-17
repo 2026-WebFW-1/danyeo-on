@@ -628,6 +628,87 @@ describe('다음에 들어올 때 이어서 계산', () => {
     await vi.waitFor(() => expect(getMark('u1')).toBeNull());
   });
 
+  test('같은 탭에서 연달아 고치면 마지막 계산이 끝난 뒤 표시가 남지 않아요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const first = deferred();
+    const second = deferred();
+    vi.mocked(refreshJourney)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '먼저' });
+    await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '나중' });
+    // 앞 계산도 뒤 계산의 결과를 받아요(#148). 앞 계산이 먼저 끝나도 표시는 뒤 계산이 정리해요.
+    first.resolve();
+    await flushTasks();
+    second.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+
+    expect(getMark('u1')).toBeNull();
+  });
+
+  test('계산하는 사이 다른 탭이 보정을 바꾸면 표시를 남겨서 다음에 들어올 때 다시 계산해요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const building = deferred();
+    vi.mocked(refreshJourney).mockReturnValueOnce(building.promise).mockResolvedValueOnce();
+
+    await getState().add({ type: 'exclude', photoId: 'p_c' });
+    localStorage.setItem('danyeo-on:journey-stale:u1', 'other-tab');
+    building.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+    expect(getMark('u1')).not.toBeNull();
+
+    getState().reset();
+    await getState().resumeJourneyRefresh();
+    expect(refreshJourney).toHaveBeenCalledTimes(2);
+    expect(getMark('u1')).toBeNull();
+  });
+
+  test('다른 탭의 계산이 먼저 저장해 표시를 지웠으면, 늦게 끝난 계산은 표시를 다시 남겨요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const building = deferred();
+    vi.mocked(refreshJourney).mockReturnValue(building.promise);
+
+    await getState().add({ type: 'exclude', photoId: 'p_c' });
+    // 다른 탭이 더 새 보정까지 읽어 먼저 저장했어요. 이 계산이 그 Journey를 덮었을 수 있어요.
+    localStorage.removeItem('danyeo-on:journey-stale:u1');
+    building.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+
+    expect(getMark('u1')).not.toBeNull();
+  });
+
+  test('브라우저 저장소를 못 쓰면 이 탭의 표시로 이어서 계산해요', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('꽉 찼어요', 'QuotaExceededError');
+    });
+    await fetchSaved();
+    const sending = deferred();
+    vi.mocked(addCorrection).mockReturnValue(sending.promise);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    const added = getState().add({ type: 'exclude', photoId: 'p_c' });
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
+    getState().reset();
+    useAuthStore.setState({ user: { id: 'u2' } });
+    sending.resolve();
+    await expect(added).rejects.toEqual(ACCOUNT_CHANGED);
+    expect(refreshJourney).not.toHaveBeenCalled();
+
+    getState().reset();
+    useAuthStore.setState({ user: { id: 'u1' } });
+    await getState().resumeJourneyRefresh();
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+
+    // 계산이 저장되면 이 탭의 표시도 지워서 다시 계산하지 않아요.
+    getState().reset();
+    await getState().resumeJourneyRefresh();
+    expect(refreshJourney).toHaveBeenCalledTimes(1);
+  });
+
   test('표시가 없거나 로그인하지 않았으면 이어서 계산하지 않아요', async () => {
     await getState().resumeJourneyRefresh();
     useAuthStore.setState({ user: null });

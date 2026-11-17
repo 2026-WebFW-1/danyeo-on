@@ -89,36 +89,64 @@ let refreshId = 0;
 // 계산이 첫 번에 20초 남짓 걸려서, 그사이 탭을 닫거나 계정을 바꾸거나 실패한 채 떠나면 보정만 저장되고
 // Journey는 옛 상태로 남아요. 표시가 남아 있으면 그 계정으로 다시 들어올 때 이어서 계산해요(resumeJourneyRefresh).
 // 다른 기기에는 남지 않아요.
+// 표시에는 남길 때마다 새 값을 넣어요. 같은 계정을 연 다른 탭도 같은 표시를 보고 바꿔서, 계산이 끝났을 때
+// 값이 그대로인지로 그사이 어느 탭에서든 보정이 바뀌었는지 알 수 있어요.
 const getStaleKey = (ownerId) => `danyeo-on:journey-stale:${ownerId}`;
 
-/** @type {Map<string, number>} 계정 id → 이 탭에서 표시를 남긴 횟수. 계산하는 사이 새 보정을 보냈는지 봐요 */
-const staleMarks = new Map();
+/** @type {Map<string, string>} 계정 id → 표시 값. 브라우저 저장소를 못 쓰면(사생활 보호 모드 등) 이 탭에서는 여기를 봐요 */
+const memoryMarks = new Map();
+/** @type {Set<string>} 마지막 표시를 저장소에 쓰지 못한 계정 */
+const memoryOnlyOwners = new Set();
 /** @type {Set<string>} 지금 보정을 서버에 보내는 중인 계정 */
 const writingOwners = new Set();
+/** @type {Map<string, number>} 계정 id → 이 탭에서 그 계정의 가장 나중 계산 번호 */
+const latestRefreshOf = new Map();
 
 function markJourneyStale(ownerId) {
-  staleMarks.set(ownerId, (staleMarks.get(ownerId) ?? 0) + 1);
+  const mark = crypto.randomUUID();
+  memoryMarks.set(ownerId, mark);
   try {
-    localStorage.setItem(getStaleKey(ownerId), '1');
+    localStorage.setItem(getStaleKey(ownerId), mark);
+    memoryOnlyOwners.delete(ownerId);
   } catch {
-    // 브라우저 저장소를 못 쓰면(사생활 보호 모드 등) 이 탭 안에서만 계산해요.
+    memoryOnlyOwners.add(ownerId);
   }
 }
 
-function hasStaleMark(ownerId) {
-  try {
-    return localStorage.getItem(getStaleKey(ownerId)) !== null;
-  } catch {
-    return false;
+/** @returns {string | null} 표시 값. 없으면 null */
+function getStaleMark(ownerId) {
+  if (!memoryOnlyOwners.has(ownerId)) {
+    try {
+      return localStorage.getItem(getStaleKey(ownerId));
+    } catch {
+      // 읽지 못하면 이 탭의 표시를 봐요.
+    }
   }
+  return memoryMarks.get(ownerId) ?? null;
 }
 
 function clearStaleMark(ownerId) {
+  memoryMarks.delete(ownerId);
+  memoryOnlyOwners.delete(ownerId);
   try {
     localStorage.removeItem(getStaleKey(ownerId));
   } catch {
     // 지우지 못하면 다음에 들어올 때 한 번 더 계산할 뿐이에요.
   }
+}
+
+/**
+ * 저장이 끝난 계산이 모든 보정을 읽었으면 표시를 지우고, 아니면 다시 남겨요.
+ * 시작할 때 보내는 중이던 보정은 못 읽었을 수 있어요. 계산하는 사이 표시가 바뀌었거나(이 탭이나 다른 탭에서 새 보정)
+ * 지워졌으면(다른 탭의 계산이 먼저 저장) 이 계산이 더 새 Journey를 덮었을 수 있어서, 다음에 들어올 때 다시 계산해요.
+ *
+ * @param {string} ownerId
+ * @param {string | null} markAtStart 계산을 시작할 때의 표시 값
+ * @param {boolean} wasWriting 계산을 시작할 때 이 탭에서 보정을 보내는 중이었는지
+ */
+function settleStaleMark(ownerId, markAtStart, wasWriting) {
+  if (!wasWriting && getStaleMark(ownerId) === markAtStart) clearStaleMark(ownerId);
+  else markJourneyStale(ownerId);
 }
 
 /**
@@ -155,9 +183,9 @@ async function startRefresh(set, ownerId) {
   const currentRefresh = refreshId;
   // 계정이 바뀌었거나 새 계산이 시작됐으면 이 계산의 결과로 상태를 바꾸지 않아요.
   const isStale = () => requested !== generation || currentRefresh !== refreshId;
-  // 보내는 중인 보정은 이 계산이 읽지 못했을 수 있어요. 그때와 계산하는 사이 새 보정을 보냈을 때는 표시를 남겨 둬요.
-  const canClearMark = !writingOwners.has(ownerId);
-  const markCount = staleMarks.get(ownerId);
+  latestRefreshOf.set(ownerId, currentRefresh);
+  const wasWriting = writingOwners.has(ownerId);
+  const markAtStart = getStaleMark(ownerId);
   set({ journeyStatus: 'building' });
   try {
     await refreshJourney(ownerId);
@@ -167,8 +195,10 @@ async function startRefresh(set, ownerId) {
     set({ journeyStatus: 'failed' });
     return;
   }
-  // 계정이 바뀐 뒤에 끝났어도 그 계정의 Journey는 저장됐으니 표시를 지워요.
-  if (canClearMark && staleMarks.get(ownerId) === markCount) clearStaleMark(ownerId);
+  // 계정이 바뀐 뒤에 끝났어도 그 계정의 표시는 정리해요. 이 탭에서 그 계정의 계산을 또 시작했으면 그 계산에 맡겨요.
+  // 앞 계산은 뒤 계산의 결과를 받아서(#148), 여기서 다시 남기면 연달아 고칠 때마다 다음 로그인에 또 계산해요.
+  if (latestRefreshOf.get(ownerId) === currentRefresh)
+    settleStaleMark(ownerId, markAtStart, wasWriting);
   if (isStale()) return;
   set({ journeyStatus: 'saved' });
 }
@@ -327,7 +357,7 @@ export const useCorrectionStore = create((set, get) => ({
    */
   resumeJourneyRefresh: async () => {
     const ownerId = useAuthStore.getState().user?.id;
-    if (ownerId && hasStaleMark(ownerId)) await startRefresh(set, ownerId);
+    if (ownerId && getStaleMark(ownerId) !== null) await startRefresh(set, ownerId);
   },
 
   /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. 앞 계정의 계산은 끝나도 journeyStatus를 바꾸지 않아요. */
