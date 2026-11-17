@@ -39,6 +39,8 @@ const file = new File(['원본'], '사진.jpg', { type: 'image/jpeg' });
 const numbered = new File(['원본'], 'IMG_0001.jpg', { type: 'image/jpeg' });
 // 사진 줄은 한 장에 300ms쯤 머물다 저절로 지나가서, 다 지나갈 때까지 넉넉히 기다려요.
 const PASS_TIMEOUT = { timeout: 3000 };
+// refreshJourney가 돌려주는 Journey예요. 여행이 없어서 [여행 보기]는 탭을 고르지 않고 넘어가요.
+const EMPTY_JOURNEY = { stops: [], trips: [] };
 let container;
 let root;
 
@@ -87,6 +89,7 @@ beforeEach(() => {
   useAuthStore.getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(new Blob(['썸네일'], { type: 'image/webp' }));
   vi.mocked(authService.getSessionUser).mockResolvedValue(user);
+  vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -297,7 +300,7 @@ test('이미지를 다 올려도 여행을 정리하는 동안에는 넘어가�
   // then: Journey를 다 쓰면 넘어감
   expect(container.textContent).toContain('여행을 정리하는 중…');
   expect(refreshJourney).toHaveBeenCalledExactlyOnceWith(user.id);
-  await act(() => building.resolve());
+  await act(() => building.resolve(EMPTY_JOURNEY));
   await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
 });
 
@@ -308,7 +311,7 @@ test('여행을 만들지 못하면 안내를 보여 주고, 다시 시도하면
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(refreshJourney)
     .mockRejectedValueOnce({ status: 0, code: 'SAVE_FAILED', message: '0행' })
-    .mockResolvedValueOnce({});
+    .mockResolvedValueOnce(EMPTY_JOURNEY);
   await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
 
   // when
