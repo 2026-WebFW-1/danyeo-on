@@ -22,3 +22,24 @@ export function selectTripPage(trips, tripId) {
     next: trips[index + 1] ?? null,
   };
 }
+
+/**
+ * 새로 저장한 사진이 들어간 여행 중 가장 이른 여행의 id를 골라요([여행 보기] → 03, U106).
+ * 기존 여행에 사진이 더해졌어도 그 여행을 찾아요.
+ * 새 사진이 없거나, 전부 위치가 없어 지점에 못 들어갔으면 null이에요.
+ *
+ * @param {import('@/types').Journey} journey refreshJourney가 저장한 Journey
+ * @param {string[]} photoIds 이번에 새로 저장한 사진 id
+ * @returns {string | null}
+ */
+export function findFirstTripOfPhotos(journey, photoIds) {
+  const targetPhotoIds = new Set(photoIds);
+  const matchedStopIds = new Set(
+    journey.stops
+      .filter((stop) => stop.photoIds.some((id) => targetPhotoIds.has(id)))
+      .map((stop) => stop.id),
+  );
+  // journey.trips는 시간 순서라서, 처음 걸리는 여행이 가장 이른 여행이에요.
+  const firstTrip = journey.trips.find((trip) => trip.stopIds.some((id) => matchedStopIds.has(id)));
+  return firstTrip?.id ?? null;
+}
