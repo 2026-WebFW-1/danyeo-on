@@ -194,6 +194,14 @@
  */
 
 /**
+ * 새로 저장할 보정이에요(useCorrectionStore의 add). type과 그 type의 칸만 넘겨요.
+ * id는 스토어가 만들고, ownerId · createdAt은 서버가 정해요.
+ * 예: { type: 'rename', anchorPhotoId: 'p_c60246', name: '졸업 여행' } · { type: 'exclude', photoId: 'p_c2a066' }
+ *
+ * @typedef {Omit<Correction, 'id' | 'ownerId' | 'createdAt'>} CorrectionInput
+ */
+
+/**
  * rpc('my_data')의 응답이에요. 로그인한 사람의 데이터 전부예요. 사진별 글(photo_notes)은 들어 있지 않아요.
  *
  * @typedef {object} MyData
