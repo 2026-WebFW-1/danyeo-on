@@ -16,3 +16,7 @@ export const SORT_THUMB_COUNT = 3;
 
 // 여행 이름을 고칠 때 받는 최대 글자 수예요. 01 · 03의 탭과 제목에서 한 줄에 들어가는 길이로 잡았어요.
 export const SORT_NAME_MAX_LENGTH = 30;
+
+// ⋯로 펼친 여행 사진과 제외한 사진을 한 번에 그리는 수예요. 올린 사진은 칸마다 서명 주소를 받아서,
+// 수백 장을 한꺼번에 그리면 요청이 몰려요. 나머지는 [더 보기]로 이만큼씩 늘려요.
+export const SORT_PHOTO_PAGE_SIZE = 48;
