@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import { UNKNOWN_PLACE } from '@/constants/geocode';
 import { getSupabase } from '@/services/getSupabase';
 import {
   getJourney,
@@ -17,6 +18,7 @@ vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
 vi.mock('@/services/photoService', () => ({ getMyData: vi.fn() }));
 vi.mock('@/services/myPhotosService', () => ({ clearMyPhotos: vi.fn() }));
 vi.mock('@/utils/journey/buildJourney', () => ({ buildJourney: vi.fn() }));
+vi.mock('@/services/reverseCity', () => ({ reverseCity: vi.fn() }));
 
 // 계정마다 기억이 남아서, 테스트마다 다른 계정 id를 써요.
 let nextUser = 0;
@@ -337,6 +339,20 @@ const myDataOf = (userId) => ({
 const savedRow = (row) => ({ data: [{ owner_id: row.owner_id }], error: null });
 const noRow = () => ({ data: [], error: null });
 
+// fakeWritableSupabase의 calls에는 읽기도 남아요. refreshJourney가 저장된 Journey를 먼저 읽어서 쓰기만 골라 봐요.
+const writesOf = (calls) => calls.filter((call) => call.row);
+
+const VANCOUVER = { lat: 49.30877, lng: -123.11272 };
+const SEED_VANCOUVER = { city: '밴쿠버', country: '캐나다', cc: 'CA' };
+const FOUND_PLACE = { city: 'District of North Vancouver', country: '캐나다', cc: 'CA' };
+// 위도 0.02도는 약 2.2km예요.
+const FAR = 0.02;
+
+const savedJourneyWithVancouver = () => ({
+  ...journeyOf('saved'),
+  stops: [{ id: 'p_van', ...VANCOUVER, ...SEED_VANCOUVER }],
+});
+
 describe('refreshJourney', () => {
   test('내 사진·보정으로 계산해서 저장하고, 사진 기억을 지워요', async () => {
     // given
@@ -352,10 +368,11 @@ describe('refreshJourney', () => {
     expect(buildJourney).toHaveBeenCalledWith(
       myDataOf(userId).photos,
       myDataOf(userId).corrections,
-      reverseCity,
+      expect.any(Function),
     );
-    expect(calls).toHaveLength(1);
-    expect(calls[0].row).toMatchObject({ owner_id: userId, payload: journeyOf('new') });
+    const writes = writesOf(calls);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].row).toMatchObject({ owner_id: userId, payload: journeyOf('new') });
     expect(clearMyPhotos).toHaveBeenCalledOnce();
     expect(journey).toEqual(journeyOf('new'));
   });
@@ -396,7 +413,7 @@ describe('refreshJourney', () => {
 
     // then
     await expect(result).rejects.toEqual({ status: 0, code: 'BUILD_FAILED', message: 'bad photo' });
-    expect(calls).toEqual([]);
+    expect(writesOf(calls)).toEqual([]);
   });
 
   test('저장하지 못하면 SAVE_FAILED이고 사진 기억은 그대로 둬요', async () => {
@@ -432,7 +449,7 @@ describe('refreshJourney', () => {
 
     // then
     await expect(first).resolves.toEqual(journeyOf('second'));
-    expect(calls.map((call) => call.row.payload)).toEqual([journeyOf('second')]);
+    expect(writesOf(calls).map((call) => call.row.payload)).toEqual([journeyOf('second')]);
   });
 
   test('새 계산이 시작된 뒤 앞 계산이 실패해도 새 계산의 결과를 받아요', async () => {
@@ -468,20 +485,80 @@ describe('refreshJourney', () => {
       () => null,
     );
     const first = refreshJourney(userId);
-    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await vi.waitFor(() => expect(writesOf(calls)).toHaveLength(1));
 
     // when
     const second = refreshJourney(userId);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // then 새 계산은 앞 쓰기를 기다려서, 마지막에 남는 건 새 계산이에요
-    expect(calls).toHaveLength(1);
+    expect(writesOf(calls)).toHaveLength(1);
     firstWrite.resolve(savedRow({ owner_id: userId }));
     await expect(first).resolves.toEqual(journeyOf('first'));
     await expect(second).resolves.toEqual(journeyOf('second'));
-    expect(calls.map((call) => call.row.payload)).toEqual([
+    expect(writesOf(calls).map((call) => call.row.payload)).toEqual([
       journeyOf('first'),
       journeyOf('second'),
     ]);
+  });
+
+  describe('저장된 이름 다시 쓰기(#158)', () => {
+    test('저장된 지점 근처는 저장된 이름을 써서, 이름 찾기가 실패하는 중이어도 덮이지 않아요', async () => {
+      // given 이름 찾기가 쉬는 중이라 reverseCity가 이름 없는 곳만 돌려줘요
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue({ ...UNKNOWN_PLACE });
+      fakeWritableSupabase(savedRow, savedJourneyWithVancouver);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(VANCOUVER.lat, VANCOUVER.lng);
+
+      // then
+      expect(place).toEqual(SEED_VANCOUVER);
+      expect(reverseCity).not.toHaveBeenCalled();
+    });
+
+    test('저장된 이름이 없는 곳은 reverseCity로 새로 찾아요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue(FOUND_PLACE);
+      fakeWritableSupabase(savedRow, savedJourneyWithVancouver);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(VANCOUVER.lat + FAR, VANCOUVER.lng);
+
+      // then
+      expect(place).toEqual(FOUND_PLACE);
+      expect(reverseCity).toHaveBeenCalledWith(VANCOUVER.lat + FAR, VANCOUVER.lng);
+    });
+
+    test('저장된 Journey를 못 읽어도 모두 새로 찾아서 계산·저장해요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue(FOUND_PLACE);
+      const calls = fakeWritableSupabase(savedRow, () => {
+        throw new Error('offline');
+      });
+
+      // when
+      const journey = await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(VANCOUVER.lat, VANCOUVER.lng);
+
+      // then
+      expect(journey).toEqual(journeyOf('new'));
+      expect(writesOf(calls)).toHaveLength(1);
+      expect(place).toEqual(FOUND_PLACE);
+      expect(reverseCity).toHaveBeenCalledOnce();
+    });
   });
 });
