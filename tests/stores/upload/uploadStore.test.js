@@ -155,6 +155,120 @@ describe('reset', () => {
   });
 });
 
+describe('stopCollecting', () => {
+  /** 첫 장만 모이고 둘째 장을 줄이는 중일 때까지 모아요. */
+  const startUntilFirst = async (names) => {
+    const files = names.map((name) => photoFile(name));
+    const pending = Promise.withResolvers();
+    vi.mocked(resizeThumbnail).mockResolvedValueOnce(thumb).mockReturnValueOnce(pending.promise);
+    const collecting = getState().start(files);
+    await vi.waitFor(() => expect(getState().photos).toHaveLength(1));
+    return { files, pending, collecting };
+  };
+  // 실제 readPhotos처럼 받은 files만 읽어요. files를 덜 잘랐으면 저장할 행이 늘어나요.
+  const readResultOf = (files) => ({
+    photos: files.map((file, order) => ({
+      order,
+      fileName: file.name,
+      takenAt: null,
+      dedupeKey: `|${file.name}`,
+    })),
+    skipped: [],
+  });
+
+  beforeEach(() => {
+    vi.mocked(readPhotos).mockImplementation(async (files) => readResultOf(files));
+  });
+
+  test('모은 장까지만 남기고 다 모은 상태가 되고, 사진 주소는 해제하지 않아요', async () => {
+    // given: 3장 중 1장이 모였고 둘째 장을 줄이는 중
+    const { files } = await startUntilFirst(['a.jpg', 'b.jpg', 'c.jpg']);
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+
+    // when
+    getState().stopCollecting();
+
+    // then
+    expect(getState().files).toHaveLength(1);
+    expect(getState().files[0]).toBe(files[0]);
+    expect(getState().isDone).toBe(true);
+    expect(getState().photos[0].src).toMatch(/^blob:/);
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  test('멈춘 뒤 줄이기가 늦게 끝나도 쌓지 않고 남은 장을 열지 않아요', async () => {
+    // given
+    const { pending, collecting } = await startUntilFirst(['a.jpg', 'b.jpg', 'c.jpg']);
+    getState().stopCollecting();
+    const createUrl = vi.spyOn(URL, 'createObjectURL');
+
+    // when
+    pending.resolve(thumb);
+    await collecting;
+
+    // then
+    expect(getState().photos.map((photo) => photo.filename)).toEqual(['a.jpg']);
+    expect(getState().files).toHaveLength(1);
+    expect(resizeThumbnail).toHaveBeenCalledTimes(2);
+    expect(createUrl).not.toHaveBeenCalled();
+  });
+
+  test('멈춘 뒤 저장하면 모은 사진만 저장하고 올려요', async () => {
+    // given: 2장 중 1장에서 멈춤
+    const { pending, collecting } = await startUntilFirst(['a.jpg', 'b.jpg']);
+    getState().stopCollecting();
+    pending.resolve(thumb);
+    await collecting;
+    vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+      saved: photos.map((photo) => photo.id),
+      skipped: [],
+    }));
+    vi.mocked(resizeFull).mockResolvedValue(new Blob(['보기용'], { type: 'image/webp' }));
+    vi.mocked(savePhotoImage).mockResolvedValue();
+
+    // when
+    await getState().save('u1');
+    await vi.waitFor(() => expect(getState().imageUpload.uploaded).toBe(1));
+
+    // then
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    expect(rows.map((row) => row.fileName)).toEqual(['a.jpg']);
+    expect(vi.mocked(resizeFull).mock.calls.map(([file]) => file.name)).toEqual(['a.jpg']);
+    expect(getState().imageUpload.total).toBe(1);
+  });
+
+  test('다 모은 뒤에 불러도 진행 중인 저장을 취소하지 않아요', async () => {
+    // given: 다 모은 뒤 저장 요청이 끝나기 전
+    await getState().start([photoFile('a.jpg')]);
+    const pending = Promise.withResolvers();
+    vi.mocked(savePhotos).mockReturnValueOnce(pending.promise);
+    const saving = getState().save('u1');
+    await vi.waitFor(() => expect(savePhotos).toHaveBeenCalled());
+
+    // when
+    getState().stopCollecting();
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    pending.resolve({ saved: rows.map((row) => row.id), skipped: [] });
+    await saving;
+
+    // then
+    expect(getState().saveStatus).toBe('saved');
+  });
+
+  test('한 장도 안 모였으면 아무것도 바꾸지 않아요', () => {
+    // given: 첫 장을 줄이는 중
+    vi.mocked(resizeThumbnail).mockReturnValueOnce(new Promise(() => {}));
+    void getState().start([photoFile('a.jpg')]);
+
+    // when
+    getState().stopCollecting();
+
+    // then
+    expect(getState().files).toHaveLength(1);
+    expect(getState().isDone).toBe(false);
+  });
+});
+
 describe('answerPass', () => {
   test('사진마다 답을 남기고, 비우면 답도 지워요', () => {
     // given

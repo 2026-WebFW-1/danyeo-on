@@ -64,6 +64,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {Record<string, 'exclude' | 'later'>} passAnswers 지나가며 정리 끝에서 물어본 사진의 답(사진 id별).
  *   페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요. 'exclude'인 사진은 save가 저장하지 않아요
  * @property {(photoId: string, answer: 'exclude' | 'later') => void} answerPass
+ * @property {() => void} stopCollecting 모으기를 멈추고 모은 장까지만 남겨요(U110).
+ *   reset과 달리 사진과 이미지 주소는 그대로 둬서 [다음]으로 이어 갈 수 있어요
  * @property {() => void} reset 작업을 중단하고 이미지 주소와 파일을 놓아줘요
  */
 
@@ -162,6 +164,14 @@ export const useUploadStore = create((set, get) => ({
 
   answerPass: (photoId, answer) => {
     set((state) => ({ passAnswers: { ...state.passAnswers, [photoId]: answer } }));
+  },
+
+  stopCollecting: () => {
+    const { isDone, photos } = get();
+    // 다 모은 뒤에 번호를 올리면 진행 중인 저장·이미지 올리기까지 취소돼요.
+    if (isDone || photos.length === 0) return;
+    jobId += 1;
+    set((state) => ({ files: state.files.slice(0, state.photos.length), isDone: true }));
   },
 
   reset: () => {
