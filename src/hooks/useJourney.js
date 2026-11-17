@@ -18,9 +18,9 @@ const LOADING = { journey: null, status: 'loading', error: null };
  *
  * 오류를 던지지 않아요. 화면이 status를 보고 로딩·오류를 직접 그려요.
  * 계정이 바뀌면 'loading'을 한 번 거쳐 새 계정의 Journey를 줘요. 앞 계정의 Journey는 그 사이에 보이지 않아요.
- * 사진을 저장하면 업로드 흐름이 journeyService.refreshJourney로 다시 계산해 저장하고 기억을 지워요(#144).
+ * 사진을 저장하면 업로드 흐름이(#144), 보정을 저장·삭제하면 useCorrectionStore가(#151)
+ * journeyService.refreshJourney로 다시 계산해 저장하고 기억을 지워요.
  * 저장이 끝나면 열린 화면도 다시 읽어요. 그 사이에는 앞 Journey를 그대로 줘요(#148).
- * 보정을 저장한 뒤에도 같은 함수를 불러야 바뀌어요(보정 쪽 연결은 따로 해요).
  *
  * @returns {{
  *   journey: import('@/types').Journey | null,

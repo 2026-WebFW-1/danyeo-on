@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 import { getExcludeKey, useCorrectionStore } from '@/stores/correctionStore';
 
@@ -9,6 +10,7 @@ vi.mock('@/services/correctionService', () => ({
   addCorrection: vi.fn(),
   removeCorrection: vi.fn(),
 }));
+vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 
 const { getState } = useCorrectionStore;
 const NOW = '2026-11-14T03:00:00.000Z';
@@ -45,6 +47,9 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+// 늦게 끝난 계산이 상태를 바꾸지 않는지 볼 때, 그 계산의 뒤처리가 다 돌 때까지 기다려요.
+const flushTasks = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 async function fetchSaved() {
   vi.mocked(getCorrections).mockResolvedValue([rename, exclude]);
   await getState().fetch();
@@ -57,6 +62,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.resetAllMocks();
   useAuthStore.setState({ user: null });
 });
@@ -395,13 +401,137 @@ describe('remove', () => {
   });
 });
 
+describe('Journey 다시 계산', () => {
+  const LOAD_FAILED = { status: 0, code: 'LOAD_FAILED', message: '연결 실패' };
+
+  test('저장이 끝나면 그 계정의 Journey 계산을 시작하고, add는 계산을 기다리지 않아요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const building = deferred();
+    vi.mocked(refreshJourney).mockReturnValue(building.promise);
+
+    const added = await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '새 이름' });
+
+    expect(getState().corrections).toContain(added);
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+    expect(getState().journeyStatus).toBe('building');
+
+    building.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+  });
+
+  test('지운 뒤에도 Journey 계산을 시작해요', async () => {
+    await fetchSaved();
+    vi.mocked(removeCorrection).mockResolvedValue(true);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    await getState().remove(exclude.id);
+
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+  });
+
+  test('서버에 보내지 않았거나 저장에 실패하면 계산하지 않아요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockRejectedValue(SAVE_FAILED);
+
+    // 이미 뺀 사진은 서버에 보내지 않아요.
+    await getState().add({ type: 'exclude', photoId: 'p_b' });
+    await expect(getState().add({ type: 'exclude', photoId: 'p_c' })).rejects.toEqual(SAVE_FAILED);
+
+    expect(refreshJourney).not.toHaveBeenCalled();
+    expect(getState().journeyStatus).toBe('idle');
+  });
+
+  test('계산이 실패해도 보정은 저장된 채로 두고 failed로 남겨요. 다시 시도하면 지금 계정으로 계산해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(refreshJourney).mockRejectedValueOnce(LOAD_FAILED).mockResolvedValueOnce();
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('failed'));
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+
+    await getState().refreshJourney();
+
+    expect(refreshJourney).toHaveBeenCalledTimes(2);
+    expect(refreshJourney).toHaveBeenLastCalledWith('u1');
+    expect(getState().journeyStatus).toBe('saved');
+  });
+
+  test('연달아 고치면 앞 계산이 늦게 끝나도 마지막 계산의 상태를 따라가요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const first = deferred();
+    const second = deferred();
+    vi.mocked(refreshJourney)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '먼저' });
+    await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '나중' });
+    expect(refreshJourney).toHaveBeenCalledTimes(2);
+
+    second.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+    first.reject(LOAD_FAILED);
+    await flushTasks();
+
+    expect(getState().journeyStatus).toBe('saved');
+  });
+
+  test('계산하는 사이에 계정이 바뀌면 앞 계정의 결과를 새 계정의 상태로 남기지 않아요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    const previous = deferred();
+    const next = deferred();
+    vi.mocked(refreshJourney)
+      .mockReturnValueOnce(previous.promise)
+      .mockReturnValueOnce(next.promise);
+
+    await getState().add({ type: 'exclude', photoId: 'p_c' });
+    getState().reset();
+    expect(getState().journeyStatus).toBe('idle');
+
+    useAuthStore.setState({ user: { id: 'u2' } });
+    vi.mocked(getCorrections).mockResolvedValue([]);
+    await getState().fetch();
+    await getState().add({ type: 'exclude', photoId: 'p_x' });
+    expect(refreshJourney).toHaveBeenLastCalledWith('u2');
+
+    previous.resolve();
+    await flushTasks();
+    expect(getState().journeyStatus).toBe('building');
+
+    next.resolve();
+    await vi.waitFor(() => expect(getState().journeyStatus).toBe('saved'));
+  });
+
+  test('로그인하지 않았으면 다시 시도해도 계산하지 않아요', async () => {
+    useAuthStore.setState({ user: null });
+
+    await getState().refreshJourney();
+
+    expect(refreshJourney).not.toHaveBeenCalled();
+    expect(getState().journeyStatus).toBe('idle');
+  });
+});
+
 describe('reset', () => {
   test('처음 상태로 돌아가요', async () => {
     await fetchSaved();
 
     getState().reset();
 
-    expect(getState()).toMatchObject({ corrections: [], status: 'idle', error: null, pending: {} });
+    expect(getState()).toMatchObject({
+      corrections: [],
+      status: 'idle',
+      error: null,
+      pending: {},
+      journeyStatus: 'idle',
+    });
   });
 
   test('같은 계정으로 다시 들어오면, 나가기 전에 보낸 요청이 끝난 뒤에 보내요', async () => {

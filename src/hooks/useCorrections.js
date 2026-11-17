@@ -20,7 +20,8 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *
  * 주의할 점: add · remove는 실패하면 던져요. 부른 쪽이 잡아서 안내를 띄워요.
  * 겹쳐 불러도 부른 순서대로 하나씩 보내요. 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
- * 아직 보정을 저장해도 Journey(01 · 02 · 03에 보이는 여행)는 바뀌지 않아요.
+ * 저장·삭제가 끝나면 스토어가 Journey(01 · 02 · 03에 보이는 여행)를 다시 계산해 저장해요. add · remove는 그 계산을 기다리지 않아요.
+ * 계산 상태는 useCorrectionStore((state) => state.journeyStatus)로 보고, 'failed'면 state.refreshJourney()로 다시 시도해요.
  *
  * @returns {{
  *   corrections: import('@/types').Correction[],
