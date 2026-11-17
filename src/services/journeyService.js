@@ -162,7 +162,8 @@ async function buildAndSave(userId, isSuperseded) {
 
   // 찾아 둔 이름을 다시 쓰려고 읽어요. 이름은 덤이라 못 읽어도 계산은 막지 않고 모두 새로 찾아요.
   const savedJourney = await getJourney(userId).catch(() => null);
-  const findPlace = (lat, lng) => findSavedPlace(savedJourney, lat, lng) ?? reverseCity(lat, lng);
+  const findPlace = (lat, lng, options) =>
+    findSavedPlace(savedJourney, lat, lng, options) ?? reverseCity(lat, lng);
 
   let journey;
   try {
