@@ -209,6 +209,30 @@ describe('PhotoSortPage Journey 계산 상태', () => {
   });
 });
 
+describe('PhotoSortPage 사진 불러오기', () => {
+  test('사진을 받는 동안은 표 대신 불러오는 중이라고 알려요', async () => {
+    vi.mocked(useMyPhotos).mockReturnValue({ photos: [], status: 'loading', error: null });
+    await render('/edit/photos');
+
+    expect(container.querySelector('[role="status"]').textContent).toContain('불러오는 중');
+    expect(tripNames()).toEqual([]);
+  });
+
+  test('사진을 못 받으면 "불러온 사진 0" 대신 안내해요', async () => {
+    vi.mocked(useMyPhotos).mockReturnValue({
+      photos: [],
+      status: 'error',
+      error: { status: 500, code: 'LOAD_FAILED', message: '' },
+    });
+    await render('/edit/photos');
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe(
+      '사진을 불러오지 못했어요. 새로고침해 주세요.',
+    );
+    expect(container.textContent).not.toContain('불러온 사진');
+  });
+});
+
 const stopOf = (id) => seojin.stops.find((stop) => stop.id === id);
 const bangkokPhotoIds = bangkok.stopIds.flatMap((id) => stopOf(id).photoIds);
 const listItems = (label) => [

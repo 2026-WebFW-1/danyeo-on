@@ -36,12 +36,14 @@ import TripTable from './TripTable';
  *  - 이름은 그 여행 첫 사진(여행 ID)에 걸어요. 어느 사진이든 그 여행에 들어 있으면 buildJourney가 같은 여행을 찾아요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
+ *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
+ *    회색 썸네일이 보여요. 사진을 못 받으면 고칠 수 없어서 Journey를 못 읽었을 때와 같이 안내만 해요.
  *
  * 피그마 07: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/timeline?node-id=36-2
  */
 export default function PhotoSortPage() {
   const { journey, status } = useJourney();
-  const { photos } = useMyPhotos();
+  const { photos, status: photosStatus } = useMyPhotos();
   const {
     corrections,
     status: correctionStatus,
@@ -75,7 +77,7 @@ export default function PhotoSortPage() {
   const photoSummary = useMemo(() => selectPhotoSummary(photos), [photos]);
   const totals = useMemo(() => selectJourneyTotals(journey), [journey]);
 
-  if (status === 'loading') {
+  if (status === 'loading' || photosStatus === 'loading') {
     return (
       <main className="flex flex-1 items-center justify-center bg-canvas">
         <p role="status" className="text-lg text-muted">
@@ -85,11 +87,11 @@ export default function PhotoSortPage() {
     );
   }
 
-  if (status === 'error') {
+  if (status === 'error' || photosStatus === 'error') {
     return (
       <main className="flex flex-1 items-center justify-center bg-canvas">
         <p role="alert" className="text-lg text-body">
-          여행 기록을 불러오지 못했어요. 새로고침해 주세요.
+          {status === 'error' ? '여행 기록' : '사진'}을 불러오지 못했어요. 새로고침해 주세요.
         </p>
       </main>
     );

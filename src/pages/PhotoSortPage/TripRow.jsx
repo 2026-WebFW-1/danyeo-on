@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 
 import PhotoGridCell from '@/components/common/PhotoGridCell';
+import { useInView } from '@/hooks/useInView';
 import { cn } from '@/utils/cn';
 
 import { TRIP_ROW_GRID_CLASS } from './sectionClass';
@@ -15,6 +16,7 @@ import TripPhotos from './TripPhotos';
  *
  * 의도:
  *  - 도시 칩은 03 도시 블록처럼 경유 지점을 빼고 지점마다 하나씩, 사이를 짧은 선으로 이어요. 도시가 많으면 다음 줄로 넘어가요.
+ *  - 썸네일은 줄이 화면 가까이 왔을 때 그려요(useInView). 그 전에는 같은 크기의 회색 칸이에요.
  *  - ⋯를 누르면 줄 아래에 그 여행의 사진을 펼쳐, 사진마다 [빼기]로 뺄 수 있어요. 펼침은 이 줄에서만 쓰는 값이라 여기 둬요.
  *  - 피그마의 체크박스(합치기 C106) · ✂(나누기 C105)는 이 이슈에서 다루지 않아요.
  *
@@ -25,6 +27,7 @@ import TripPhotos from './TripPhotos';
  * @param {(photoId: string) => Promise<unknown>} props.onExclude
  */
 export default function TripRow({ trip, canEdit, onRename, onExclude }) {
+  const { ref: thumbsRef, isInView } = useInView();
   const [isOpen, setIsOpen] = useState(false);
   const panelId = `trip-photos-${trip.id}`;
 
@@ -51,10 +54,14 @@ export default function TripRow({ trip, canEdit, onRename, onExclude }) {
         </ul>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
+          <div ref={thumbsRef} className="flex items-center gap-1">
             {trip.thumbs.map((photo) => (
               <div key={photo.id} className="w-11">
-                <PhotoGridCell fileKey={photo.fileKey} index={0} />
+                {isInView ? (
+                  <PhotoGridCell fileKey={photo.fileKey} index={0} />
+                ) : (
+                  <div className="aspect-square bg-line" />
+                )}
               </div>
             ))}
             <p className="ml-3 text-sm font-bold text-muted">
