@@ -85,6 +85,60 @@ function endPending(set, key, requested) {
 // 가장 나중에 시작한 Journey 계산의 번호예요. 앞선 계산이 늦게 끝나 상태를 덮지 않게 해요.
 let refreshId = 0;
 
+// 보정을 서버에 보내기 전에 "이 계정은 Journey를 다시 계산해야 함"을 브라우저에 남기고, 계산이 저장되면 지워요.
+// 계산이 첫 번에 20초 남짓 걸려서, 그사이 탭을 닫거나 계정을 바꾸거나 실패한 채 떠나면 보정만 저장되고
+// Journey는 옛 상태로 남아요. 표시가 남아 있으면 그 계정으로 다시 들어올 때 이어서 계산해요(resumeJourneyRefresh).
+// 다른 기기에는 남지 않아요.
+const getStaleKey = (ownerId) => `danyeo-on:journey-stale:${ownerId}`;
+
+/** @type {Map<string, number>} 계정 id → 이 탭에서 표시를 남긴 횟수. 계산하는 사이 새 보정을 보냈는지 봐요 */
+const staleMarks = new Map();
+/** @type {Set<string>} 지금 보정을 서버에 보내는 중인 계정 */
+const writingOwners = new Set();
+
+function markJourneyStale(ownerId) {
+  staleMarks.set(ownerId, (staleMarks.get(ownerId) ?? 0) + 1);
+  try {
+    localStorage.setItem(getStaleKey(ownerId), '1');
+  } catch {
+    // 브라우저 저장소를 못 쓰면(사생활 보호 모드 등) 이 탭 안에서만 계산해요.
+  }
+}
+
+function hasStaleMark(ownerId) {
+  try {
+    return localStorage.getItem(getStaleKey(ownerId)) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function clearStaleMark(ownerId) {
+  try {
+    localStorage.removeItem(getStaleKey(ownerId));
+  } catch {
+    // 지우지 못하면 다음에 들어올 때 한 번 더 계산할 뿐이에요.
+  }
+}
+
+/**
+ * 보정 하나를 서버에 보내요. 보내기 전에 표시를 남겨서, 저장된 뒤 계산하지 못해도 다음에 들어올 때 계산해요.
+ *
+ * @param {string | undefined} ownerId
+ * @param {() => Promise<unknown>} write
+ */
+async function writeCorrection(ownerId, write) {
+  if (ownerId) {
+    markJourneyStale(ownerId);
+    writingOwners.add(ownerId);
+  }
+  try {
+    return await write();
+  } finally {
+    writingOwners.delete(ownerId);
+  }
+}
+
 /**
  * 그 계정의 Journey를 다시 계산해 저장하고 journeyStatus에 진행 상태를 둬요. 실패해도 던지지 않아요.
  * 겹쳐 부르면 journeyService가 마지막 계산만 저장하고 모두 그 결과를 받아서, 상태도 마지막 계산을 따라가요.
@@ -101,6 +155,9 @@ async function startRefresh(set, ownerId) {
   const currentRefresh = refreshId;
   // 계정이 바뀌었거나 새 계산이 시작됐으면 이 계산의 결과로 상태를 바꾸지 않아요.
   const isStale = () => requested !== generation || currentRefresh !== refreshId;
+  // 보내는 중인 보정은 이 계산이 읽지 못했을 수 있어요. 그때와 계산하는 사이 새 보정을 보냈을 때는 표시를 남겨 둬요.
+  const canClearMark = !writingOwners.has(ownerId);
+  const markCount = staleMarks.get(ownerId);
   set({ journeyStatus: 'building' });
   try {
     await refreshJourney(ownerId);
@@ -110,6 +167,8 @@ async function startRefresh(set, ownerId) {
     set({ journeyStatus: 'failed' });
     return;
   }
+  // 계정이 바뀐 뒤에 끝났어도 그 계정의 Journey는 저장됐으니 표시를 지워요.
+  if (canClearMark && staleMarks.get(ownerId) === markCount) clearStaleMark(ownerId);
   if (isStale()) return;
   set({ journeyStatus: 'saved' });
 }
@@ -211,7 +270,7 @@ export const useCorrectionStore = create((set, get) => ({
         }
 
         const fields = { ...input, id: createCorrectionId() };
-        await addCorrection(fields);
+        await writeCorrection(ownerId, () => addCorrection(fields));
         assertSameAccount(requested);
 
         // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
@@ -246,7 +305,7 @@ export const useCorrectionStore = create((set, get) => ({
         // 버튼을 두 번 누르면 앞 요청이 이미 지웠어요. 서버에 다시 보내지 않아요.
         if (!get().corrections.some((correction) => correction.id === id)) return;
 
-        await removeCorrection(id);
+        await writeCorrection(ownerId, () => removeCorrection(id));
         assertSameAccount(requested);
         set((state) => ({
           corrections: state.corrections.filter((correction) => correction.id !== id),
@@ -261,6 +320,15 @@ export const useCorrectionStore = create((set, get) => ({
 
   /** Journey 계산을 다시 해요. journeyStatus가 'failed'일 때 [다시 시도]가 불러요. 던지지 않아요. */
   refreshJourney: () => startRefresh(set, useAuthStore.getState().user?.id),
+
+  /**
+   * 지난번에 보정을 보낸 뒤 Journey를 다 계산하지 못했으면 이어서 계산해요. 로그인하면 App이 불러요. 던지지 않아요.
+   * 탭을 닫았거나, 계산하는 사이 계정을 바꿨거나, 계산이 실패한 채 떠났을 때예요.
+   */
+  resumeJourneyRefresh: async () => {
+    const ownerId = useAuthStore.getState().user?.id;
+    if (ownerId && hasStaleMark(ownerId)) await startRefresh(set, ownerId);
+  },
 
   /** 처음 상태로 되돌려요. 계정이 바뀌면 App이 불러요. 앞 계정의 계산은 끝나도 journeyStatus를 바꾸지 않아요. */
   reset: () => {
