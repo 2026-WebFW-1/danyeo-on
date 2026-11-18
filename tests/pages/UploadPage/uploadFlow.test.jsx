@@ -499,3 +499,28 @@ test('일부를 뺐으면 모으기 화면에서 몇 개를 왜 뺐는지 알려
   expect(container.textContent).toContain('사진을 다 모았어요');
   expect(container.textContent).toContain('받지 않는 형식 1개는 뺐어요');
 });
+
+test('열어 보니 사진이 아닌 파일은 저장한 뒤 뺐다고 알려요', async () => {
+  // given: 두 장 중 확장자만 jpg인 한 장이 열리지 않음
+  const broken = new File(['깨짐'], 'IMG_0002.jpg', { type: 'image/jpeg' });
+  await openPass([numbered, broken]);
+  vi.mocked(readPhotos).mockResolvedValue({
+    photos: [readPhotoOf(0, numbered.name)],
+    skipped: [{ fileName: broken.name, reason: 'unreadable' }],
+  });
+  vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+    saved: photos.map((photo) => photo.id),
+    skipped: [],
+  }));
+  vi.mocked(savePhotoImage).mockReturnValue(new Promise(() => {}));
+  vi.mocked(refreshJourney).mockReturnValue(new Promise(() => {}));
+
+  // when: 다 정리하고 저장하면
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('여행 보기').click());
+
+  // then
+  await vi.waitFor(() =>
+    expect(container.textContent).toContain('1장 저장했어요 · 열리지 않는 파일 1개는 뺐어요'),
+  );
+});
