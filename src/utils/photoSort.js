@@ -128,6 +128,21 @@ export function buildTripExcludeInputs(trip, photoId) {
 }
 
 /**
+ * 07a에서 여행 이름을 바꿀 때 저장할 보정이에요. 기준 사진은 그 여행에 남아 있는 첫 사진이에요.
+ *
+ * 여행 ID(첫 사진)는 그 사진을 뺀 뒤에도 다시 계산이 끝날 때까지 그대로라, 여행 ID에 걸면 buildJourney가 뺀 사진을
+ * 먼저 지운 뒤 rename을 찾지 못해 이름이 자동 이름으로 돌아가요.
+ *
+ * @param {SortTripRow} trip
+ * @param {string} name
+ * @returns {import('@/types').CorrectionInput}
+ */
+export function buildTripRenameInput(trip, name) {
+  // 사진이 하나도 없는 여행은 표에 없어서(selectSortTrips) photos[0]은 늘 있어요.
+  return { type: 'rename', anchorPhotoId: trip.photos[0].id, name };
+}
+
+/**
  * 07 탭마다 붙는 개수예요. journey가 없으면 모두 0이에요. 뺀 사진은 위치 확인 필요에서 빠져요.
  *
  * @param {import('@/types').Journey | null | undefined} journey

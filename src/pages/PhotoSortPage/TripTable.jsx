@@ -16,7 +16,7 @@ const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-
  * @param {object} props
  * @param {import('@/utils/photoSort').SortTripRow[]} props.trips
  * @param {boolean} props.canEdit
- * @param {(tripId: string, name: string) => Promise<unknown>} props.onRename
+ * @param {(trip: import('@/utils/photoSort').SortTripRow, name: string) => Promise<unknown>} props.onRename
  * @param {(trip: import('@/utils/photoSort').SortTripRow, photoId: string) => Promise<unknown>} props.onExclude
  */
 export default function TripTable({ trips, canEdit, onRename, onExclude }) {
@@ -41,7 +41,7 @@ export default function TripTable({ trips, canEdit, onRename, onExclude }) {
             key={trip.id}
             trip={trip}
             canEdit={canEdit}
-            onRename={(name) => onRename(trip.id, name)}
+            onRename={(name) => onRename(trip, name)}
             onExclude={(photoId) => onExclude(trip, photoId)}
           />
         ))}
