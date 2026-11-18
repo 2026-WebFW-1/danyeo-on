@@ -91,3 +91,23 @@ describe('Nav 지금 메뉴', () => {
     expect(link('Places').getAttribute('href')).toBe('/places');
   });
 });
+
+describe('Nav [편집 모드]', () => {
+  const editLink = () =>
+    [...container.querySelectorAll('header a')].find((a) => a.textContent === '편집 모드');
+
+  test('07 사진 정리 주소를 가리켜요', async () => {
+    await render('/');
+
+    expect(editLink().getAttribute('href')).toBe('/edit/photos');
+    expect(editLink().className).not.toContain('text-white');
+  });
+
+  test('07에 있으면 흰색이고, 페이지 메뉴는 흰색이 아니에요', async () => {
+    await render('/edit/photos?tab=unlocated');
+
+    expect(editLink().className).toContain('text-white');
+    expect(editLink().getAttribute('aria-current')).toBe('page');
+    expect(whiteLabels()).toEqual([]);
+  });
+});

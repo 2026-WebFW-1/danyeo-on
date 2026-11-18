@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import App from '@/App';
+import SavePhotos from '@/pages/UploadPage/pass/SavePhotos';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 import * as authService from '@/services/authService';
 import { refreshJourney } from '@/services/journeyService';
@@ -65,9 +66,15 @@ function PlacesStub() {
   return <p>전체 기록{search}</p>;
 }
 
+/** /edit/photos 자리예요. 어느 탭으로 넘어왔는지 보이게 주소의 ?tab=도 붙여 보여 줘요. */
+function PhotoSortStub() {
+  const { search } = useLocation();
+  return <p>사진 정리{search}</p>;
+}
+
 /**
  * 로그인해서 사진을 다 모으고, [다음]을 눌러 정리 화면으로 넘어가요.
- * 다 저장하면 넘어가는 /places 자리에는 PlacesStub을 둬요.
+ * 다 저장하면 넘어가는 /places · /edit/photos 자리에는 PlacesStub · PhotoSortStub을 둬요.
  */
 async function openPass(files) {
   useAuthStore.setState({ user, status: 'authenticated' });
@@ -82,6 +89,7 @@ async function openPass(files) {
         <Routes>
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/places" element={<PlacesStub />} />
+          <Route path="/edit/photos" element={<PhotoSortStub />} />
         </Routes>
       </MemoryRouter>,
     ),
@@ -352,4 +360,47 @@ test('여행을 만들지 못하면 안내를 보여 주고, 다시 시도하면
   await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
   expect(savePhotos).toHaveBeenCalledOnce();
   expect(refreshJourney).toHaveBeenCalledTimes(2);
+});
+
+test('[사진 정리하기]도 저장하고, 다 끝나면 07 위치 확인 필요 탭으로 넘어가요', async () => {
+  // given
+  await openPass([numbered]);
+  savesAndUploads();
+  await vi.waitFor(() => expect(findButton('사진 정리하기')).toBeDefined(), PASS_TIMEOUT);
+
+  // when
+  await act(() => findButton('사진 정리하기').click());
+
+  // then
+  await vi.waitFor(() => expect(container.textContent).toBe('사진 정리?tab=unlocated'));
+  expect(savePhotos).toHaveBeenCalledOnce();
+});
+
+test('[사진 정리하기]로 저장한 뒤 화면이 새로 그려져도 07로 넘어가요', async () => {
+  // given: [사진 정리하기]로 저장한 채 페이지를 나갔다가, 다 끝난 뒤 저장 화면이 다시 그려짐
+  useAuthStore.setState({ user, status: 'authenticated' });
+  useUploadStore.setState({
+    saveStatus: 'saved',
+    saveTarget: 'sort',
+    saveResult: { saved: 1, existing: 0 },
+    imageUpload: { total: 1, uploaded: 1, skipped: 0, failed: 0 },
+    journeyStatus: 'saved',
+    newTripId: 'japan',
+  });
+
+  // when
+  await act(() =>
+    root.render(
+      <MemoryRouter initialEntries={['/upload']}>
+        <Routes>
+          <Route path="/upload" element={<SavePhotos />} />
+          <Route path="/places" element={<PlacesStub />} />
+          <Route path="/edit/photos" element={<PhotoSortStub />} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  );
+
+  // then
+  expect(container.textContent).toBe('사진 정리?tab=unlocated');
 });

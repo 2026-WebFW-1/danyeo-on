@@ -742,6 +742,33 @@ describe('save', () => {
   });
 });
 
+describe('saveTarget', () => {
+  beforeEach(() => {
+    vi.mocked(savePhotos).mockResolvedValue({ saved: [], skipped: [] });
+  });
+
+  test('save에 넘긴 곳을 두고, 넘기지 않으면 여행 보기예요', async () => {
+    await getState().start([photoFile('a.jpg')]);
+    vi.mocked(readPhotos).mockResolvedValue({ photos: [], skipped: [], counts: {} });
+
+    await getState().save('u1', 'sort');
+    expect(getState().saveTarget).toBe('sort');
+
+    await getState().save('u1');
+    expect(getState().saveTarget).toBe('trip');
+  });
+
+  test('reset하면 여행 보기로 돌아가요', async () => {
+    await getState().start([photoFile('a.jpg')]);
+    vi.mocked(readPhotos).mockResolvedValue({ photos: [], skipped: [], counts: {} });
+    await getState().save('u1', 'sort');
+
+    getState().reset();
+
+    expect(getState().saveTarget).toBe('trip');
+  });
+});
+
 describe('refreshJourney', () => {
   test('save가 끝나면 이미지 올리기와 함께 Journey를 만들기 시작해요', async () => {
     // given

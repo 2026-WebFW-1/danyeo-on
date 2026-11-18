@@ -21,6 +21,7 @@ const INITIAL_STATE = {
   noPreviewCount: 0,
   isDone: false,
   saveStatus: 'idle',
+  saveTarget: 'trip',
   saveResult: null,
   newPhotoIds: [],
   imageUpload: INITIAL_IMAGE_UPLOAD,
@@ -42,6 +43,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {number} noPreviewCount 미리 볼 수 없는 사진 수
  * @property {boolean} isDone
  * @property {'idle' | 'saving' | 'saved' | 'failed'} saveStatus 사진 정보 저장 상태
+ * @property {'trip' | 'sort'} saveTarget 다 끝나면 갈 곳. 'trip'은 [여행 보기](03), 'sort'는 [사진 정리하기](07 위치 확인 필요)예요.
+ *   저장이 끝나기 전에 페이지를 나갔다 와도 고른 곳으로 가게 저장 상태와 같이 스토어에 둬요
  * @property {{ saved: number, existing: number } | null} saveResult 저장한 뒤의 수.
  *   existing은 전에 저장해서 건너뛴 사진이에요
  * @property {string[]} newPhotoIds 이번 save에서 새로 저장한 사진 id예요. 이미 있던 사진은 빠져요.
@@ -49,7 +52,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
  * @property {(files: File[]) => Promise<void>} start 이전 작업을 비우고 한 장씩 줄여요
- * @property {(ownerId: string) => Promise<void>} save 촬영 정보를 읽어 저장하고, 이미지 올리기를 뒤에서 시작해요.
+ * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 촬영 정보를 읽어 저장하고,
+ *   이미지 올리기를 뒤에서 시작해요. target은 saveTarget에 둬요(없으면 'trip').
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
  * @property {(targets: { order: number, fileKey: string }[]) => Promise<void>} uploadImages
  *   저장한(saved) 사진의 이미지를 동시에 3장씩 올려요. order는 고른 순서, fileKey는 저장할 때 정한 키예요
@@ -103,10 +107,10 @@ export const useUploadStore = create((set, get) => ({
     set({ isDone: true });
   },
 
-  save: async (ownerId) => {
+  save: async (ownerId, target = 'trip') => {
     const currentJob = jobId;
     const isCancelled = () => currentJob !== jobId;
-    set({ saveStatus: 'saving' });
+    set({ saveStatus: 'saving', saveTarget: target });
 
     let saved;
     try {
