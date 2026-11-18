@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import App from '@/App';
+import SavePhotos from '@/pages/UploadPage/pass/SavePhotos';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 import * as authService from '@/services/authService';
 import { refreshJourney } from '@/services/journeyService';
@@ -373,4 +374,33 @@ test('[사진 정리하기]도 저장하고, 다 끝나면 07 위치 확인 필�
   // then
   await vi.waitFor(() => expect(container.textContent).toBe('사진 정리?tab=unlocated'));
   expect(savePhotos).toHaveBeenCalledOnce();
+});
+
+test('[사진 정리하기]로 저장한 뒤 화면이 새로 그려져도 07로 넘어가요', async () => {
+  // given: [사진 정리하기]로 저장한 채 페이지를 나갔다가, 다 끝난 뒤 저장 화면이 다시 그려짐
+  useAuthStore.setState({ user, status: 'authenticated' });
+  useUploadStore.setState({
+    saveStatus: 'saved',
+    saveTarget: 'sort',
+    saveResult: { saved: 1, existing: 0 },
+    imageUpload: { total: 1, uploaded: 1, skipped: 0, failed: 0 },
+    journeyStatus: 'saved',
+    newTripId: 'japan',
+  });
+
+  // when
+  await act(() =>
+    root.render(
+      <MemoryRouter initialEntries={['/upload']}>
+        <Routes>
+          <Route path="/upload" element={<SavePhotos />} />
+          <Route path="/places" element={<PlacesStub />} />
+          <Route path="/edit/photos" element={<PhotoSortStub />} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  );
+
+  // then
+  expect(container.textContent).toBe('사진 정리?tab=unlocated');
 });

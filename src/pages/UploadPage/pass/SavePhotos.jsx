@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Navigate } from 'react-router';
 
 import { PHOTO_SORT_PATH, SORT_TAB_PARAM } from '@/constants/photoSort';
@@ -24,7 +23,8 @@ const SORT_UNLOCATED_PATH = `${PHOTO_SORT_PATH}?${SORT_TAB_PARAM}=unlocated`;
  * Journey를 못 만들면 사진은 저장된 채로 Journey만 다시 만들게 해요.
  * 올리기 숫자는 장마다 바뀌어서, 이 컴포넌트만 구독하게 나눴어요.
  * [사진 정리하기]도 [여행 보기]처럼 저장부터 하고, 다 끝나면 03 대신 07 위치 확인 필요 탭으로 가요(피그마 13c).
- * 어느 버튼으로 저장했는지는 이 화면에서만 쓰는 값이라 여기 둬요. 실패한 뒤 [다시 시도]는 처음 고른 곳으로 가요.
+ * 어느 버튼으로 저장했는지(saveTarget)는 저장 상태와 같이 스토어에 둬요. 저장 중에 페이지를 나갔다 와도
+ * 고른 곳으로 가요. 실패한 뒤 [다시 시도]는 처음 고른 곳으로 가요.
  */
 export default function SavePhotos() {
   const ownerId = useAuthStore((state) => state.user?.id);
@@ -35,12 +35,8 @@ export default function SavePhotos() {
   const imageUpload = useUploadStore((state) => state.imageUpload);
   const journeyStatus = useUploadStore((state) => state.journeyStatus);
   const newTripId = useUploadStore((state) => state.newTripId);
-  const [goesToSort, setGoesToSort] = useState(false);
-
-  const handleSave = (toSort) => {
-    setGoesToSort(toSort);
-    void save(ownerId);
-  };
+  const saveTarget = useUploadStore((state) => state.saveTarget);
+  const goesToSort = saveTarget === 'sort';
 
   if (saveStatus === 'saved') {
     const done = imageUpload.uploaded + imageUpload.skipped + imageUpload.failed;
@@ -93,7 +89,7 @@ export default function SavePhotos() {
         <button
           type="button"
           disabled={!canSave}
-          onClick={() => handleSave(isFailed && goesToSort)}
+          onClick={() => void save(ownerId, isFailed ? saveTarget : 'trip')}
           className="h-14 w-45 bg-nav text-lg font-bold text-white disabled:opacity-60"
         >
           {isSaving && !goesToSort ? '저장하는 중…' : label}
@@ -101,7 +97,7 @@ export default function SavePhotos() {
         <button
           type="button"
           disabled={!canSave}
-          onClick={() => handleSave(true)}
+          onClick={() => void save(ownerId, 'sort')}
           className="h-14 border border-ink px-6 text-lg font-bold text-ink disabled:opacity-60"
         >
           {isSaving && goesToSort ? '저장하는 중…' : '사진 정리하기'}
