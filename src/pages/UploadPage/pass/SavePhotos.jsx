@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { Navigate } from 'react-router';
+
+import { PHOTO_SORT_PATH, SORT_TAB_PARAM } from '@/constants/photoSort';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { getTripPath } from '@/utils/stopPath';
 
 const PLACE_PATH = '/places';
+// [사진 정리하기]는 07의 위치 확인 필요 탭으로 보내요(피그마 13c 동작 메모).
+const SORT_UNLOCATED_PATH = `${PHOTO_SORT_PATH}?${SORT_TAB_PARAM}=unlocated`;
 
 /**
  * 정리가 끝난 사진을 저장하고, 이미지를 다 올리고 Journey를 저장하면 03 전체 기록의 이번 여행 탭으로 넘어가요
@@ -18,6 +23,8 @@ const PLACE_PATH = '/places';
  * 03·지도는 journeys에 저장된 Journey를 읽어서, Journey를 다 쓴 뒤에 넘어가야 새 여행이 보여요.
  * Journey를 못 만들면 사진은 저장된 채로 Journey만 다시 만들게 해요.
  * 올리기 숫자는 장마다 바뀌어서, 이 컴포넌트만 구독하게 나눴어요.
+ * [사진 정리하기]도 [여행 보기]처럼 저장부터 하고, 다 끝나면 03 대신 07 위치 확인 필요 탭으로 가요(피그마 13c).
+ * 어느 버튼으로 저장했는지는 이 화면에서만 쓰는 값이라 여기 둬요. 실패한 뒤 [다시 시도]는 처음 고른 곳으로 가요.
  */
 export default function SavePhotos() {
   const ownerId = useAuthStore((state) => state.user?.id);
@@ -28,6 +35,12 @@ export default function SavePhotos() {
   const imageUpload = useUploadStore((state) => state.imageUpload);
   const journeyStatus = useUploadStore((state) => state.journeyStatus);
   const newTripId = useUploadStore((state) => state.newTripId);
+  const [goesToSort, setGoesToSort] = useState(false);
+
+  const handleSave = (toSort) => {
+    setGoesToSort(toSort);
+    void save(ownerId);
+  };
 
   if (saveStatus === 'saved') {
     const done = imageUpload.uploaded + imageUpload.skipped + imageUpload.failed;
@@ -37,7 +50,8 @@ export default function SavePhotos() {
 
     // 뒤로 가기로 다 끝난 정리 화면에 돌아오지 않게 replace로 넘어갑니다.
     if (isUploaded && journeyStatus === 'saved') {
-      return <Navigate to={newTripId ? getTripPath(newTripId) : PLACE_PATH} replace />;
+      const tripPath = newTripId ? getTripPath(newTripId) : PLACE_PATH;
+      return <Navigate to={goesToSort ? SORT_UNLOCATED_PATH : tripPath} replace />;
     }
 
     return (
@@ -71,17 +85,28 @@ export default function SavePhotos() {
   const isSaving = saveStatus === 'saving';
   const isFailed = saveStatus === 'failed';
   const label = isFailed ? '다시 시도' : '여행 보기';
+  const canSave = !isSaving && Boolean(ownerId);
 
   return (
     <div className="mt-6">
-      <button
-        type="button"
-        disabled={isSaving || !ownerId}
-        onClick={() => void save(ownerId)}
-        className="h-14 w-45 bg-nav text-lg font-bold text-white disabled:opacity-60"
-      >
-        {isSaving ? '저장하는 중…' : label}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          disabled={!canSave}
+          onClick={() => handleSave(isFailed && goesToSort)}
+          className="h-14 w-45 bg-nav text-lg font-bold text-white disabled:opacity-60"
+        >
+          {isSaving && !goesToSort ? '저장하는 중…' : label}
+        </button>
+        <button
+          type="button"
+          disabled={!canSave}
+          onClick={() => handleSave(true)}
+          className="h-14 border border-ink px-6 text-lg font-bold text-ink disabled:opacity-60"
+        >
+          {isSaving && goesToSort ? '저장하는 중…' : '사진 정리하기'}
+        </button>
+      </div>
       {isFailed && (
         <p role="alert" className="mt-3 text-md text-muted">
           저장하지 못했어요. 다시 시도해 주세요

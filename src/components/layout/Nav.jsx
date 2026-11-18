@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router';
 
+import { PHOTO_SORT_PATH } from '@/constants/photoSort';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
@@ -38,6 +39,8 @@ function isUnder(pathname, path) {
  *  - KR과 [메뉴]는 아직 누르면 아무 일도 없습니다. 펼쳐지는 화면 디자인이 없습니다.
  *  - [로그아웃]은 피그마에 자리가 없어 임시로 오른쪽 끝에 둡니다(기능 정의서 L105). 메뉴 정리 때 메뉴 안으로 옮깁니다.
  *  - [로그아웃]은 스토어의 signOut()만 부릅니다. /login으로 보내는 건 RequireAuth가 합니다(이유는 RequireAuth 주석).
+ *  - [편집 모드]는 07 사진 정리로 가요. 피그마 07에서 [메뉴] 왼쪽에 흰색으로 있어서, 페이지 메뉴처럼
+ *    07에 있을 때만 흰색으로 둡니다. 페이지 메뉴(Home ~ Passport)가 아니라서 가운데 줄에 넣지 않았습니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=241-5
  */
@@ -81,6 +84,12 @@ export default function Nav() {
         <button type="button" onClick={handleSignOut} className="text-md font-medium text-white">
           로그아웃
         </button>
+        <NavLink
+          to={PHOTO_SORT_PATH}
+          className={({ isActive }) => cn('text-md font-medium text-dim', isActive && 'text-white')}
+        >
+          편집 모드
+        </NavLink>
         <span className="text-md text-white">KR</span>
         <button
           type="button"

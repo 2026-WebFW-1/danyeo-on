@@ -1,3 +1,6 @@
+// 07 사진 정리 화면의 주소예요. Nav의 [편집 모드]와 13 올리기의 [사진 정리하기]가 여기로 보내요.
+export const PHOTO_SORT_PATH = '/edit/photos';
+
 // 07 사진 정리가 보던 탭을 주소에 남기는 칸 이름이에요. 예: /edit/photos?tab=unlocated
 export const SORT_TAB_PARAM = 'tab';
 
