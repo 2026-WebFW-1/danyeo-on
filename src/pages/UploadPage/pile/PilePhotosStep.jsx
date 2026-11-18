@@ -23,6 +23,7 @@ export default function PilePhotosStep({ onReset, onNext }) {
   const totalCount = useUploadStore((state) => state.files.length);
   const noPreviewCount = useUploadStore((state) => state.noPreviewCount);
   const isDone = useUploadStore((state) => state.isDone);
+  const stopCollecting = useUploadStore((state) => state.stopCollecting);
 
   return (
     <main className="flex flex-1 flex-col justify-center bg-canvas">
@@ -51,15 +52,16 @@ export default function PilePhotosStep({ onReset, onNext }) {
             {isDone &&
               `사진 ${photoCount}장을 다 모았어요.${noPreviewCount > 0 ? ` 미리 볼 수 없는 사진 ${noPreviewCount}장이 있어요.` : ''}`}
           </p>
-          {/* 다 모으기 전에는 [다시 고르기]만 같은 자리에 보여요 */}
+          {/* 한 장도 안 모였으면 [다시 고르기]만 보입니다.
+              멈추면 같은 버튼이 [다음]으로 바뀌어서, 키보드 포커스가 그 자리에 남습니다. */}
           <div className="mt-10 flex flex-col items-start gap-4">
-            {isDone && (
+            {(isDone || photoCount > 0) && (
               <button
                 type="button"
-                onClick={onNext}
+                onClick={isDone ? onNext : stopCollecting}
                 className="h-14 w-45 bg-nav text-lg font-bold text-white"
               >
-                다음
+                {isDone ? '다음' : '여기까지만 모으기'}
               </button>
             )}
             <button
