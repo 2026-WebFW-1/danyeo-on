@@ -1,7 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { PHOTO_ACCEPT } from '@/constants/upload';
 import { usePhotoDrop } from '@/hooks/upload/usePhotoDrop';
+import { formatSkippedCounts } from '@/utils/upload/formatSkippedCounts';
 import { filterPhotoFiles } from '@/utils/upload/photoFiles';
 
 import DropOverlay from './DropOverlay';
@@ -11,32 +12,44 @@ import PolaroidStack from './PolaroidStack';
 /**
  * 13a″ 사진 올리기 — 고르기 화면
  *
- * 책임: 사진을 고르게 하고, 사진 파일만 걸러 onPick으로 보냅니다.
+ * 책임: 사진을 고르게 하고, 사진 파일만 걸러 뺀 파일과 함께 onSelect로 보냅니다.
+ * 사진이 한 장도 없으면 넘기지 않고 이 화면에서 알립니다(U109).
  * 고른 사진을 들고 있거나 다음 화면을 그리지는 않습니다.
  *
  * 호출: UploadPage의 고르기 단계에서 그립니다.
- * <SelectPhotosStep onPick={handlePick} />
+ * <SelectPhotosStep onSelect={handleSelectPhotos} />
  *
- * 의도: 버튼 두 개와 화면 전체 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onPick 하나로 나갑니다.
+ * 의도: 버튼 두 개와 화면 전체 끌어다 놓기(#51), 세 길이 모두 같은 거르기를 거쳐 onSelect 하나로 나갑니다.
  *
  * 주의할 것들:
  *  - 같은 폴더를 다시 고르면 change가 오지 않습니다. input.value를 비워 줘야 합니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=355-32
  */
-export default function SelectPhotosStep({ onPick }) {
+export default function SelectPhotosStep({ onSelect }) {
   // 파일 창은 input을 눌러야만 열리는데, input은 기본 모양을 바꿀 수 없어서 숨겨 두었습니다.
   // "지금 이 input을 눌러라"는 상태로 표현할 수 없는 명령이라, ref로 실제 input 요소를 잡아 두고
   // 버튼의 onClick에서 .click()을 부릅니다. 화면에 보이는 값이 아니라서 useState가 아닌 useRef입니다.
   const folderInputRef = useRef(null);
   const photoInputRef = useRef(null);
-  const { isDragging, itemCount } = usePhotoDrop(onPick);
+  // 사진이 없어서 넘어가지 못한 고르기의 뺀 파일. null이면 안내를 띄우지 않습니다.
+  // 넘어가면 이 화면이 사라져서 이 화면 안에만 둡니다.
+  const [skippedFiles, setSkippedFiles] = useState(null);
+
+  // input과 끌어다 놓기가 같은 길로 나갑니다.
+  const handleFilteredFiles = (photos, skipped) => {
+    if (photos.length === 0) {
+      setSkippedFiles(skipped);
+      return;
+    }
+    onSelect(photos, skipped);
+  };
+
+  const { isDragging, itemCount } = usePhotoDrop(handleFilteredFiles);
 
   const handleInputChange = (event) => {
-    const { photos } = filterPhotoFiles(event.target.files);
-    if (photos.length > 0) {
-      onPick(photos);
-    }
+    const { photos, skipped } = filterPhotoFiles(event.target.files);
+    handleFilteredFiles(photos, skipped);
 
     // 같은 폴더를 다시 골라도 change가 일어나도록 비워둡니다.
     event.target.value = '';
@@ -83,6 +96,12 @@ export default function SelectPhotosStep({ onPick }) {
             <p className="mt-5 text-md text-muted">
               폴더나 사진을 화면에 끌어다 놓아도 돼요 · jpg · heic 등
             </p>
+            {skippedFiles && (
+              <p role="alert" className="mt-3 text-md text-accent">
+                고른 곳에 사진이 없어요
+                {skippedFiles.length > 0 && ` · ${formatSkippedCounts(skippedFiles)}`}
+              </p>
+            )}
 
             {/* 숨은 input 2개 */}
             <input

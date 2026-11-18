@@ -7,7 +7,7 @@ import { filesFromEntries, filterPhotoFiles } from '@/utils/upload/photoFiles';
  * 끌고 있는 동안에는 덮개를 띄울 수 있게 끌고 있는지와 항목 수를 돌려줍니다.
  *
  * 호출: SelectPhotosStep. 화면이 사라지면 리스너도 떨어집니다.
- * const { isDragging, itemCount } = usePhotoDrop(onPick);
+ * const { isDragging, itemCount } = usePhotoDrop(handleFilteredFiles);
  *
  * 의도: Nav 위에 놓아도 받도록 window에 붙입니다.
  * window는 React가 그리는 요소가 아니라서 JSX 속성으로 못 달아 useEffect로 붙이고 뗍니다.

@@ -97,6 +97,23 @@ async function openPass(files) {
   await act(() => findButton('다음').click());
 }
 
+/**
+ * 파일을 화면에 끌어다 놓은 것처럼 window에 drop을 보내요.
+ * 파일 항목만 흉내 내서 filesFromEntries가 file()로 그대로 꺼내요.
+ */
+function dropFiles(files) {
+  const event = new Event('drop', { cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      types: ['Files'],
+      items: files.map((dropped) => ({
+        webkitGetAsEntry: () => ({ isFile: true, file: (resolve) => resolve(dropped) }),
+      })),
+    },
+  });
+  window.dispatchEvent(event);
+}
+
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   useUploadStore.getState().reset();
@@ -403,4 +420,54 @@ test('[사진 정리하기]로 저장한 뒤 화면이 새로 그려져도 07로
 
   // then
   expect(container.textContent).toBe('사진 정리?tab=unlocated');
+});
+
+test('사진이 하나도 없으면 넘어가지 않고 사진이 없다고 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+  const input = container.querySelector('input[accept]');
+  Object.defineProperty(input, 'files', {
+    value: [new File([], '.DS_Store'), new File([], '메모.txt')],
+  });
+
+  // when: 사진이 아닌 파일만 고르면
+  await act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+
+  // then
+  expect(container.querySelector('[role="alert"]').textContent).toBe(
+    '고른 곳에 사진이 없어요 · 숨김 파일 1개 · 받지 않는 형식 1개',
+  );
+  expect(container.textContent).toContain('폴더 고르기');
+  expect(resizeThumbnail).not.toHaveBeenCalled();
+});
+
+test('사진 없이 끌어다 놓아도 넘어가지 않고 사진이 없다고 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+
+  // when: 사진이 아닌 파일만 끌어다 놓으면
+  await act(async () => dropFiles([new File([], '메모.txt')]));
+
+  // then
+  await vi.waitFor(() =>
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      '고른 곳에 사진이 없어요 · 받지 않는 형식 1개',
+    ),
+  );
+  expect(container.textContent).toContain('폴더 고르기');
+  expect(resizeThumbnail).not.toHaveBeenCalled();
+});
+
+test('빈 폴더를 끌어다 놓으면 뺀 이유 없이 사진이 없다고만 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+
+  // when: 안에 파일이 하나도 없는 것을 끌어다 놓으면
+  await act(async () => dropFiles([]));
+
+  // then: 뺀 파일이 없으니 " · 숨김 파일 …" 같은 이유를 붙이지 않음
+  await vi.waitFor(() =>
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe('고른 곳에 사진이 없어요'),
+  );
+  expect(container.textContent).toContain('폴더 고르기');
 });

@@ -1,6 +1,6 @@
 # 사진 고르기·읽기 흐름 (13a″)
 
-사진은 [폴더 고르기]·[사진만 고르기] 버튼과 화면에 끌어다 놓기(#51), 세 가지 길로 들어옵니다. 세 길 모두 `filterPhotoFiles`로 같은 거르기를 거쳐 `onPick` 하나로 나갑니다.
+사진은 [폴더 고르기]·[사진만 고르기] 버튼과 화면에 끌어다 놓기(#51), 세 가지 길로 들어옵니다. 세 길 모두 `filterPhotoFiles`로 같은 거르기를 거쳐 `SelectPhotosStep`의 `handleFilteredFiles`에 모입니다. 사진이 1장 이상이면 `onSelect`로 나가고, 한 장도 없으면 넘기지 않고 고르기 화면에서 알립니다(U109).
 
 ## 끌어다 놓기
 
@@ -12,7 +12,7 @@ sequenceDiagram
     participant 덮개 as DropOverlay
     participant 펴기 as filesFromEntries
     participant 거르기 as filterPhotoFiles
-    participant 페이지 as UploadPage
+    participant 화면 as SelectPhotosStep
 
     사용자->>브라우저: 폴더·사진을 끌고 들어옴
     브라우저->>훅: dragenter (들어간 수 +1)
@@ -46,11 +46,10 @@ sequenceDiagram
 
     훅->>거르기: filterPhotoFiles(files)
     거르기->>거르기: 이름마다 skipReason (숨김 파일·지원 안 하는 확장자는 skipped로)
-    거르기-->>훅: { photos, skipped } (skipped는 아직 받지 않음)
+    거르기-->>훅: { photos, skipped }
 
-    opt photos가 1장 이상
-        훅->>페이지: onPick(photos)
-    end
+    훅->>화면: onDrop(photos, skipped) (사진이 없어도 부름)
+    Note over 화면: 다음은 아래 "버튼으로 고르기"의 handleFilteredFiles와 같음
 ```
 
 ## 버튼으로 고르기
@@ -68,9 +67,13 @@ sequenceDiagram
     화면->>화면: 숨은 input.click() → 파일 창
     사용자->>화면: 고르기 (change)
     화면->>거르기: filterPhotoFiles(input.files)
-    거르기-->>화면: { photos, skipped } (skipped는 아직 받지 않음)
-    opt photos가 1장 이상
-        화면->>페이지: onPick(photos)
+    거르기-->>화면: { photos, skipped }
+    화면->>화면: handleFilteredFiles(photos, skipped)
+    alt photos가 1장 이상
+        화면->>페이지: onSelect(photos, skipped)
+        페이지->>페이지: handleSelectPhotos → start(files, skippedFiles), 모으기 단계로
+    else 한 장도 없음
+        화면->>화면: skippedFiles에 두고 "고른 곳에 사진이 없어요" 안내
     end
     화면->>화면: input.value 비우기 (같은 폴더를 다시 골라도 change가 오게)
 ```
