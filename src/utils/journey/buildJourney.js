@@ -169,15 +169,18 @@ function mapTripIdByStopId(trips) {
 /**
  * 집과 지점들의 도시 이름을 찾습니다. 앱에선 네트워크라 한꺼번에 기다립니다.
  * 집 지점은 화면의 지점 목록에 안 나가서 이름을 찾지 않고, 집 이름은 home으로 따로 찾습니다.
+ * 집은 { isHome: true }를 붙여 찾아서, 찾는 쪽이 집인지 지점인지 알 수 있습니다.
  *
  * @param {import('@/types').GroupResult} grouped
- * @param {(lat: number, lng: number) => import('@/types').Place | Promise<import('@/types').Place>} findPlace
+ * @param {(lat: number, lng: number, options?: { isHome?: boolean }) => import('@/types').Place | Promise<import('@/types').Place>} findPlace
  * @returns {Promise<{ home: import('@/types').Place | null, byStopId: Map<string, import('@/types').Place> }>}
  */
 async function findPlaces(grouped, findPlace) {
   const awayStops = grouped.stops.filter((stop) => !stop.isHome);
   const places = await Promise.all(awayStops.map((stop) => findPlace(stop.lat, stop.lng)));
-  const home = grouped.home ? await findPlace(grouped.home.lat, grouped.home.lng) : null;
+  const home = grouped.home
+    ? await findPlace(grouped.home.lat, grouped.home.lng, { isHome: true })
+    : null;
 
   return {
     home,
@@ -479,8 +482,9 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city } : null)
  *
  * @param {import('@/types').Photo[]} photos 올린 사진 전부. 순서는 상관없습니다
  * @param {import('@/types').Correction[]} corrections 만든 순서
- * @param {(lat: number, lng: number) => import('@/types').Place | Promise<import('@/types').Place>} findPlace
- *   좌표의 도시 이름을 찾습니다. 앱에선 reverseCity를 그대로 넘기고, 테스트에선 fixture 값을 돌려줍니다.
+ * @param {(lat: number, lng: number, options?: { isHome?: boolean }) => import('@/types').Place | Promise<import('@/types').Place>} findPlace
+ *   좌표의 도시 이름을 찾습니다. 집 좌표에는 { isHome: true }를 붙입니다.
+ *   앱에선 refreshJourney가 저장된 이름을 먼저 보고 없으면 reverseCity로 찾는 함수를 넘기고, 테스트에선 fixture 값을 돌려줍니다.
  * @returns {Promise<import('@/types').Journey>}
  */
 export async function buildJourney(photos, corrections, findPlace) {

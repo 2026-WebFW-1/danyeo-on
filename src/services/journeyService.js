@@ -1,4 +1,5 @@
 import { buildJourney } from '@/utils/journey/buildJourney';
+import { findSavedPlace } from '@/utils/journey/findSavedPlace';
 
 import { createChangeSignal } from './changeSignal';
 import { getSupabase } from './getSupabase';
@@ -115,7 +116,8 @@ function queueWrite(userId, write) {
  * 내 사진·보정을 서버에서 읽어 Journey를 다시 계산하고 journeys에 써요.
  * 사진을 저장한 뒤(#144)나 보정을 저장한 뒤 불러요. 쓴 뒤에는 Journey와 사진 목록의 기억을 지워서
  * 열린 03·02와 다음 화면이 새 값을 읽어요.
- * 도시 이름 찾기(reverseCity)가 1.1초 간격이라 지점 수만큼 시간이 걸려요.
+ * 도시 이름은 저장된 Journey에서 1km 안 지점의 이름을 다시 쓰고, 없는 곳만 reverseCity로 찾아요(#158).
+ * reverseCity는 1.1초 간격이라 새로 찾는 지점 수만큼 시간이 걸려요. 이름 찾기가 실패해도 찾아 둔 이름은 남아요.
  * 도시 이름을 못 찾은 지점은 던지지 않고 이름 없이 계산돼요.
  *
  * 같은 계정에서 겹쳐 부르면 가장 나중에 부른 계산만 저장하고, 앞서 부른 쪽도 그 결과(성공이든 실패든)를 받아요(#148).
@@ -158,9 +160,14 @@ async function buildAndSave(userId, isSuperseded) {
     throw { status: 0, code: 'ACCOUNT_CHANGED', message: '읽는 사이에 계정이 바뀌었어요' };
   }
 
+  // 찾아 둔 이름을 다시 쓰려고 읽어요. 이름은 덤이라 못 읽어도 계산은 막지 않고 모두 새로 찾아요.
+  const savedJourney = await getJourney(userId).catch(() => null);
+  const findPlace = (lat, lng, options) =>
+    findSavedPlace(savedJourney, lat, lng, options) ?? reverseCity(lat, lng);
+
   let journey;
   try {
-    journey = await buildJourney(myData.photos, myData.corrections, reverseCity);
+    journey = await buildJourney(myData.photos, myData.corrections, findPlace);
   } catch (error) {
     throw { status: 0, code: 'BUILD_FAILED', message: error.message };
   }
