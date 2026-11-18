@@ -33,3 +33,10 @@ export const IMAGE_UPLOAD_CONCURRENCY = 3;
 
 // 올리기가 실패하면 이만큼(ms) 기다렸다가 다시 시도합니다. 두 번 더 해도 실패하면 실패로 셉니다.
 export const IMAGE_UPLOAD_RETRY_DELAYS_MS = [1000, 3000];
+
+// 뺀 파일을 알릴 때 이유별로 붙이는 이름이에요. 이 순서대로 보여 줍니다(U109).
+export const SKIP_REASON_LABELS = {
+  hidden: '숨김 파일',
+  unsupported: '받지 않는 형식',
+  unreadable: '열리지 않는 파일',
+};
