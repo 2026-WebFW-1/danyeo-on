@@ -374,3 +374,70 @@ describe('PhotoSortPage 이름을 정한 사진 빼기', () => {
     ]);
   });
 });
+
+describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
+  test('첫 사진을 뺀 뒤 이름을 바꾸면 남은 첫 사진에 rename을 걸어요', async () => {
+    mockCorrections({ corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkok.id }] });
+    await render('/edit/photos');
+
+    await click(renameButton('방콕 · 다낭'));
+    await type(nameInput(), '졸업 전 여행');
+    await click(buttonByText('저장'));
+
+    expect(corrections.add).toHaveBeenCalledExactlyOnceWith({
+      type: 'rename',
+      anchorPhotoId: bangkokPhotoIds[1],
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('빼기가 끝날 때까지 그 여행의 ✎ · 다른 [빼기]를 막고, 끝나면 풀어요', async () => {
+    let finish;
+    mockCorrections({
+      addMany: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(buttonsByText('빼기')[0]);
+
+    expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+    expect(renameButton('방콕 · 다낭').disabled).toBe(true);
+    // 다른 여행은 막지 않아요.
+    expect(renameButton(seojin.trips.find((trip) => trip !== bangkok).name).disabled).toBe(false);
+
+    await act(async () => finish([]));
+
+    expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
+    expect(renameButton('방콕 · 다낭').disabled).toBe(false);
+  });
+
+  test('이름을 저장하는 동안에는 그 여행의 [빼기]를 막아요', async () => {
+    let finish;
+    mockCorrections({
+      add: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(renameButton('방콕 · 다낭'));
+    await type(nameInput(), '졸업 전 여행');
+    await click(buttonByText('저장'));
+
+    expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+
+    await act(async () => finish({}));
+
+    expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
+  });
+});

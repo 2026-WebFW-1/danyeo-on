@@ -16,7 +16,7 @@ import { SORT_NAME_MAX_LENGTH } from '@/constants/photoSort';
  * @param {object} props
  * @param {string} props.no 예: '02'
  * @param {string} props.name
- * @param {boolean} props.canRename 보정을 다 불러왔을 때만 true. 불러오기 전에는 저장할 수 없어요
+ * @param {boolean} props.canRename 보정을 다 불러왔고 이 여행에 보내는 중인 요청이 없을 때만 true
  * @param {(name: string) => Promise<unknown>} props.onRename 실패하면 던져요
  */
 export default function TripName({ no, name, canRename, onRename }) {
@@ -38,6 +38,7 @@ export default function TripName({ no, name, canRename, onRename }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!canRename) return;
     const nextName = draft.trim();
     if (nextName === '' || nextName === name) {
       handleCancel();
@@ -81,7 +82,7 @@ export default function TripName({ no, name, canRename, onRename }) {
         <div className="flex items-center gap-3 pl-6 text-sm">
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || !canRename}
             className="font-bold text-ink disabled:text-dim"
           >
             {isSaving ? '저장하는 중…' : '저장'}

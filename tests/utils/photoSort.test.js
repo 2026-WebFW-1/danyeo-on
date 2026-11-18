@@ -4,6 +4,7 @@ import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import {
   buildTripExcludeInputs,
+  buildTripRenameInput,
   selectExcludedIds,
   selectExcludedPhotos,
   selectPhotoSummary,
@@ -234,5 +235,27 @@ describe('buildTripExcludeInputs', () => {
     expect(buildTripExcludeInputs(lastOnly, anchor)).toEqual([
       { type: 'exclude', photoId: anchor },
     ]);
+  });
+});
+
+describe('buildTripRenameInput', () => {
+  const bangkok = tripByName('방콕 · 다낭');
+  const [first, second] = photoIdsOf(bangkok);
+  const rowWith = (excludedIds = NONE) =>
+    selectSortTrips(seojin, [], [], excludedIds).find((row) => row.id === bangkok.id);
+
+  test('그 여행 첫 사진에 이름을 걸어요', () => {
+    expect(buildTripRenameInput(rowWith(), '졸업 전 여행')).toEqual({
+      type: 'rename',
+      anchorPhotoId: first,
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('첫 사진을 뺐으면 다시 계산하기 전에도 남은 첫 사진에 걸어요', () => {
+    const row = rowWith(new Set([first]));
+
+    expect(row.id).toBe(first);
+    expect(buildTripRenameInput(row, '졸업 전 여행').anchorPhotoId).toBe(second);
   });
 });
