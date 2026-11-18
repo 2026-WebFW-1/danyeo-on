@@ -14,6 +14,7 @@ import {
   selectPhotoSummary,
   selectSortCounts,
   selectSortTrips,
+  selectUnlocatedGroups,
 } from '@/utils/photoSort';
 
 import ExcludedTab from './ExcludedTab';
@@ -23,6 +24,7 @@ import SortHeader from './SortHeader';
 import SortSummary from './SortSummary';
 import SortTabs from './SortTabs';
 import TripTable from './TripTable';
+import UnlocatedTab from './UnlocatedTab';
 
 /**
  * 07 사진 정리 페이지
@@ -76,6 +78,10 @@ export default function PhotoSortPage() {
     () => selectSortCounts(journey, trips, excludedIds),
     [journey, trips, excludedIds],
   );
+  const unlocatedGroups = useMemo(
+    () => selectUnlocatedGroups(journey, photos, excludedIds),
+    [journey, photos, excludedIds],
+  );
   const excludedPhotos = useMemo(
     () => selectExcludedPhotos(corrections, photos),
     [corrections, photos],
@@ -109,6 +115,10 @@ export default function PhotoSortPage() {
 
   const handleRename = (trip, name) => add(buildTripRenameInput(trip, name));
   const handleExclude = (trip, photoId) => addMany(buildTripExcludeInputs(trip, photoId));
+  // 묶음의 사진을 차례로 빼고 Journey 계산은 끝에 한 번만 해요(사진마다 add하면 사진 수만큼 계산해요).
+  // 실패하면 던지고, 그 전까지 뺀 사진은 이미 묶음에서 빠져 있어서 다시 누르면 남은 사진만 빼요.
+  const handleExcludeMany = (photoIds) =>
+    addMany(photoIds.map((photoId) => ({ type: 'exclude', photoId })));
   // 같은 사진의 exclude를 모두 지우고 Journey 계산은 한 번만 해요. 실패하면 던져, 다시 누르면 남은 것만 지워요.
   const handleRestore = (photo) => removeMany(photo.correctionIds);
 
@@ -135,11 +145,12 @@ export default function PhotoSortPage() {
       {tab === 'excluded' && (
         <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} />
       )}
-      {/* TODO(endl24): 위치 확인 필요(07b)는 #155의 다음 PR에서 붙여요 */}
       {tab === 'unlocated' && (
-        <p className={`${SECTION_CLASS} pt-12 text-center text-lg text-muted`}>
-          이 탭은 준비하고 있어요.
-        </p>
+        <UnlocatedTab
+          groups={unlocatedGroups}
+          canExclude={isCorrectionsReady}
+          onExclude={handleExcludeMany}
+        />
       )}
     </main>
   );

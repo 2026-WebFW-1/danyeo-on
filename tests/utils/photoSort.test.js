@@ -10,6 +10,7 @@ import {
   selectPhotoSummary,
   selectSortCounts,
   selectSortTrips,
+  selectUnlocatedGroups,
 } from '@/utils/photoSort';
 import { selectTripStats } from '@/utils/trips';
 
@@ -190,6 +191,46 @@ describe('selectPhotoSummary', () => {
 
     expect(selectPhotoSummary(photos)).toEqual({ total: 3, located: 2, unlocated: 1 });
     expect(selectPhotoSummary([])).toEqual({ total: 0, located: 0, unlocated: 0 });
+  });
+});
+
+describe('selectUnlocatedGroups', () => {
+  const photo = (id, takenAt) => ({ id, takenAt, fileKey: `public:/photos/${id}.webp` });
+  const photos = [
+    photo('p_b2', '2025-01-04T18:00:00'),
+    photo('p_a', '2024-12-31T23:59:00'),
+    photo('p_b1', '2025-01-04T09:00:00'),
+    photo('p_none', null),
+  ];
+  const journey = (unlocated) => ({ ...seojin, unlocated });
+
+  test('찍은 날짜 순서로 묶고, 묶음 안은 찍은 순서예요. 날짜 없는 사진은 맨 뒤예요', () => {
+    const groups = selectUnlocatedGroups(journey(['p_none', 'p_b2', 'p_a', 'p_b1']), photos, NONE);
+
+    expect(groups.map((group) => [group.key, group.date])).toEqual([
+      ['2024-12-31', '2024.12.31'],
+      ['2025-01-04', '2025.01.04'],
+      ['none', null],
+    ]);
+    expect(groups[1].photos).toEqual([
+      { id: 'p_b1', fileKey: 'public:/photos/p_b1.webp' },
+      { id: 'p_b2', fileKey: 'public:/photos/p_b2.webp' },
+    ]);
+  });
+
+  test('뺀 사진은 빠지고, 다 빠진 묶음은 없어요. 못 받은 사진은 날짜 없음이에요', () => {
+    const groups = selectUnlocatedGroups(
+      journey(['p_a', 'p_b1', 'p_unknown']),
+      photos,
+      new Set(['p_a']),
+    );
+
+    expect(groups.map((group) => group.key)).toEqual(['2025-01-04', 'none']);
+    expect(groups[1].photos).toEqual([{ id: 'p_unknown', fileKey: null }]);
+  });
+
+  test('journey가 없으면 빈 배열이에요', () => {
+    expect(selectUnlocatedGroups(null, photos, NONE)).toEqual([]);
   });
 });
 
