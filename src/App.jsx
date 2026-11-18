@@ -8,6 +8,7 @@ import HomePage from '@/pages/HomePage/HomePage';
 import LoginPage from '@/pages/LoginPage/LoginPage';
 import MapPage from '@/pages/MapPage/MapPage';
 import NotFoundPage from '@/pages/NotFoundPage/NotFoundPage';
+import PhotoSortPage from '@/pages/PhotoSortPage/PhotoSortPage';
 import PlacesPage from '@/pages/PlacesPage/PlacesPage';
 import UploadPage from '@/pages/UploadPage/UploadPage';
 import { useAuthStore } from '@/stores/authStore';
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="places" element={<PlacesPage />} />
           <Route path="chapter/:slug" element={<ChapterPage />} />
           <Route path="upload" element={<UploadPage />} />
+          <Route path="edit/photos" element={<PhotoSortPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
