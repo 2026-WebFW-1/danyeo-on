@@ -1,11 +1,12 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { formatSkippedCounts } from '@/utils/upload/formatSkippedCounts';
 
 import PhotoPile from './PhotoPile';
 
 /**
  * 고른 사진이 포개지며 쌓이는 화면 (13a″ 다음, 13h″ 전, #87)
  *
- * 책임: 스토어에 준비된 사진 수와 미리 볼 수 없는 수를 보여 줍니다.
+ * 책임: 스토어에 준비된 사진 수와 미리 볼 수 없는 수, 고를 때 뺀 파일 수를 보여 줍니다.
  * 사용자는 보기만 하면 되고, 잘못 골랐을 때만 [다시 고르기]를 누릅니다.
  *
  * 호출: UploadPage가 고른 사진이 있을 때 그립니다.
@@ -22,6 +23,7 @@ export default function PilePhotosStep({ onReset, onNext }) {
   const photoCount = useUploadStore((state) => state.photos.length);
   const totalCount = useUploadStore((state) => state.files.length);
   const noPreviewCount = useUploadStore((state) => state.noPreviewCount);
+  const skippedFiles = useUploadStore((state) => state.skippedFiles);
   const isDone = useUploadStore((state) => state.isDone);
   const stopCollecting = useUploadStore((state) => state.stopCollecting);
 
@@ -45,6 +47,10 @@ export default function PilePhotosStep({ onReset, onNext }) {
             <p className="mt-3 text-md text-muted">
               미리 볼 수 없는 사진 {noPreviewCount}장은 회색으로 보여요
             </p>
+          )}
+          {/* 고르기 화면은 사진이 있으면 곧바로 사라져서, 일부만 뺀 것은 이 화면에서 알립니다(U109). */}
+          {skippedFiles.length > 0 && (
+            <p className="mt-3 text-md text-muted">{formatSkippedCounts(skippedFiles)}는 뺐어요</p>
           )}
           {/* 화면에는 안 보이고 화면 읽기 프로그램만 읽는 알림입니다. 처음엔 비워 두고 다 모았을 때 한 번만 채웁니다.
               live 영역은 내용이 "바뀔 때" 읽어서, 처음부터 글자가 있으면 읽지 않는 브라우저가 있습니다. */}

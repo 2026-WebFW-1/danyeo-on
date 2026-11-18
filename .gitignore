@@ -29,3 +29,6 @@ dist-ssr
 
 # Vitest 브라우저 테스트 실패 화면
 .vitest
+
+# pnpm test:coverage 결과
+coverage

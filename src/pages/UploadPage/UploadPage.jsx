@@ -26,8 +26,8 @@ export default function UploadPage() {
   const reset = useUploadStore((state) => state.reset);
   const totalCount = useUploadStore((state) => state.files.length);
 
-  const handlePick = (files) => {
-    void start(files);
+  const handleSelectPhotos = (files, skippedFiles) => {
+    void start(files, skippedFiles);
     setStep('pile');
   };
 
@@ -37,7 +37,7 @@ export default function UploadPage() {
   };
 
   if (step === 'select' || totalCount === 0) {
-    return <SelectPhotosStep onPick={handlePick} />;
+    return <SelectPhotosStep onSelect={handleSelectPhotos} />;
   }
 
   if (step === 'pass') {

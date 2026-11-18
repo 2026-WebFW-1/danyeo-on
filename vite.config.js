@@ -25,5 +25,11 @@ export default defineConfig({
       headless: true,
       instances: [{ browser: 'chromium' }],
     },
+    // pnpm test:coverage로 잴 때만 켜져요. 테스트가 한 번도 안 지나간 파일도 0%로 보이게 src 전체를 셉니다.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      reporter: ['text', 'html'],
+    },
   },
 });

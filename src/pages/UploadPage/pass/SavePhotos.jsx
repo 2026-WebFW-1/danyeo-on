@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router';
 
 import { PHOTO_SORT_PATH, SORT_TAB_PARAM } from '@/constants/photoSort';
+import { SKIP_REASON_LABELS } from '@/constants/upload';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
@@ -55,6 +56,8 @@ export default function SavePhotos() {
         <p>
           {saveResult.saved}장 저장했어요
           {saveResult.existing > 0 && ` · ${saveResult.existing}장은 이미 있어요`}
+          {saveResult.unreadable > 0 &&
+            ` · ${SKIP_REASON_LABELS.unreadable} ${saveResult.unreadable}개는 뺐어요`}
         </p>
         <p className="mt-1">
           {isUploaded ? '이미지를 다 올렸어요' : `이미지 올리는 중 ${done} / ${imageUpload.total}`}

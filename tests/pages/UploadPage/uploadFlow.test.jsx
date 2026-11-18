@@ -97,6 +97,23 @@ async function openPass(files) {
   await act(() => findButton('다음').click());
 }
 
+/**
+ * 파일을 화면에 끌어다 놓은 것처럼 window에 drop을 보내요.
+ * 파일 항목만 흉내 내서 filesFromEntries가 file()로 그대로 꺼내요.
+ */
+function dropFiles(files) {
+  const event = new Event('drop', { cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      types: ['Files'],
+      items: files.map((dropped) => ({
+        webkitGetAsEntry: () => ({ isFile: true, file: (resolve) => resolve(dropped) }),
+      })),
+    },
+  });
+  window.dispatchEvent(event);
+}
+
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   useUploadStore.getState().reset();
@@ -174,6 +191,20 @@ test('화면이 사라졌다 돌아와도 같은 썸네일을 써요', async () 
   expect(container.querySelector('img').src).toBe(photo.src);
   expect(await (await fetch(photo.src)).text()).toBe('썸네일');
   expect(resizeThumbnail).toHaveBeenCalledTimes(1);
+});
+
+test('화면이 사라졌다 돌아와도 뺀 파일 안내가 남아요', async () => {
+  // given: 일부를 빼고 다 모은 화면이 사라짐
+  await useUploadStore.getState().start([file], [{ fileName: '메모.txt', reason: 'unsupported' }]);
+  await act(() => root.render(<UploadPage />));
+  await act(() => root.render(null));
+
+  // when: 다시 돌아오면
+  await act(() => root.render(<UploadPage />));
+
+  // then: 사진과 함께 안내도 그대로 보임
+  expect(container.textContent).toContain('사진을 다 모았어요');
+  expect(container.textContent).toContain('받지 않는 형식 1개는 뺐어요');
 });
 
 test.each([null, { ...user, id: '다른계정' }])(
@@ -403,4 +434,93 @@ test('[사진 정리하기]로 저장한 뒤 화면이 새로 그려져도 07로
 
   // then
   expect(container.textContent).toBe('사진 정리?tab=unlocated');
+});
+
+test('사진이 하나도 없으면 넘어가지 않고 사진이 없다고 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+  const input = container.querySelector('input[accept]');
+  Object.defineProperty(input, 'files', {
+    value: [new File([], '.DS_Store'), new File([], '메모.txt')],
+  });
+
+  // when: 사진이 아닌 파일만 고르면
+  await act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+
+  // then
+  expect(container.querySelector('[role="alert"]').textContent).toBe(
+    '고른 곳에 사진이 없어요 · 숨김 파일 1개 · 받지 않는 형식 1개',
+  );
+  expect(container.textContent).toContain('폴더 고르기');
+  expect(resizeThumbnail).not.toHaveBeenCalled();
+});
+
+test('사진 없이 끌어다 놓아도 넘어가지 않고 사진이 없다고 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+
+  // when: 사진이 아닌 파일만 끌어다 놓으면
+  await act(async () => dropFiles([new File([], '메모.txt')]));
+
+  // then
+  await vi.waitFor(() =>
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      '고른 곳에 사진이 없어요 · 받지 않는 형식 1개',
+    ),
+  );
+  expect(container.textContent).toContain('폴더 고르기');
+  expect(resizeThumbnail).not.toHaveBeenCalled();
+});
+
+test('빈 폴더를 끌어다 놓으면 뺀 이유 없이 사진이 없다고만 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+
+  // when: 안에 파일이 하나도 없는 것을 끌어다 놓으면
+  await act(async () => dropFiles([]));
+
+  // then: 뺀 파일이 없으니 " · 숨김 파일 …" 같은 이유를 붙이지 않음
+  await vi.waitFor(() =>
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe('고른 곳에 사진이 없어요'),
+  );
+  expect(container.textContent).toContain('폴더 고르기');
+});
+
+test('일부를 뺐으면 모으기 화면에서 몇 개를 왜 뺐는지 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+  const input = container.querySelector('input[accept]');
+  Object.defineProperty(input, 'files', { value: [file, new File([], '메모.txt')] });
+
+  // when
+  await act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+
+  // then
+  expect(container.textContent).toContain('사진을 다 모았어요');
+  expect(container.textContent).toContain('받지 않는 형식 1개는 뺐어요');
+});
+
+test('열어 보니 사진이 아닌 파일은 저장한 뒤 뺐다고 알려요', async () => {
+  // given: 두 장 중 확장자만 jpg인 한 장이 열리지 않음
+  const broken = new File(['깨짐'], 'IMG_0002.jpg', { type: 'image/jpeg' });
+  await openPass([numbered, broken]);
+  vi.mocked(readPhotos).mockResolvedValue({
+    photos: [readPhotoOf(0, numbered.name)],
+    skipped: [{ fileName: broken.name, reason: 'unreadable' }],
+  });
+  vi.mocked(savePhotos).mockImplementation(async (photos) => ({
+    saved: photos.map((photo) => photo.id),
+    skipped: [],
+  }));
+  vi.mocked(savePhotoImage).mockReturnValue(new Promise(() => {}));
+  vi.mocked(refreshJourney).mockReturnValue(new Promise(() => {}));
+
+  // when: 다 정리하고 저장하면
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('여행 보기').click());
+
+  // then
+  await vi.waitFor(() =>
+    expect(container.textContent).toContain('1장 저장했어요 · 열리지 않는 파일 1개는 뺐어요'),
+  );
 });
