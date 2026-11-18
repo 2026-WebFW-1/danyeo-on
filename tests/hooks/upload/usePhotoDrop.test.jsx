@@ -15,8 +15,8 @@ let container;
 let root;
 let traversal;
 
-function DropZone({ onPick }) {
-  usePhotoDrop(onPick);
+function DropZone({ onDrop }) {
+  usePhotoDrop(onDrop);
   return null;
 }
 
@@ -47,8 +47,8 @@ afterEach(async () => {
 
 test('화면이 사라진 뒤 끝난 폴더 훑기는 넘기지 않아요', async () => {
   // given: 폴더를 놓고 훑는 중에 화면이 사라짐
-  const onPick = vi.fn();
-  await act(() => root.render(<DropZone onPick={onPick} />));
+  const onDrop = vi.fn();
+  await act(() => root.render(<DropZone onDrop={onDrop} />));
   dropFolder();
   await act(() => root.render(null));
 
@@ -59,16 +59,16 @@ test('화면이 사라진 뒤 끝난 폴더 훑기는 넘기지 않아요', asyn
   });
 
   // then
-  expect(onPick).not.toHaveBeenCalled();
+  expect(onDrop).not.toHaveBeenCalled();
 });
 
-test('훑는 도중 다시 그려져도 놓은 사진을 최신 onPick으로 넘겨요', async () => {
-  // given: 폴더를 놓고 훑는 중에 새 onPick으로 다시 그려짐
-  const previousPick = vi.fn();
-  const currentPick = vi.fn();
-  await act(() => root.render(<DropZone onPick={previousPick} />));
+test('훑는 도중 다시 그려져도 놓은 사진을 최신 onDrop으로 넘겨요', async () => {
+  // given: 폴더를 놓고 훑는 중에 새 onDrop으로 다시 그려짐
+  const previousDrop = vi.fn();
+  const currentDrop = vi.fn();
+  await act(() => root.render(<DropZone onDrop={previousDrop} />));
   dropFolder();
-  await act(() => root.render(<DropZone onPick={currentPick} />));
+  await act(() => root.render(<DropZone onDrop={currentDrop} />));
 
   // when: 훑기가 끝나면
   await act(async () => {
@@ -77,6 +77,28 @@ test('훑는 도중 다시 그려져도 놓은 사진을 최신 onPick으로 넘
   });
 
   // then
-  expect(currentPick).toHaveBeenCalledExactlyOnceWith([photo]);
-  expect(previousPick).not.toHaveBeenCalled();
+  expect(currentDrop).toHaveBeenCalledExactlyOnceWith([photo], []);
+  expect(previousDrop).not.toHaveBeenCalled();
+});
+
+test('사진이 하나도 없어도 뺀 파일과 함께 넘겨요', async () => {
+  // given: 사진이 없는 폴더를 놓음
+  const onDrop = vi.fn();
+  await act(() => root.render(<DropZone onDrop={onDrop} />));
+  dropFolder();
+
+  // when: 훑기가 끝나면
+  await act(async () => {
+    traversal.resolve([new File([], '.DS_Store'), new File([], '메모.txt')]);
+    await traversal.promise;
+  });
+
+  // then
+  expect(onDrop).toHaveBeenCalledExactlyOnceWith(
+    [],
+    [
+      { fileName: '.DS_Store', reason: 'hidden' },
+      { fileName: '메모.txt', reason: 'unsupported' },
+    ],
+  );
 });

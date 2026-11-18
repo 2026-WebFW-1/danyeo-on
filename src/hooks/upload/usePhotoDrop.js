@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent, useState } from 'react';
 import { filesFromEntries, filterPhotoFiles } from '@/utils/upload/photoFiles';
 
 /**
- * 화면 어디에든 끌어다 놓은 파일·폴더에서 사진만 골라 onPick으로 넘깁니다.(#51)
+ * 화면 어디에든 끌어다 놓은 파일·폴더를 사진과 뺀 파일로 나눠 onDrop으로 넘깁니다.(#51)
  * 끌고 있는 동안에는 덮개를 띄울 수 있게 끌고 있는지와 항목 수를 돌려줍니다.
  *
  * 호출: SelectPhotosStep. 화면이 사라지면 리스너도 떨어집니다.
@@ -11,18 +11,18 @@ import { filesFromEntries, filterPhotoFiles } from '@/utils/upload/photoFiles';
  *
  * 의도: Nav 위에 놓아도 받도록 window에 붙입니다.
  * window는 React가 그리는 요소가 아니라서 JSX 속성으로 못 달아 useEffect로 붙이고 뗍니다.
- * @param {(photos: File[]) => void} onPick
+ * @param {(photos: File[], skipped: import('@/types').SkippedFile[]) => void} onDrop 놓을 때마다 불려요. 사진이 한 장도 없어도 불려요
  * @returns {{ isDragging: boolean, itemCount: number }} itemCount는 맨 위 항목 수입니다. 폴더 안은 놓기 전에 열 수 없습니다.
  */
-export function usePhotoDrop(onPick) {
+export function usePhotoDrop(onDrop) {
   const [isDragging, setIsDragging] = useState(false);
   const [itemCount, setItemCount] = useState(0);
-  // 부르는 쪽이 그릴 때마다 새 onPick을 넘겨도 리스너를 다시 붙이지 않습니다.
+  // 부르는 쪽이 그릴 때마다 새 onDrop을 넘겨도 리스너를 다시 붙이지 않습니다.
   // 다시 붙이면 폴더를 훑는 도중 다시 그려지기만 해도 아래 isActive가 꺼져 놓은 사진을 잃습니다.
-  const pick = useEffectEvent(onPick);
+  const drop = useEffectEvent(onDrop);
 
   useEffect(() => {
-    // 화면이 사라진 뒤 끝난 폴더 훑기는 버립니다. onPick이 전역 스토어를 바꿔서, 늦게 오면 새로 고른 사진을 덮어씁니다.
+    // 화면이 사라진 뒤 끝난 폴더 훑기는 버립니다. onDrop이 전역 스토어를 바꿔서, 늦게 오면 새로 고른 사진을 덮어씁니다.
     let isActive = true;
 
     // 페이지 안의 글자 및 이미지를 끌 때도 같은 이벤트가 와서,
@@ -73,10 +73,9 @@ export function usePhotoDrop(onPick) {
       const files = await filesFromEntries(entries);
       if (!isActive) return;
 
-      const { photos } = filterPhotoFiles(files);
-      if (photos.length > 0) {
-        pick(photos);
-      }
+      // 사진이 없어도 넘깁니다. 받는 쪽이 왜 안 넘어가는지 알려야 해서요(U109).
+      const { photos, skipped } = filterPhotoFiles(files);
+      drop(photos, skipped);
     };
 
     window.addEventListener('dragenter', handleDragEnter);
