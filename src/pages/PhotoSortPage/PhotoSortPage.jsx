@@ -6,8 +6,17 @@ import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { selectJourneyTotals } from '@/utils/journeyTotals';
-import { selectPhotoSummary, selectSortCounts, selectSortTrips } from '@/utils/photoSort';
+import {
+  buildTripExcludeInputs,
+  buildTripRenameInput,
+  selectExcludedIds,
+  selectExcludedPhotos,
+  selectPhotoSummary,
+  selectSortCounts,
+  selectSortTrips,
+} from '@/utils/photoSort';
 
+import ExcludedTab from './ExcludedTab';
 import JourneyStatusNotice from './JourneyStatusNotice';
 import { SECTION_CLASS } from './sectionClass';
 import SortHeader from './SortHeader';
@@ -25,9 +34,13 @@ import TripTable from './TripTable';
  *  - 보던 탭은 ?tab=(trips · unlocated · excluded)이에요. 새로고침이나 뒤로 가기에도 남고, 13 올리기 결과에서
  *    ?tab=unlocated로 바로 올 수 있어요. 없거나 모르는 값이면 여행 묶음이에요.
  *  - 보정을 저장하면 Journey를 다시 계산하는 데 20초쯤 걸려요(#151). 그동안 Journey는 앞 값이라,
- *    표의 이름과 탭 개수는 보정 목록으로 덮어 보여 줘요(selectSortTrips · selectSortCounts).
- *  - 이름은 그 여행 첫 사진(여행 ID)에 걸어요. 어느 사진이든 그 여행에 들어 있으면 buildJourney가 같은 여행을 찾아요.
- *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎를 막아 둬요.
+ *    이름 · 뺀 사진 · 탭 개수는 보정 목록으로 덮어 보여 줘요(utils/photoSort).
+ *  - 이름은 그 여행에 남아 있는 첫 사진에 걸어요(buildTripRenameInput). 어느 사진이든 그 여행에 들어 있으면
+ *    buildJourney가 같은 여행을 찾아요. 그 사진을 빼면 남은 사진으로 이름을 옮겨 걸어요(buildTripExcludeInputs).
+ *  - 한 여행의 이름 바꾸기 · 빼기는 하나씩 보내요(TripRow). 둘 다 지금 보정으로 입력을 만들어서, 앞 요청이 끝나기 전에
+ *    보내면 이름을 옮긴 걸 모르고 빼서 이름이 사라질 수 있어요.
+ *  - [복구]는 그 사진의 exclude를 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
+ *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
  *    회색 썸네일이 보여요. 사진을 못 받으면 고칠 수 없어서 Journey를 못 읽었을 때와 같이 안내만 해요.
  *
@@ -40,6 +53,8 @@ export default function PhotoSortPage() {
     corrections,
     status: correctionStatus,
     add,
+    addMany,
+    removeMany,
     journeyStatus,
     refreshJourney,
   } = useCorrections();
@@ -47,11 +62,24 @@ export default function PhotoSortPage() {
   const requestedTab = searchParams.get(SORT_TAB_PARAM);
   const tab = SORT_TABS.some((item) => item.key === requestedTab) ? requestedTab : DEFAULT_SORT_TAB;
 
-  const trips = useMemo(
-    () => selectSortTrips(journey, corrections, photos),
-    [journey, corrections, photos],
+  const isCorrectionsReady = correctionStatus === 'ready';
+  // 다 불러오기 전의 보정 목록은 비어 있어서, 뺀 사진은 Journey의 값을 써요.
+  const excludedIds = useMemo(
+    () => selectExcludedIds(journey, isCorrectionsReady ? corrections : null),
+    [journey, corrections, isCorrectionsReady],
   );
-  const counts = useMemo(() => selectSortCounts(journey, corrections), [journey, corrections]);
+  const trips = useMemo(
+    () => selectSortTrips(journey, corrections, photos, excludedIds),
+    [journey, corrections, photos, excludedIds],
+  );
+  const counts = useMemo(
+    () => selectSortCounts(journey, trips, excludedIds),
+    [journey, trips, excludedIds],
+  );
+  const excludedPhotos = useMemo(
+    () => selectExcludedPhotos(corrections, photos),
+    [corrections, photos],
+  );
   const photoSummary = useMemo(() => selectPhotoSummary(photos), [photos]);
   const totals = useMemo(() => selectJourneyTotals(journey), [journey]);
 
@@ -79,7 +107,10 @@ export default function PhotoSortPage() {
     setSearchParams({ [SORT_TAB_PARAM]: key });
   };
 
-  const handleRename = (tripId, name) => add({ type: 'rename', anchorPhotoId: tripId, name });
+  const handleRename = (trip, name) => add(buildTripRenameInput(trip, name));
+  const handleExclude = (trip, photoId) => addMany(buildTripExcludeInputs(trip, photoId));
+  // 같은 사진의 exclude를 모두 지우고 Journey 계산은 한 번만 해요. 실패하면 던져, 다시 누르면 남은 것만 지워요.
+  const handleRestore = (photo) => removeMany(photo.correctionIds);
 
   return (
     <main className="flex-1 bg-canvas pb-30">
@@ -94,10 +125,18 @@ export default function PhotoSortPage() {
       )}
 
       {tab === 'trips' && (
-        <TripTable trips={trips} canRename={correctionStatus === 'ready'} onRename={handleRename} />
+        <TripTable
+          trips={trips}
+          canEdit={isCorrectionsReady}
+          onRename={handleRename}
+          onExclude={handleExclude}
+        />
       )}
-      {/* TODO(endl24): 위치 확인 필요(07b) · 제외한 사진 목록은 #155의 다음 PR에서 붙여요 */}
-      {tab !== 'trips' && (
+      {tab === 'excluded' && (
+        <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} />
+      )}
+      {/* TODO(endl24): 위치 확인 필요(07b)는 #155의 다음 PR에서 붙여요 */}
+      {tab === 'unlocated' && (
         <p className={`${SECTION_CLASS} pt-12 text-center text-lg text-muted`}>
           이 탭은 준비하고 있어요.
         </p>

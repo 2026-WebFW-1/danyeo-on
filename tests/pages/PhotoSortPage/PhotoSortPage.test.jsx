@@ -50,6 +50,8 @@ function mockCorrections(overrides = {}) {
     error: null,
     add: vi.fn().mockResolvedValue({}),
     remove: vi.fn(),
+    addMany: vi.fn().mockResolvedValue([]),
+    removeMany: vi.fn().mockResolvedValue(),
     journeyStatus: 'idle',
     refreshJourney: vi.fn(),
     ...overrides,
@@ -230,5 +232,212 @@ describe('PhotoSortPage 사진 불러오기', () => {
       '사진을 불러오지 못했어요. 새로고침해 주세요.',
     );
     expect(container.textContent).not.toContain('불러온 사진');
+  });
+});
+
+const stopOf = (id) => seojin.stops.find((stop) => stop.id === id);
+const bangkokPhotoIds = bangkok.stopIds.flatMap((id) => stopOf(id).photoIds);
+const listItems = (label) => [
+  ...(container.querySelector(`ul[aria-label="${label}"]`)?.children ?? []),
+];
+const buttonsByText = (text) =>
+  [...container.querySelectorAll('button')].filter((button) => button.textContent === text);
+
+describe('PhotoSortPage 사진 빼기', () => {
+  test('⋯를 누르면 그 여행 사진을 펼치고, [빼기]는 그 사진에 exclude 보정을 더해요', async () => {
+    await render('/edit/photos');
+
+    const toggle = container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]');
+    await click(toggle);
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(listItems('방콕 · 다낭 사진')).toHaveLength(bangkokPhotoIds.length);
+
+    await click(buttonsByText('빼기')[0]);
+
+    expect(corrections.addMany).toHaveBeenCalledWith([
+      { type: 'exclude', photoId: bangkokPhotoIds[0] },
+    ]);
+  });
+
+  test('빼기가 실패하면 그 사진 칸에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCorrections({ addMany: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(buttonsByText('빼기')[0]);
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe('사진을 빼지 못했어요');
+  });
+
+  test('뺀 사진은 Journey를 다시 계산하기 전에도 펼친 목록에서 빠지고 제외한 사진 수에 들어가요', async () => {
+    mockCorrections({ corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }] });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+
+    expect(listItems('방콕 · 다낭 사진')).toHaveLength(bangkokPhotoIds.length - 1);
+    expect(tabs().find((tab) => tab.textContent.includes('제외한 사진')).textContent).toContain(
+      '1',
+    );
+  });
+
+  test('사진이 많으면 48장만 그리고 [더 보기]로 늘려요', async () => {
+    const [firstStopId] = bangkok.stopIds;
+    const manyIds = Array.from({ length: 60 }, (_, index) => `p_many_${index}`);
+    const journey = {
+      ...seojin,
+      stops: seojin.stops.map((stop) =>
+        stop.id === firstStopId ? { ...stop, photoIds: manyIds, photoCount: manyIds.length } : stop,
+      ),
+    };
+    vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', error: null });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    const total = manyIds.length + stopOf(bangkok.stopIds[1]).photoIds.length;
+    expect(listItems('방콕 · 다낭 사진')).toHaveLength(48);
+
+    await click(buttonsByText(`더 보기 ${total - 48}`)[0]);
+    expect(listItems('방콕 · 다낭 사진')).toHaveLength(total);
+  });
+
+  test('보정을 다 불러오기 전에는 [빼기]를 누를 수 없어요', async () => {
+    mockCorrections({ status: 'loading' });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+
+    expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+  });
+});
+
+describe('PhotoSortPage 제외한 사진', () => {
+  test('뺀 사진을 보여 주고, [복구]는 그 사진의 exclude를 모두 지워요', async () => {
+    const [photoId] = bangkokPhotoIds;
+    mockCorrections({
+      corrections: [
+        { id: 'c_1', type: 'exclude', photoId },
+        { id: 'c_2', type: 'exclude', photoId },
+      ],
+      removeMany: vi.fn().mockResolvedValue(),
+    });
+    await render('/edit/photos?tab=excluded');
+
+    expect(listItems('뺀 사진')).toHaveLength(1);
+
+    await click(buttonByText('복구'));
+
+    expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_2', 'c_1']);
+  });
+
+  test('복구가 실패하면 그 사진 칸에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
+      removeMany: vi.fn().mockRejectedValue({ code: 'REMOVE_FAILED' }),
+    });
+    await render('/edit/photos?tab=excluded');
+
+    await click(buttonByText('복구'));
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe('복구하지 못했어요');
+  });
+
+  test('뺀 사진이 없으면 안내하고, 보정을 불러오는 중이면 기다린다고 알려요', async () => {
+    await render('/edit/photos?tab=excluded');
+    expect(container.textContent).toContain('뺀 사진이 없어요');
+
+    mockCorrections({ status: 'loading' });
+    await render('/edit/photos?tab=excluded');
+    expect(container.querySelector('[role="status"]').textContent).toContain(
+      '뺀 사진을 불러오는 중',
+    );
+  });
+});
+
+describe('PhotoSortPage 이름을 정한 사진 빼기', () => {
+  test('이름을 정한 기준 사진을 빼면, 남은 사진으로 같은 이름을 먼저 걸고 빼요', async () => {
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'rename', anchorPhotoId: bangkok.id, name: '졸업 전 여행' }],
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="졸업 전 여행 사진 펼쳐 빼기"]'));
+    await click(buttonsByText('빼기')[0]);
+
+    expect(bangkokPhotoIds[0]).toBe(bangkok.id);
+    expect(corrections.addMany).toHaveBeenCalledExactlyOnceWith([
+      { type: 'rename', anchorPhotoId: bangkokPhotoIds[1], name: '졸업 전 여행' },
+      { type: 'exclude', photoId: bangkok.id },
+    ]);
+  });
+});
+
+describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
+  test('첫 사진을 뺀 뒤 이름을 바꾸면 남은 첫 사진에 rename을 걸어요', async () => {
+    mockCorrections({ corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkok.id }] });
+    await render('/edit/photos');
+
+    await click(renameButton('방콕 · 다낭'));
+    await type(nameInput(), '졸업 전 여행');
+    await click(buttonByText('저장'));
+
+    expect(corrections.add).toHaveBeenCalledExactlyOnceWith({
+      type: 'rename',
+      anchorPhotoId: bangkokPhotoIds[1],
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('빼기가 끝날 때까지 그 여행의 ✎ · 다른 [빼기]를 막고, 끝나면 풀어요', async () => {
+    let finish;
+    mockCorrections({
+      addMany: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(buttonsByText('빼기')[0]);
+
+    expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+    expect(renameButton('방콕 · 다낭').disabled).toBe(true);
+    // 다른 여행은 막지 않아요.
+    expect(renameButton(seojin.trips.find((trip) => trip !== bangkok).name).disabled).toBe(false);
+
+    await act(async () => finish([]));
+
+    expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
+    expect(renameButton('방콕 · 다낭').disabled).toBe(false);
+  });
+
+  test('이름을 저장하는 동안에는 그 여행의 [빼기]를 막아요', async () => {
+    let finish;
+    mockCorrections({
+      add: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    });
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(renameButton('방콕 · 다낭'));
+    await type(nameInput(), '졸업 전 여행');
+    await click(buttonByText('저장'));
+
+    expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+
+    await act(async () => finish({}));
+
+    expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
   });
 });

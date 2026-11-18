@@ -9,16 +9,17 @@ const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-
  * 07a 여행 묶음 표예요. 머리 줄(TRIP · CITIES · PHOTOS) 아래로 여행을 시간 순서대로 그려요.
  *
  * 호출: PhotoSortPage가 여행 탭에서 그려요.
- * <TripTable trips={trips} canRename onRename={handleRename} />
+ * <TripTable trips={trips} canEdit onRename={handleRename} onExclude={handleExclude} />
  *
  * 의도: 여행이 하나도 없으면 고칠 게 없어서 03 · 01과 같은 안내로 사진 올리기에 보내요.
  *
  * @param {object} props
  * @param {import('@/utils/photoSort').SortTripRow[]} props.trips
- * @param {boolean} props.canRename
- * @param {(tripId: string, name: string) => Promise<unknown>} props.onRename
+ * @param {boolean} props.canEdit
+ * @param {(trip: import('@/utils/photoSort').SortTripRow, name: string) => Promise<unknown>} props.onRename
+ * @param {(trip: import('@/utils/photoSort').SortTripRow, photoId: string) => Promise<unknown>} props.onExclude
  */
-export default function TripTable({ trips, canRename, onRename }) {
+export default function TripTable({ trips, canEdit, onRename, onExclude }) {
   if (trips.length === 0) {
     return (
       <div className={`${SECTION_CLASS} flex justify-center pt-12`}>
@@ -39,8 +40,9 @@ export default function TripTable({ trips, canRename, onRename }) {
           <TripRow
             key={trip.id}
             trip={trip}
-            canRename={canRename}
-            onRename={(name) => onRename(trip.id, name)}
+            canEdit={canEdit}
+            onRename={(name) => onRename(trip, name)}
+            onExclude={(photoId) => onExclude(trip, photoId)}
           />
         ))}
       </ul>

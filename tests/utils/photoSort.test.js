@@ -2,18 +2,27 @@ import { describe, expect, test } from 'vitest';
 
 import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
-import { selectPhotoSummary, selectSortCounts, selectSortTrips } from '@/utils/photoSort';
+import {
+  buildTripExcludeInputs,
+  buildTripRenameInput,
+  selectExcludedIds,
+  selectExcludedPhotos,
+  selectPhotoSummary,
+  selectSortCounts,
+  selectSortTrips,
+} from '@/utils/photoSort';
 import { selectTripStats } from '@/utils/trips';
 
 const tripByName = (name) => seojin.trips.find((trip) => trip.name === name);
 const stopOf = (id) => seojin.stops.find((stop) => stop.id === id);
 const photoIdsOf = (trip) => trip.stopIds.flatMap((id) => stopOf(id).photoIds);
 const rename = (anchorPhotoId, name) => ({ id: `c_${name}`, type: 'rename', anchorPhotoId, name });
-const exclude = (photoId) => ({ id: `c_${photoId}`, type: 'exclude', photoId });
+const exclude = (photoId, id = `c_${photoId}`) => ({ id, type: 'exclude', photoId });
+const NONE = new Set();
 
 describe('selectSortTrips', () => {
   test('여행마다 번호 · 이름 · 기간 · 도시 칩 · 장수를 시간 순서대로 줘요', () => {
-    const rows = selectSortTrips(seojin, [], seojinSeed.photos);
+    const rows = selectSortTrips(seojin, [], seojinSeed.photos, NONE);
     const trip = tripByName('방콕 · 다낭');
     const row = rows.find((item) => item.id === trip.id);
 
@@ -34,7 +43,7 @@ describe('selectSortTrips', () => {
       stops: seojin.stops.map((stop) => (stop.id === second ? { ...stop, transit: true } : stop)),
     };
 
-    const row = selectSortTrips(journey, [], []).find((item) => item.id === trip.id);
+    const row = selectSortTrips(journey, [], [], NONE).find((item) => item.id === trip.id);
 
     expect(row.cities.map((city) => city.id)).toEqual([first]);
     expect(row.photoCount).toBe(stopOf(first).photoCount);
@@ -45,10 +54,10 @@ describe('selectSortTrips', () => {
     const expectedIds = photoIdsOf(trip).slice(0, 3);
     const fileKeyOf = (id) => seojinSeed.photos.find((photo) => photo.id === id).fileKey;
 
-    const withPhotos = selectSortTrips(seojin, [], seojinSeed.photos).find(
+    const withPhotos = selectSortTrips(seojin, [], seojinSeed.photos, NONE).find(
       (item) => item.id === trip.id,
     );
-    const withoutPhotos = selectSortTrips(seojin, [], []).find((item) => item.id === trip.id);
+    const withoutPhotos = selectSortTrips(seojin, [], [], NONE).find((item) => item.id === trip.id);
 
     expect(withPhotos.thumbs).toEqual(expectedIds.map((id) => ({ id, fileKey: fileKeyOf(id) })));
     expect(withoutPhotos.thumbs).toEqual(expectedIds.map((id) => ({ id, fileKey: null })));
@@ -63,7 +72,7 @@ describe('selectSortTrips', () => {
       rename(gangneung.id, '바다'),
     ];
 
-    const rows = selectSortTrips(seojin, corrections, []);
+    const rows = selectSortTrips(seojin, corrections, [], NONE);
 
     expect(rows.find((item) => item.id === bangkok.id).name).toBe('졸업 전 여행');
     expect(rows.find((item) => item.id === gangneung.id).name).toBe('바다');
@@ -71,32 +80,103 @@ describe('selectSortTrips', () => {
   });
 
   test('journey가 없으면 빈 배열이에요', () => {
-    expect(selectSortTrips(null, [], [])).toEqual([]);
+    expect(selectSortTrips(null, [], [], NONE)).toEqual([]);
   });
 });
 
 describe('selectSortCounts', () => {
   test('여행 · 위치 확인 필요 · 제외한 사진 수를 세요', () => {
-    expect(selectSortCounts(seojin, [])).toEqual({
+    const trips = selectSortTrips(seojin, [], [], NONE);
+
+    expect(selectSortCounts(seojin, trips, new Set(seojin.excluded))).toEqual({
       trips: seojin.trips.length,
       unlocated: seojin.unlocated.length,
       excluded: seojin.excluded.length,
     });
   });
 
-  test('뺀 사진은 보정 목록으로 덮어 세고, 위치 확인 필요에서도 빼요. 같은 사진은 한 번만 세요', () => {
-    const journey = { ...seojin, unlocated: ['p_a', 'p_b'], excluded: ['p_x'] };
-    const corrections = [exclude('p_a'), exclude('p_x'), exclude('p_y')];
+  test('뺀 사진은 위치 확인 필요에서 빼요', () => {
+    const journey = { ...seojin, unlocated: ['p_a', 'p_b'] };
 
-    expect(selectSortCounts(journey, corrections)).toEqual({
-      trips: seojin.trips.length,
+    expect(selectSortCounts(journey, [], new Set(['p_a', 'p_y']))).toEqual({
+      trips: 0,
       unlocated: 1,
-      excluded: 3,
+      excluded: 2,
     });
   });
 
   test('journey가 없으면 모두 0이에요', () => {
-    expect(selectSortCounts(null, [])).toEqual({ trips: 0, unlocated: 0, excluded: 0 });
+    expect(selectSortCounts(null, [], NONE)).toEqual({ trips: 0, unlocated: 0, excluded: 0 });
+  });
+});
+
+describe('selectExcludedIds', () => {
+  test('보정을 다 불러왔으면 exclude 보정이 기준이라, 복구한 사진은 Journey에 남아 있어도 빠져요', () => {
+    const journey = { ...seojin, excluded: ['p_restored', 'p_kept'] };
+
+    expect(
+      selectExcludedIds(journey, [exclude('p_kept'), exclude('p_new'), exclude('p_new', 'c_2')]),
+    ).toEqual(new Set(['p_kept', 'p_new']));
+  });
+
+  test('불러오기 전(null)에는 Journey의 값이에요', () => {
+    expect(selectExcludedIds({ ...seojin, excluded: ['p_x'] }, null)).toEqual(new Set(['p_x']));
+    expect(selectExcludedIds(null, null)).toEqual(new Set());
+  });
+});
+
+describe('selectSortTrips 뺀 사진', () => {
+  test('뺀 사진은 썸네일 · 장수 · 펼칠 사진에서 빠져요', () => {
+    const trip = tripByName('방콕 · 다낭');
+    const [firstPhoto, ...rest] = photoIdsOf(trip);
+
+    const row = selectSortTrips(seojin, [], [], new Set([firstPhoto])).find(
+      (item) => item.id === trip.id,
+    );
+
+    expect(row.thumbs[0].id).toBe(rest[0]);
+    expect(row.photos.map((photo) => photo.id)).toEqual(rest);
+    expect(row.photoCount).toBe(selectTripStats(seojin, trip.id).photos - 1);
+  });
+
+  test('사진을 모두 뺀 지점은 도시 칩에서, 모두 뺀 여행은 표에서 빠지고 번호를 다시 매겨요', () => {
+    const bangkok = tripByName('방콕 · 다낭');
+    const [bangkokStop, danangStop] = bangkok.stopIds.map(stopOf);
+    const gangneung = tripByName('강릉');
+    const excludedIds = new Set([...bangkokStop.photoIds, ...photoIdsOf(gangneung)]);
+
+    const rows = selectSortTrips(seojin, [], [], excludedIds);
+
+    expect(rows.find((row) => row.id === bangkok.id).cities.map((city) => city.id)).toEqual([
+      danangStop.id,
+    ]);
+    expect(rows).toHaveLength(seojin.trips.length - 1);
+    expect(rows.some((row) => row.id === gangneung.id)).toBe(false);
+    expect(rows.map((row) => row.no).slice(0, 2)).toEqual(['01', '02']);
+    expect(rows[1].id).toBe(seojin.trips[2].id);
+  });
+});
+
+describe('selectExcludedPhotos', () => {
+  test('최근에 뺀 사진이 앞이고, 같은 사진의 exclude는 하나로 묶어요', () => {
+    const [a, b] = seojinSeed.photos;
+    const corrections = [
+      exclude(a.id, 'c_1'),
+      rename(a.id, '이름'),
+      exclude(b.id, 'c_2'),
+      exclude(a.id, 'c_3'),
+    ];
+
+    expect(selectExcludedPhotos(corrections, seojinSeed.photos)).toEqual([
+      { id: a.id, fileKey: a.fileKey, takenAt: a.takenAt, correctionIds: ['c_3', 'c_1'] },
+      { id: b.id, fileKey: b.fileKey, takenAt: b.takenAt, correctionIds: ['c_2'] },
+    ]);
+  });
+
+  test('사진을 못 받았으면 fileKey · takenAt이 null이에요', () => {
+    expect(selectExcludedPhotos([exclude('p_gone')], [])).toEqual([
+      { id: 'p_gone', fileKey: null, takenAt: null, correctionIds: ['c_p_gone'] },
+    ]);
   });
 });
 
@@ -110,5 +190,72 @@ describe('selectPhotoSummary', () => {
 
     expect(selectPhotoSummary(photos)).toEqual({ total: 3, located: 2, unlocated: 1 });
     expect(selectPhotoSummary([])).toEqual({ total: 0, located: 0, unlocated: 0 });
+  });
+});
+
+describe('buildTripExcludeInputs', () => {
+  const bangkok = tripByName('방콕 · 다낭');
+  const [anchor, second, third] = photoIdsOf(bangkok);
+  const rowWith = (corrections, excludedIds = NONE) =>
+    selectSortTrips(seojin, corrections, [], excludedIds).find((row) => row.id === bangkok.id);
+
+  test('자동 이름이거나 기준 사진이 아니면 빼기만 해요', () => {
+    expect(buildTripExcludeInputs(rowWith([]), anchor)).toEqual([
+      { type: 'exclude', photoId: anchor },
+    ]);
+    expect(buildTripExcludeInputs(rowWith([rename(anchor, '졸업 전 여행')]), second)).toEqual([
+      { type: 'exclude', photoId: second },
+    ]);
+  });
+
+  test('이름을 정한 기준 사진을 빼면, 남은 첫 사진으로 같은 이름을 먼저 걸어요', () => {
+    expect(buildTripExcludeInputs(rowWith([rename(anchor, '졸업 전 여행')]), anchor)).toEqual([
+      { type: 'rename', anchorPhotoId: second, name: '졸업 전 여행' },
+      { type: 'exclude', photoId: anchor },
+    ]);
+  });
+
+  test('이미 뺀 사진으로는 옮기지 않아요', () => {
+    const row = rowWith([rename(anchor, '졸업 전 여행')], new Set([second]));
+
+    expect(buildTripExcludeInputs(row, anchor)[0]).toEqual({
+      type: 'rename',
+      anchorPhotoId: third,
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('남은 사진이 없으면 빼기만 해요', () => {
+    const lastOnly = {
+      ...rowWith([]),
+      renameAnchorId: anchor,
+      photos: [{ id: anchor, fileKey: null }],
+    };
+
+    expect(buildTripExcludeInputs(lastOnly, anchor)).toEqual([
+      { type: 'exclude', photoId: anchor },
+    ]);
+  });
+});
+
+describe('buildTripRenameInput', () => {
+  const bangkok = tripByName('방콕 · 다낭');
+  const [first, second] = photoIdsOf(bangkok);
+  const rowWith = (excludedIds = NONE) =>
+    selectSortTrips(seojin, [], [], excludedIds).find((row) => row.id === bangkok.id);
+
+  test('그 여행 첫 사진에 이름을 걸어요', () => {
+    expect(buildTripRenameInput(rowWith(), '졸업 전 여행')).toEqual({
+      type: 'rename',
+      anchorPhotoId: first,
+      name: '졸업 전 여행',
+    });
+  });
+
+  test('첫 사진을 뺐으면 다시 계산하기 전에도 남은 첫 사진에 걸어요', () => {
+    const row = rowWith(new Set([first]));
+
+    expect(row.id).toBe(first);
+    expect(buildTripRenameInput(row, '졸업 전 여행').anchorPhotoId).toBe(second);
   });
 });

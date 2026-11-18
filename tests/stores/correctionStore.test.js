@@ -402,6 +402,125 @@ describe('remove', () => {
   });
 });
 
+describe('addMany', () => {
+  test('준 순서대로 하나씩 저장하고, Journey 계산은 끝에 한 번만 시작해요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    const added = await getState().addMany([
+      { type: 'rename', anchorPhotoId: 'p_c', name: '졸업 여행' },
+      { type: 'exclude', photoId: 'p_a' },
+      { type: 'exclude', photoId: 'p_d' },
+    ]);
+
+    expect(vi.mocked(addCorrection).mock.calls.map(([fields]) => fields.type)).toEqual([
+      'rename',
+      'exclude',
+      'exclude',
+    ]);
+    expect(getState().corrections.slice(2)).toEqual(added);
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+  });
+
+  test('이미 뺀 사진은 보내지 않고 있는 보정을 돌려줘요. 보낸 게 없으면 계산하지 않아요', async () => {
+    await fetchSaved();
+
+    const added = await getState().addMany([{ type: 'exclude', photoId: 'p_b' }]);
+
+    expect(added).toEqual([exclude]);
+    expect(addCorrection).not.toHaveBeenCalled();
+    expect(refreshJourney).not.toHaveBeenCalled();
+  });
+
+  test('중간에 실패하면 멈추고 던지지만, 앞서 저장한 보정은 남기고 그만큼 계산해요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValueOnce().mockRejectedValueOnce(SAVE_FAILED);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    await expect(
+      getState().addMany([
+        { type: 'exclude', photoId: 'p_c' },
+        { type: 'exclude', photoId: 'p_d' },
+        { type: 'exclude', photoId: 'p_e' },
+      ]),
+    ).rejects.toEqual(SAVE_FAILED);
+
+    expect(addCorrection).toHaveBeenCalledTimes(2);
+    expect(getState().corrections.map((correction) => correction.photoId)).toContain('p_c');
+    expect(getState().corrections.map((correction) => correction.photoId)).not.toContain('p_d');
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+  });
+
+  test('빼는 동안 사진마다 pending에 표시하고, 끝나면 지워요', async () => {
+    await fetchSaved();
+    const saving = deferred();
+    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    const adding = getState().addMany([{ type: 'exclude', photoId: 'p_c' }]);
+    expect(getState().pending[getExcludeKey('p_c')]).toBe(true);
+
+    saving.resolve();
+    await adding;
+    expect(getState().pending).toEqual({});
+  });
+
+  test('불러오기 전에는 저장하지 않고 던져요', async () => {
+    await expect(getState().addMany([{ type: 'exclude', photoId: 'p_c' }])).rejects.toThrow();
+    expect(addCorrection).not.toHaveBeenCalled();
+  });
+
+  test('저장하는 사이에 reset하면(계정 바뀜) ACCOUNT_CHANGED로 던지고 계산하지 않아요', async () => {
+    await fetchSaved();
+    const saving = deferred();
+    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+
+    const adding = getState().addMany([{ type: 'exclude', photoId: 'p_c' }]);
+    await vi.waitFor(() => expect(addCorrection).toHaveBeenCalled());
+    getState().reset();
+    saving.resolve();
+
+    await expect(adding).rejects.toEqual(ACCOUNT_CHANGED);
+    expect(refreshJourney).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeMany', () => {
+  test('차례로 지우고, Journey 계산은 끝에 한 번만 시작해요', async () => {
+    await fetchSaved();
+    vi.mocked(removeCorrection).mockResolvedValue(true);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    await getState().removeMany([rename.id, exclude.id]);
+
+    expect(vi.mocked(removeCorrection).mock.calls).toEqual([[rename.id], [exclude.id]]);
+    expect(getState().corrections).toEqual([]);
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+  });
+
+  test('중간에 실패하면 던지지만, 앞서 지운 보정은 빠지고 그만큼 계산해요', async () => {
+    await fetchSaved();
+    vi.mocked(removeCorrection).mockResolvedValueOnce(true).mockRejectedValueOnce(SAVE_FAILED);
+    vi.mocked(refreshJourney).mockResolvedValue();
+
+    await expect(getState().removeMany([rename.id, exclude.id])).rejects.toEqual(SAVE_FAILED);
+
+    expect(getState().corrections).toEqual([exclude]);
+    expect(refreshJourney).toHaveBeenCalledExactlyOnceWith('u1');
+    expect(getState().pending).toEqual({});
+  });
+
+  test('목록에 없는 보정만 있으면 보내지 않고 계산하지 않아요', async () => {
+    await fetchSaved();
+
+    await getState().removeMany(['c_gone']);
+
+    expect(removeCorrection).not.toHaveBeenCalled();
+    expect(refreshJourney).not.toHaveBeenCalled();
+  });
+});
+
 describe('Journey 다시 계산', () => {
   const LOAD_FAILED = { status: 0, code: 'LOAD_FAILED', message: '연결 실패' };
 
