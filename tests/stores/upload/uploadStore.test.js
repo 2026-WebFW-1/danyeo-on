@@ -155,6 +155,21 @@ describe('reset', () => {
   });
 });
 
+describe('skippedFiles', () => {
+  test('고를 때 뺀 파일을 사진과 함께 두고, reset하면 같이 비워요', async () => {
+    // given: 사진 한 장과 받지 않는 형식 한 개를 고름
+    const skipped = [{ fileName: '메모.txt', reason: 'unsupported' }];
+    await getState().start([photoFile('사진.jpg')], skipped);
+    expect(getState().skippedFiles).toEqual(skipped);
+
+    // when: [다시 고르기]처럼 reset하면
+    getState().reset();
+
+    // then: 다음 고르기에 전에 뺀 파일이 남지 않음
+    expect(getState()).toMatchObject({ files: [], skippedFiles: [] });
+  });
+});
+
 describe('stopCollecting', () => {
   /** 첫 장만 모이고 둘째 장을 줄이는 중일 때까지 모아요. */
   const startUntilFirst = async (names) => {
@@ -498,7 +513,7 @@ describe('save', () => {
     // then
     const [[rows]] = vi.mocked(savePhotos).mock.calls;
     expect(uploadedKeys()).toEqual([rows[1].fileKey]);
-    expect(getState().saveResult).toEqual({ saved: 1, existing: 1 });
+    expect(getState().saveResult).toEqual({ saved: 1, existing: 1, unreadable: 0 });
   });
 
   describe('이어 올리기', () => {
@@ -534,7 +549,7 @@ describe('save', () => {
       // then
       expect(uploadedKeys()).toEqual(['photos:u1/p_old_b']);
       expect(getState().imageUpload.total).toBe(1);
-      expect(getState().saveResult).toEqual({ saved: 0, existing: 2 });
+      expect(getState().saveResult).toEqual({ saved: 0, existing: 2, unreadable: 0 });
     });
 
     test('보기용·썸네일 중 하나만 올라간 사진도 다시 올려요', async () => {
@@ -706,7 +721,7 @@ describe('save', () => {
 
       // then
       expect(savedFileNames()).toEqual(['a.jpg']);
-      expect(getState().saveResult).toEqual({ saved: 1, existing: 0 });
+      expect(getState().saveResult).toEqual({ saved: 1, existing: 0, unreadable: 0 });
     });
 
     test('빼 둔 사진 뒤의 사진도 제 원본으로 올려요', async () => {

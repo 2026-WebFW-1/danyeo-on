@@ -17,6 +17,7 @@ import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 const INITIAL_IMAGE_UPLOAD = { total: 0, uploaded: 0, skipped: 0, failed: 0 };
 const INITIAL_STATE = {
   files: [],
+  skippedFiles: [],
   photos: [],
   noPreviewCount: 0,
   isDone: false,
@@ -39,19 +40,22 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  *
  * @typedef {object} UploadState
  * @property {File[]} files 고른 원본. 정보 읽기와 보기용 이미지 생성에 써요
+ * @property {import('@/types').SkippedFile[]} skippedFiles 고를 때 이름으로 뺀 파일(U109).
+ *   페이지를 나갔다 와도 모으기 화면이 files와 같이 다시 보여 줘야 해서 스토어에 둬요
  * @property {import('@/types').PilePhoto[]} photos 준비된 순서대로 쌓인 사진
  * @property {number} noPreviewCount 미리 볼 수 없는 사진 수
  * @property {boolean} isDone
  * @property {'idle' | 'saving' | 'saved' | 'failed'} saveStatus 사진 정보 저장 상태
  * @property {'trip' | 'sort'} saveTarget 다 끝나면 갈 곳. 'trip'은 [여행 보기](03), 'sort'는 [사진 정리하기](07 위치 확인 필요)예요.
  *   저장이 끝나기 전에 페이지를 나갔다 와도 고른 곳으로 가게 저장 상태와 같이 스토어에 둬요
- * @property {{ saved: number, existing: number } | null} saveResult 저장한 뒤의 수.
- *   existing은 전에 저장해서 건너뛴 사진이에요
+ * @property {{ saved: number, existing: number, unreadable: number } | null} saveResult 저장한 뒤의 수.
+ *   existing은 전에 저장해서 건너뛴 사진, unreadable은 열어 보니 사진이 아니라 저장하지 않은 파일이에요
  * @property {string[]} newPhotoIds 이번 save에서 새로 저장한 사진 id예요. 이미 있던 사진은 빠져요.
  *   Journey를 다시 만들 때([다시 시도] 포함) 이 사진이 든 여행으로 넘어가려고 스토어에 둬요
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
- * @property {(files: File[]) => Promise<void>} start 이전 작업을 비우고 한 장씩 줄여요
+ * @property {(files: File[], skippedFiles?: import('@/types').SkippedFile[]) => Promise<void>} start
+ *   이전 작업을 비우고 한 장씩 줄여요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
  * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 촬영 정보를 읽어 저장하고,
  *   이미지 올리기를 뒤에서 시작해요. target은 saveTarget에 둬요(없으면 'trip').
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
@@ -77,11 +81,11 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
 export const useUploadStore = create((set, get) => ({
   ...INITIAL_STATE,
 
-  start: async (files) => {
+  start: async (files, skippedFiles = []) => {
     get().reset();
     const currentJob = jobId; // 자기 작업 번호의 사본으로 저장합니다.
     const selectedFiles = [...files];
-    set({ files: selectedFiles });
+    set({ files: selectedFiles, skippedFiles });
 
     // 큰 원본 여러 장을 동시에 디코딩하면 메모리가 급증하므로 한 장씩 처리해요.
     for (const [order, file] of selectedFiles.entries()) {
@@ -198,13 +202,14 @@ export const useUploadStore = create((set, get) => ({
  * @returns {Promise<{
  *   saved: number,
  *   existing: number,
+ *   unreadable: number,
  *   newPhotoIds: string[],
  *   targets: { order: number, fileKey: string }[],
  * } | null>}
  *   기다리는 사이 reset됐으면 null
  */
 async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) {
-  const { photos: readResults } = await readPhotos(files);
+  const { photos: readResults, skipped: unreadableFiles } = await readPhotos(files);
   // 저장하면 이미지 없는 행이 남고, 같은 사진을 다시 저장해도 이미 있다며 건너뛰어서 회색 칸이 돼요.
   if (isCancelled()) return null;
 
@@ -252,6 +257,8 @@ async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) 
   return {
     saved: saved.length,
     existing: skipped.length,
+    // 여기서 처음 열어 보고 알게 돼서, 고를 때 뺀 skippedFiles와 따로 셉니다.
+    unreadable: unreadableFiles.length,
     newPhotoIds: saved,
     targets: [...newTargets, ...resumeTargets],
   };
