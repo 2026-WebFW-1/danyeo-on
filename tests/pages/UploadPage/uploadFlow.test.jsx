@@ -193,6 +193,20 @@ test('화면이 사라졌다 돌아와도 같은 썸네일을 써요', async () 
   expect(resizeThumbnail).toHaveBeenCalledTimes(1);
 });
 
+test('화면이 사라졌다 돌아와도 뺀 파일 안내가 남아요', async () => {
+  // given: 일부를 빼고 다 모은 화면이 사라짐
+  await useUploadStore.getState().start([file], [{ fileName: '메모.txt', reason: 'unsupported' }]);
+  await act(() => root.render(<UploadPage />));
+  await act(() => root.render(null));
+
+  // when: 다시 돌아오면
+  await act(() => root.render(<UploadPage />));
+
+  // then: 사진과 함께 안내도 그대로 보임
+  expect(container.textContent).toContain('사진을 다 모았어요');
+  expect(container.textContent).toContain('받지 않는 형식 1개는 뺐어요');
+});
+
 test.each([null, { ...user, id: '다른계정' }])(
   '세션 주인이 바뀌면 사진을 정리해요: %j',
   async (nextUser) => {
@@ -470,4 +484,18 @@ test('빈 폴더를 끌어다 놓으면 뺀 이유 없이 사진이 없다고만
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('고른 곳에 사진이 없어요'),
   );
   expect(container.textContent).toContain('폴더 고르기');
+});
+
+test('일부를 뺐으면 모으기 화면에서 몇 개를 왜 뺐는지 알려요', async () => {
+  // given
+  await act(() => root.render(<UploadPage />));
+  const input = container.querySelector('input[accept]');
+  Object.defineProperty(input, 'files', { value: [file, new File([], '메모.txt')] });
+
+  // when
+  await act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+
+  // then
+  expect(container.textContent).toContain('사진을 다 모았어요');
+  expect(container.textContent).toContain('받지 않는 형식 1개는 뺐어요');
 });

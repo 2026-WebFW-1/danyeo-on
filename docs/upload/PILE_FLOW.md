@@ -27,14 +27,14 @@ UploadPage            photoFiles: File[]                      useState
 ### 후 (#89): 스토어가 상태를 들고, 화면은 구독만 함
 
 ```
-useUploadStore        files, photos, noPreviewCount, isDone   상태
-                      start(files), reset()                   액션
+useUploadStore        files, skippedFiles, photos, noPreviewCount, isDone   상태
+                      start(files, skippedFiles), reset()                   액션
                       jobId                                   모듈 변수 (상태 밖)
 
 App                   세션 주인이 바뀌면 reset()
 UploadPage            step: 'select' | 'pile'                 useState
-├─ SelectPhotosStep   onPick → start(files)
-└─ PilePhotosStep     photos.length, files.length, noPreviewCount, isDone 구독
+├─ SelectPhotosStep   onSelect → handleSelectPhotos → start(files, skippedFiles)
+└─ PilePhotosStep     photos.length, files.length, noPreviewCount, skippedFiles, isDone 구독
    └─ PhotoPile       photos 구독
 ```
 
