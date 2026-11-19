@@ -7,11 +7,14 @@ const SAME_PLACE_KM = 60; // 지점·집 지역 둘 다 이 거리
 const STOP_GAP_DAYS = 21; // 딱 21일이면 끊음 (< 21)
 const TRIP_GAP_DAYS = 14; // 딱 14일은 이어짐 (> 14일 때 끊음)
 const CHAPTER_DAYS = 14; // 14일 이상이면 챕터 (>= 14)
+const FILL_GAP_HOURS = 12; // 위치 없는 사진은 앞뒤 사진과 각각 딱 12시간까지 채움 (<= 12)
 const DEFAULT_OFFSET = '+09:00';
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
 // 21일을 밀리초로. 사진 시각(at, lastAt)이 밀리초라 단위를 맞춰요.
 const STOP_GAP_MS = STOP_GAP_DAYS * MS_PER_DAY;
 const TRIP_GAP_MS = TRIP_GAP_DAYS * MS_PER_DAY;
+const FILL_GAP_MS = FILL_GAP_HOURS * MS_PER_HOUR;
 const COORD_SCALE = 1e5;
 
 // 2. 작은 도우미
@@ -110,6 +113,47 @@ function isSameStop(stop, photo, at) {
   const gapMs = at - stop.lastAt;
 
   return distanceKm <= SAME_PLACE_KM && gapMs < STOP_GAP_MS;
+}
+
+/**
+ * 시각만 있고 위치가 없는 사진을 앞뒤 사진의 지점에 넣어요(#170).
+ * 바로 앞·뒤에 찍은 위치 있는 사진이 같은 지점이고, 둘과 각각 12시간 이하로 떨어져 있어야 해요.
+ * 맨 앞·맨 뒤 사진이나 앞뒤가 다른 지점인 사진은 이동 중에 찍었을 수 있어서 넣지 않아요.
+ *
+ * 넣는 사진은 늘 그 지점의 첫 사진과 마지막 사진 사이에 있어요. 좌표도 없어서
+ * 지점의 중심·기간과 여행 자르기는 위치 있는 사진만으로 정해져요.
+ *
+ * @param {ReturnType<typeof buildStops>} stops
+ * @param {import('@/types').LocatedPhoto[]} located buildStops에 넣은 것과 같은 배열이에요. 시각 순
+ * @param {import('@/types').Photo[]} photos takenAt은 있고 lat·lng가 없는 사진
+ * @returns {Map<ReturnType<typeof buildStops>[number], import('@/types').Photo[]>}
+ *   지점마다 넣을 사진, 받은 순서 그대로. 못 넣은 사진은 어느 지점에도 없어요
+ */
+function fillByTime(stops, located, photos) {
+  const ats = located.map(toInstant);
+  const stopOf = new Map(stops.flatMap((stop) => stop.photos.map((photo) => [photo, stop])));
+  const filledByStop = new Map();
+
+  for (const photo of photos) {
+    const at = toInstant(photo);
+    // 이 사진 직전·직후에 찍은 위치 있는 사진. 맨 앞·맨 뒤라 없으면 -1이에요.
+    // 같은 시각에 찍은 사진이 있으면 앞뒤가 같은 사진일 수 있어요.
+    const prev = ats.findLastIndex((t) => t <= at);
+    const next = ats.findIndex((t) => t >= at);
+    if (prev === -1 || next === -1) continue;
+
+    const stop = stopOf.get(located[prev]);
+    const isFillable =
+      stop === stopOf.get(located[next]) &&
+      at - ats[prev] <= FILL_GAP_MS &&
+      ats[next] - at <= FILL_GAP_MS;
+    if (!isFillable) continue;
+
+    if (!filledByStop.has(stop)) filledByStop.set(stop, []);
+    filledByStop.get(stop).push(photo);
+  }
+
+  return filledByStop;
 }
 
 /**
@@ -215,7 +259,8 @@ function buildTrips(stops, rawStops) {
 
 /** 4. 거르고, 묶고, 지점 결과 만들기
  * 사진 목록을 지점(머문 곳)과 여행으로 묶어요. buildJourney가 이 결과에 이름·보정·이동 수단을 붙여요.
- * 규칙은 my-journey의 mock/reference-group.mjs와 같아서, seed 사진을 넣으면 fixtures의 *.group.json과 같게 나와요.
+ * 지점·여행 규칙은 my-journey의 mock/reference-group.mjs와 같아서, seed 사진을 넣으면 fixtures의 *.group.json과 같게 나와요.
+ * 위치 없는 사진 채우기(fillByTime)는 참고 구현에 없지만, seed에는 채울 사진이 없어서 결과가 같아요.
  *
  * @param {import('@/types').Photo[]} photos
  *   올린 사진 전부예요. 순서는 상관없고, 이 배열은 바꾸지 않아요.
@@ -223,7 +268,7 @@ function buildTrips(stops, rawStops) {
  *   home: 집 좌표. 지역이 하나뿐이면 null
  *   stops: 지점, 시각 순
  *   trips: 여행, 시각 순
- *   unlocated: 시각이나 위치가 없어 못 묶은 사진 ID, 받은 순서 그대로
+ *   unlocated: 시각이 없거나, 위치가 없고 앞뒤 사진으로도 못 넣은 사진 ID. 받은 순서 그대로
  */
 export function group(photos) {
   // 1. 시각과 위치가 다 있는 사진만 묶습니다.
@@ -234,15 +279,27 @@ export function group(photos) {
     (a, b) => toInstant(a) - toInstant(b),
   );
 
-  // 시각이 없는 사진은 정렬하지 않고 받은 순서대로 두기만 합니다.
-  const unlocated = photos.filter((photo) => !isLocated(photo)).map((photo) => photo.id);
-
   const rawStops = buildStops(located);
   const home = findHome(rawStops);
+
+  // 2. 시각만 있는 사진을 앞뒤 지점에 넣고, 못 넣은 사진은 받은 순서대로 unlocated에 둡니다.
+  const filledByStop = fillByTime(
+    rawStops,
+    located,
+    photos.filter((photo) => Boolean(photo.takenAt) && !isLocated(photo)),
+  );
+  const filled = new Set([...filledByStop.values()].flat());
+  const unlocated = photos
+    .filter((photo) => !isLocated(photo) && !filled.has(photo))
+    .map((photo) => photo.id);
 
   const stops = rawStops.map((raw) => {
     const first = raw.photos[0];
     const last = raw.photos.at(-1);
+    // 채운 사진을 시각 순으로 끼워요. 같은 시각이면 위치 있는 사진이 앞이라 photoIds[0]은 지점 ID와 같아요.
+    const photosInStop = [...raw.photos, ...(filledByStop.get(raw) ?? [])].toSorted(
+      (a, b) => toInstant(a) - toInstant(b),
+    );
 
     const days = countDays(raw.photos.map((photo) => photo.takenAt));
 
@@ -261,7 +318,7 @@ export function group(photos) {
 
       days,
 
-      photoIds: raw.photos.map((photo) => photo.id),
+      photoIds: photosInStop.map((photo) => photo.id),
 
       isHome,
 
