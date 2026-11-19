@@ -28,8 +28,8 @@ const COORD_SCALE = 1e5;
 /** @typedef {{ stop: import('@/types').GroupStop, raw: RawStop }} StopEntry */
 
 const roundCoord = (value) => Math.round(value * COORD_SCALE) / COORD_SCALE;
-const toInstant = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
-const byInstant = (a, b) => toInstant(a) - toInstant(b);
+const toTakenMs = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
+const byTakenMs = (a, b) => toTakenMs(a) - toTakenMs(b);
 const hasTime = (photo) => Boolean(photo.takenAt);
 const isLocated = (photo) => hasTime(photo) && photo.lat !== null && photo.lng !== null;
 const toPairs = (items) => items.slice(1).map((item, i) => [items[i], item]);
@@ -67,7 +67,7 @@ function wrapLng(lng) {
 function buildStops(photos) {
   const stops = [];
   for (const photo of photos) {
-    const at = toInstant(photo);
+    const at = toTakenMs(photo);
     const current = stops.at(-1);
     if (current && isSameStop(current, photo, at)) addToStop(current, photo, at);
     else stops.push({ lat: photo.lat, lng: photo.lng, photos: [photo], firstAt: at, lastAt: at });
@@ -114,20 +114,20 @@ function fillByTime(stops, located, photos) {
 
   const findStopAround = (at) => {
     // 같은 시각에 찍은 사진이 있으면 앞뒤가 같은 사진일 수 있어요.
-    const prevPhoto = located.findLast((photo) => toInstant(photo) <= at);
-    const nextPhoto = located.find((photo) => toInstant(photo) >= at);
+    const prevPhoto = located.findLast((photo) => toTakenMs(photo) <= at);
+    const nextPhoto = located.find((photo) => toTakenMs(photo) >= at);
     if (!prevPhoto || !nextPhoto) return null;
 
     const stop = stopOf.get(prevPhoto);
     const isBetweenSameStop = stop === stopOf.get(nextPhoto);
     const isNear =
-      at - toInstant(prevPhoto) <= MAX_FILL_GAP_MS && toInstant(nextPhoto) - at <= MAX_FILL_GAP_MS;
+      at - toTakenMs(prevPhoto) <= MAX_FILL_GAP_MS && toTakenMs(nextPhoto) - at <= MAX_FILL_GAP_MS;
     return isBetweenSameStop && isNear ? stop : null;
   };
 
   const filledByStop = new Map();
   for (const photo of photos) {
-    const stop = findStopAround(toInstant(photo));
+    const stop = findStopAround(toTakenMs(photo));
     if (!stop) continue;
     if (!filledByStop.has(stop)) filledByStop.set(stop, []);
     filledByStop.get(stop).push(photo);
@@ -174,7 +174,7 @@ function toGroupStop(raw, home, filledPhotos) {
   const days = countDays(raw.photos.map((photo) => photo.takenAt));
   const isHome = home !== null && calcDistanceKm(home, raw) <= SAME_PLACE_KM;
   // 안정 정렬이라 같은 시각이면 위치 있는 사진이 앞에 남아서, photoIds[0]이 지점 ID와 같아요.
-  const photoIds = [...raw.photos, ...filledPhotos].toSorted(byInstant).map((photo) => photo.id);
+  const photoIds = [...raw.photos, ...filledPhotos].toSorted(byTakenMs).map((photo) => photo.id);
 
   return {
     id: first.id,
@@ -258,7 +258,7 @@ function toLeg(from, to) {
  */
 export function group(photos) {
   const located = /** @type {import('@/types').LocatedPhoto[]} */ (photos.filter(isLocated)).sort(
-    byInstant,
+    byTakenMs,
   );
   const rawStops = buildStops(located);
   const home = findHome(rawStops);
