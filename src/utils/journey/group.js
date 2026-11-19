@@ -82,7 +82,9 @@ function buildStops(photos) {
  * @returns {boolean}
  */
 function isSameStop(stop, photo, at) {
-  return calcDistanceKm(stop, photo) <= SAME_PLACE_KM && at - stop.lastAt < STOP_BREAK_MS;
+  const isNearby = calcDistanceKm(stop, photo) <= SAME_PLACE_KM;
+  const isSoonAfter = at - stop.lastAt < STOP_BREAK_MS;
+  return isNearby && isSoonAfter;
 }
 
 /**
@@ -108,18 +110,19 @@ function addToStop(stop, photo, at) {
  * @returns {Map<RawStop, import('@/types').Photo[]>} 받은 순서 그대로
  */
 function fillByTime(stops, located, photos) {
-  const ats = located.map(toInstant);
   const stopOf = new Map(stops.flatMap((stop) => stop.photos.map((photo) => [photo, stop])));
 
   const findStopAround = (at) => {
     // 같은 시각에 찍은 사진이 있으면 앞뒤가 같은 사진일 수 있어요.
-    const prev = ats.findLastIndex((t) => t <= at);
-    const next = ats.findIndex((t) => t >= at);
-    if (prev === -1 || next === -1) return null;
+    const prevPhoto = located.findLast((photo) => toInstant(photo) <= at);
+    const nextPhoto = located.find((photo) => toInstant(photo) >= at);
+    if (!prevPhoto || !nextPhoto) return null;
 
-    const stop = stopOf.get(located[prev]);
-    const isNear = at - ats[prev] <= MAX_FILL_GAP_MS && ats[next] - at <= MAX_FILL_GAP_MS;
-    return isNear && stop === stopOf.get(located[next]) ? stop : null;
+    const stop = stopOf.get(prevPhoto);
+    const isBetweenSameStop = stop === stopOf.get(nextPhoto);
+    const isNear =
+      at - toInstant(prevPhoto) <= MAX_FILL_GAP_MS && toInstant(nextPhoto) - at <= MAX_FILL_GAP_MS;
+    return isBetweenSameStop && isNear ? stop : null;
   };
 
   const filledByStop = new Map();
