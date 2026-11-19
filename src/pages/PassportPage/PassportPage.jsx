@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useJourney } from '@/hooks/useJourney';
+import { getLocalToday, selectPassportCalendar } from '@/utils/passportCalendar';
 import { selectPassportStamps } from '@/utils/passportStamps';
 import { selectPassportStats } from '@/utils/passportStats';
 
@@ -21,6 +22,9 @@ export default function PassportPage() {
 
   const stats = useMemo(() => selectPassportStats(journey), [journey]);
   const stamps = useMemo(() => selectPassportStamps(journey), [journey]);
+  // 오늘은 화면을 연 날로 한 번만 정해요. 렌더마다 다시 읽으면 자정을 넘길 때 캘린더가 혼자 바뀌어요.
+  const [today] = useState(getLocalToday);
+  const calendar = useMemo(() => selectPassportCalendar(journey, today), [journey, today]);
 
   if (status === 'loading') {
     return (
@@ -42,5 +46,5 @@ export default function PassportPage() {
     );
   }
 
-  return <PassportView journey={journey} stats={stats} stamps={stamps} />;
+  return <PassportView journey={journey} stats={stats} stamps={stamps} calendar={calendar} />;
 }

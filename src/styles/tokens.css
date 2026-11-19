@@ -56,6 +56,8 @@
   --color-stamp-ink-2: #2f5d46; /* 초록 */
   --color-stamp-ink-3: #7a4b2a; /* 갈색 */
   --color-stamp-ink-5: #1a1a1a; /* 검정 */
+  /* 05 캘린더의 집에 있던 날 칸. 피그마에 변수 없이 색만 칠해져 있어서 이름은 쓰임새대로 지었어요 */
+  --color-calendar-home: #e7e2d7;
 
   /* 글꼴 파일은 index.html에서 받습니다. --font-sans를 바꾸면 Preflight가 body 기본 글꼴로 씁니다 */
   --font-sans: 'Noto Sans KR', sans-serif;

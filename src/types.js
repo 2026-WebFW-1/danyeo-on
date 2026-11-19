@@ -142,6 +142,24 @@
  */
 
 /**
+ * 05 여행 캘린더의 하루 칸이에요.
+ *
+ * @typedef {object} PassportCalendarDay
+ * @property {string} date 현지 날짜. 예: '2025-07-12'. 칸마다 달라서 key로 써요
+ * @property {'trip' | 'home' | 'future' | null} kind 여행한 날 | 집에 있던 날 | 오늘 뒤 | 24개월 밖이라 비워 두는 칸
+ */
+
+/**
+ * 05 여행 캘린더 한 장이에요. 한 주가 한 열이고, 열마다 월요일부터 일요일까지 7칸이에요.
+ *
+ * @typedef {object} PassportCalendar
+ * @property {{ id: string, days: PassportCalendarDay[] }[]} weeks id는 그 주 월요일 날짜예요
+ * @property {{ id: string, column: number, label: string, isYear: boolean }[]} months 달의 1일이 든 열. 1월은 label이 연도예요. id 예: '2025-01'
+ * @property {number} tripDays 24개월 중 오늘까지 여행한 날 수
+ * @property {{ days: number, from: string, to: string, startColumn: number, endColumn: number } | null} longestRest 두 여행 사이에 집에 있던 가장 긴 기간. 없으면 null
+ */
+
+/**
  * 02 챕터 화면 머리의 `03 / 12`에 쓰는 챕터 하나예요.
  *
  * @typedef {object} ChapterItem

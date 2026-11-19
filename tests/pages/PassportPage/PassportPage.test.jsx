@@ -129,6 +129,64 @@ describe('PassportPage', () => {
     expect(page.parentElement.style.height).toBe('320px');
   });
 
+  describe('여행 캘린더', () => {
+    // 캘린더는 오늘 날짜로 기간을 정해서, 브라우저 시각을 2026-11-19 낮으로 고정해요.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 10, 19, 12));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const calendarSection = () =>
+      container.querySelector('section[aria-labelledby="passport-calendar"]');
+
+    test('스탬프 아래에 CALENDAR 머리와 칸 색 범례를 보여 줘요', async () => {
+      await render(ready(seojin));
+
+      const section = calendarSection();
+      expect(section.querySelector('#passport-calendar').textContent).toBe('여행한 날');
+      expect(section.textContent).toContain('CALENDAR');
+      expect([...section.querySelectorAll('ul li')].map((item) => item.textContent)).toEqual([
+        '여행한 날',
+        '집에 있던 날',
+        '아직 안 온 날',
+      ]);
+      const sections = [...container.querySelectorAll('main > section')];
+      expect(sections.indexOf(section)).toBeGreaterThan(
+        sections.findIndex((item) => item.getAttribute('aria-labelledby') === 'passport-visas'),
+      );
+    });
+
+    test('최근 24개월을 하루 한 칸으로 그리고, 화면 읽기에는 여행한 날 수를 알려요', async () => {
+      await render(ready(seojin));
+
+      const grid = calendarSection().querySelector('[role="img"]');
+      expect(grid.getAttribute('aria-label')).toBe('최근 24개월 중 여행한 날 97일');
+      expect(grid.children).toHaveLength(106 * 7);
+      expect(calendarSection().textContent).toContain('2025');
+      expect(calendarSection().textContent).toContain('2026');
+    });
+
+    test('두 여행 사이의 가장 긴 쉼을 캘린더 아래에 적어요', async () => {
+      await render(ready(seojin));
+
+      expect(calendarSection().textContent).toContain('가장 긴 쉼 · 134일');
+    });
+
+    test('화면이 좁으면 캘린더를 통째로 줄여서 오른쪽 끝도 보여요', async () => {
+      container.style.width = '602px';
+      await render(ready(seojin));
+
+      // 106주 캘린더는 왼쪽 요일 칸까지 1204px이라 602px에서는 절반으로 줄어요.
+      const grid = calendarSection().querySelector('[role="img"]').parentElement;
+      expect(grid.style.transform).toBe('scale(0.5)');
+      expect(grid.parentElement.style.height).toBe('74.5px');
+    });
+  });
+
   test('여행이 0개면 머리 없이 사진 올리기 안내만 보여요', async () => {
     await render(ready(empty));
 
