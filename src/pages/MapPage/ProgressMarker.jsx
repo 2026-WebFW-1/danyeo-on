@@ -2,6 +2,7 @@ import { geoPath } from 'd3-geo';
 
 import planeIcon from '@/assets/icons/plane.svg';
 import { MODE_EMOJI } from '@/constants/journey';
+import { applyZoom, IDENTITY_ZOOM, unscaleAt } from '@/utils/mapZoom';
 import { calcLegAngle, calcLegPoint, mapProjection, toLegLine, toLngLat } from '@/utils/routeMap';
 
 import DestinationLabel from './DestinationLabel';
@@ -21,10 +22,19 @@ const PLANE = { width: 35.75, height: 37, centerX: 18.5, centerY: 15.5 };
  *       남은 부분은 흐린 점선으로 도착지(점선 동그라미)와 도착 예정 라벨까지 보여 줍니다.
  * 호출: RouteMap. <svg> 안에서만 쓸 수 있습니다.
  * 크기: RouteMap의 viewBox(1440 폭) 기준 숫자를 그대로 씁니다. 피그마 01의 값입니다.
+ *       RouteMap이 확대한 그룹 안에 그려서, 선은 non-scaling-stroke로, 아이콘 · 도착지 점 · 라벨은
+ *       zoom 배율만큼 다시 줄여서 확대해도 화면 크기가 그대로예요(#184).
  */
-export default function ProgressMarker({ leg, t, destinationName, glowFilterId }) {
+export default function ProgressMarker({
+  leg,
+  t,
+  destinationName,
+  glowFilterId,
+  zoom = IDENTITY_ZOOM,
+}) {
   const [x, y] = mapProjection(calcLegPoint(leg, t));
   const [toX, toY] = mapProjection(toLngLat(leg.toLatLng));
+  const [toScreenX] = applyZoom(zoom, [toX, toY]);
   const isArrived = t === 1;
 
   return (
@@ -35,6 +45,7 @@ export default function ProgressMarker({ leg, t, destinationName, glowFilterId }
           filter={`url(#${glowFilterId})`}
           strokeWidth={3.5}
           strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
           className="fill-none stroke-accent"
         />
       )}
@@ -44,20 +55,23 @@ export default function ProgressMarker({ leg, t, destinationName, glowFilterId }
             d={drawPath(toLegLine(leg, t, 1))}
             strokeWidth={1.8}
             strokeDasharray="5.5 8"
+            vectorEffect="non-scaling-stroke"
             className="fill-none stroke-accent/45"
           />
-          <circle
-            cx={toX}
-            cy={toY}
-            r={5}
-            strokeWidth={1.5}
-            strokeDasharray="2 1.9"
-            className="fill-white stroke-accent"
-          />
-          <DestinationLabel x={toX} y={toY} name={destinationName} />
+          <g transform={unscaleAt(zoom.k, toX, toY)}>
+            <circle
+              cx={toX}
+              cy={toY}
+              r={5}
+              strokeWidth={1.5}
+              strokeDasharray="2 1.9"
+              className="fill-white stroke-accent"
+            />
+            <DestinationLabel x={toX} y={toY} screenX={toScreenX} name={destinationName} />
+          </g>
         </>
       )}
-      <g transform={`translate(${x} ${y})`}>
+      <g transform={`translate(${x} ${y}) scale(${1 / zoom.k})`}>
         {leg.mode === 'flight' ? (
           <image
             href={planeIcon}

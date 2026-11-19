@@ -6,6 +6,7 @@ import world from 'world-atlas/countries-110m.json';
 import { cn } from '@/utils/cn';
 import { selectVisibleLegLabels } from '@/utils/legLabels';
 import { getPlaceName } from '@/utils/mapScreen';
+import { IDENTITY_ZOOM, unscaleAt } from '@/utils/mapZoom';
 import {
   calcReachedStopIds,
   MAP_SIZE,
@@ -41,6 +42,9 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  *       자리는 재생 범위 전체로 한 번 정해서 재생 중에 옮겨 가지 않습니다(selectVisibleLegLabels).
  *       isLegModeEditing을 켜면(01 고치기 모드) 라벨을 눌러 이동 수단을 고칩니다(기능 명세 M107, LegLabelLayer).
  *       highlightedLegId 구간은 진하게 덧그려서 고치기 목록에서 고르는 구간이 지도 어디인지 보여 줍니다.
+ *       확대(zoom, #184)는 땅 · 국경 · 경로를 한 그룹으로 키우고, 선 굵기는 non-scaling-stroke로 화면 굵기 그대로 둡니다.
+ *       점 · 아이콘 · 라벨은 자기 자리를 중심으로 다시 줄여서(unscaleAt) 자리만 지도를 따라가고 크기는 그대로예요.
+ *       휠 · 끌기 이벤트는 useMapZoom이 ref로 받은 이 <svg>에 직접 답니다.
  *
  * @param {object} props
  * @param {import('@/types').Journey['home']} props.home
@@ -52,6 +56,9 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  * @param {(leg: import('@/types').Leg, mode: import('@/types').Leg['mode']) => void} [props.onChangeLegMode]
  *   라벨 메뉴에서 고르면 불러요. 저장은 쓰는 쪽이 해요
  * @param {string | null} [props.highlightedLegId] 진하게 덧그릴 구간. 다 그린 구간만 그려요
+ * @param {import('@/utils/mapZoom').MapZoom} [props.zoom] 확대 상태. 없으면 세계 지도 전체예요
+ * @param {boolean} [props.isDragging] 지도를 끄는 중이면 손 모양 커서를 쥔 모양으로 바꿔요
+ * @param {import('react').Ref<SVGSVGElement>} [props.ref] useMapZoom의 ref
  * @param {string} [props.className]
  */
 export default function RouteMap({
@@ -63,6 +70,9 @@ export default function RouteMap({
   isLegModeEditing = false,
   onChangeLegMode,
   highlightedLegId = null,
+  zoom = IDENTITY_ZOOM,
+  isDragging = false,
+  ref,
   className,
 }) {
   const glowFilterId = useId();
@@ -87,99 +97,122 @@ export default function RouteMap({
 
   return (
     <svg
+      ref={ref}
       viewBox={`0 0 ${MAP_SIZE.width} ${MAP_SIZE.height}`}
       preserveAspectRatio="xMidYMid slice"
       // img로 두면 안의 지점 버튼이 스크린 리더에서 사라져서 group으로 둬요
       role="group"
       aria-label="여행 경로 지도"
-      className={cn('block w-full bg-map', className)}
+      className={cn(
+        'block w-full touch-none bg-map',
+        isDragging ? 'cursor-grabbing' : zoom.k > 1 && 'cursor-grab',
+        className,
+      )}
     >
       <defs>
-        {/* 피그마 01 route active의 분홍 번짐 */}
+        {/* 피그마 01 route active의 분홍 번짐. 확대한 그룹 안의 선에 걸려서, 번지는 폭을 배율만큼 줄여요 */}
         <filter id={glowFilterId} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow
             dx="0"
             dy="0"
-            stdDeviation="4"
+            stdDeviation={4 / zoom.k}
             floodOpacity="0.35"
             className="[flood-color:var(--color-accent)]"
           />
         </filter>
       </defs>
 
-      <path d={LAND_PATH} className="fill-map-land" />
-      <path d={BORDER_PATH} strokeWidth={0.6} className="fill-none stroke-map-border" />
-
-      {split.done.map((leg) => (
+      <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k})`}>
+        <path d={LAND_PATH} className="fill-map-land" />
         <path
-          key={leg.id}
-          d={drawPath(toLegLine(leg))}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeDasharray={MODE_DASH[leg.mode]}
-          className="fill-none stroke-accent/80"
+          d={BORDER_PATH}
+          strokeWidth={0.6}
+          vectorEffect="non-scaling-stroke"
+          className="fill-none stroke-map-border"
         />
-      ))}
 
-      {highlightedLeg && (
-        <path
-          data-leg-highlight={highlightedLeg.id}
-          d={drawPath(toLegLine(highlightedLeg))}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeDasharray={MODE_DASH[highlightedLeg.mode]}
-          className="fill-none stroke-ink"
-        />
-      )}
-
-      {split.current && (
-        <ProgressMarker
-          leg={split.current.leg}
-          t={split.current.t}
-          destinationName={getPlaceName(home, stops, split.current.leg.to)}
-          glowFilterId={glowFilterId}
-        />
-      )}
-
-      {hasRoute && (
-        <g aria-label={`집 ${home.city}`}>
-          <circle
-            cx={homeX}
-            cy={homeY}
-            r={16.25}
-            strokeWidth={1.5}
-            className="fill-none stroke-ink/80"
+        {split.done.map((leg) => (
+          <path
+            key={leg.id}
+            d={drawPath(toLegLine(leg))}
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeDasharray={MODE_DASH[leg.mode]}
+            vectorEffect="non-scaling-stroke"
+            className="fill-none stroke-accent/80"
           />
-          <circle cx={homeX} cy={homeY} r={5} strokeWidth={2} className="fill-ink stroke-white" />
-        </g>
-      )}
+        ))}
 
-      {visibleStops.map((stop) => {
-        const [x, y] = mapProjection([stop.lng, stop.lat]);
-        return (
-          <g
-            key={stop.id}
-            role="button"
-            tabIndex={0}
-            aria-label={`${stop.city}, ${stop.country}`}
-            onClick={() => onSelectStop?.(stop.id)}
-            onKeyDown={(event) => handleStopKeyDown(event, stop.id)}
-            className="cursor-pointer"
-          >
-            {/* 점(지름 8)은 누르기 어려워서 보이지 않는 넓은 영역을 깔아요 */}
-            <circle cx={x} cy={y} r={12} className="fill-transparent" />
-            <circle cx={x} cy={y} r={3.25} strokeWidth={1.5} className="fill-accent stroke-white" />
+        {highlightedLeg && (
+          <path
+            data-leg-highlight={highlightedLeg.id}
+            d={drawPath(toLegLine(highlightedLeg))}
+            strokeWidth={4}
+            strokeLinecap="round"
+            strokeDasharray={MODE_DASH[highlightedLeg.mode]}
+            vectorEffect="non-scaling-stroke"
+            className="fill-none stroke-ink"
+          />
+        )}
+
+        {split.current && (
+          <ProgressMarker
+            leg={split.current.leg}
+            t={split.current.t}
+            destinationName={getPlaceName(home, stops, split.current.leg.to)}
+            glowFilterId={glowFilterId}
+            zoom={zoom}
+          />
+        )}
+
+        {hasRoute && (
+          <g aria-label={`집 ${home.city}`} transform={unscaleAt(zoom.k, homeX, homeY)}>
+            <circle
+              cx={homeX}
+              cy={homeY}
+              r={16.25}
+              strokeWidth={1.5}
+              className="fill-none stroke-ink/80"
+            />
+            <circle cx={homeX} cy={homeY} r={5} strokeWidth={2} className="fill-ink stroke-white" />
           </g>
-        );
-      })}
+        )}
 
-      {/* 고치기를 끝내면 key가 바뀌어 열린 메뉴가 닫히고, 다시 시작하면 닫힌 채로 시작해요 */}
-      <LegLabelLayer
-        key={isLegModeEditing ? 'editing' : 'viewing'}
-        labels={arrivedLabels}
-        isEditing={isLegModeEditing}
-        onChangeMode={onChangeLegMode}
-      />
+        {visibleStops.map((stop) => {
+          const [x, y] = mapProjection([stop.lng, stop.lat]);
+          return (
+            <g
+              key={stop.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${stop.city}, ${stop.country}`}
+              onClick={() => onSelectStop?.(stop.id)}
+              onKeyDown={(event) => handleStopKeyDown(event, stop.id)}
+              transform={unscaleAt(zoom.k, x, y)}
+              className="cursor-pointer"
+            >
+              {/* 점(지름 8)은 누르기 어려워서 보이지 않는 넓은 영역을 깔아요 */}
+              <circle cx={x} cy={y} r={12} className="fill-transparent" />
+              <circle
+                cx={x}
+                cy={y}
+                r={3.25}
+                strokeWidth={1.5}
+                className="fill-accent stroke-white"
+              />
+            </g>
+          );
+        })}
+
+        {/* 고치기를 끝내면 key가 바뀌어 열린 메뉴가 닫히고, 다시 시작하면 닫힌 채로 시작해요 */}
+        <LegLabelLayer
+          key={isLegModeEditing ? 'editing' : 'viewing'}
+          labels={arrivedLabels}
+          isEditing={isLegModeEditing}
+          onChangeMode={onChangeLegMode}
+          zoom={zoom}
+        />
+      </g>
     </svg>
   );
 }
