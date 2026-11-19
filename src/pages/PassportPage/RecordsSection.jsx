@@ -11,6 +11,7 @@ import { SECTION_CLASS } from './sectionClass';
  * 의도:
  *  - 고를 수 없는 기록(집을 몰라서 거리를 못 재는 등)은 빼고 남은 카드만 놓아요. 하나도 없으면 영역째 그리지 않아요.
  *  - 피그마는 이 영역 아래를 120px 비워서, 화면 아래 여백(96px)에 24px을 더해요.
+ *  - 1024px보다 좁으면 카드를 세로로 쌓아요. 세 장을 한 줄에 두면 카드가 100px 아래로 좁아져 글자가 깨져요.
  *
  * @param {object} props
  * @param {import('@/types').PassportRecordCard[]} props.cards
@@ -24,7 +25,7 @@ export default function RecordsSection({ cards }) {
       className={`${SECTION_CLASS} flex flex-col gap-6 pt-24 pb-6`}
     >
       <SectionHeading eyebrow="RECORDS" title="기록" titleId="passport-records" />
-      <ul className="flex gap-8">
+      <ul className="flex flex-col gap-8 lg:flex-row">
         {cards.map((card) => (
           <RecordCard key={card.label} card={card} />
         ))}

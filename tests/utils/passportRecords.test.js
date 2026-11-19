@@ -165,6 +165,19 @@ describe('formatPassportRecords', () => {
     );
   });
 
+  test('이름을 못 찾은 곳이면 나라 구절을 빼고 설명을 적어요', () => {
+    // reverseCity가 실패하면 지점이 UNKNOWN_PLACE(나라 이름 · 코드 모두 빈 값)로 남아요.
+    const journey = journeyOf([
+      stop('a', '', '이름 없는 곳', { country: '', days: 9, photoCount: 4 }),
+    ]);
+
+    const [longestStay] = formatPassportRecords(selectPassportRecords(journey));
+    expect(longestStay.value).toBe('이름 없는 곳 · 9일');
+    expect(longestStay.description).toBe(
+      '9일 동안 사진 4장을 남겼어요. 가장 많은 사진(4장)도 여기서.',
+    );
+  });
+
   test('도시가 다섯 곳을 넘으면 네 곳만 적고 나머지는 "외 N곳"으로 줄여요', () => {
     const cities = ['도쿄', '오사카', '교토', '삿포로', '후쿠오카', '나고야', '나하'];
     const journey = journeyOf(...cities.map((city) => [stop(city, 'JP', city)]));

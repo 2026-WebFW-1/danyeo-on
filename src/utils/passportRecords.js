@@ -136,10 +136,15 @@ export function formatPassportRecords({ longestStay, farthest, mostVisited }) {
   if (longestStay) {
     const { stop, hasMostPhotos } = longestStay;
     const photoNote = hasMostPhotos ? ` 가장 많은 사진(${stop.photoCount}장)도 여기서.` : '';
+    // 이름을 못 찾은 곳(UNKNOWN_PLACE)은 나라 이름도 코드도 비어서, "에서"로 시작하지 않게 나라 구절을 빼요.
+    const country = getStopCountry(stop);
+    const stay = country
+      ? `${country}에서 ${stop.days}일, 사진 ${stop.photoCount}장을 남겼어요.`
+      : `${stop.days}일 동안 사진 ${stop.photoCount}장을 남겼어요.`;
     cards.push({
       label: 'LONGEST STAY',
       value: `${stop.city} · ${stop.days}일`,
-      description: `${getStopCountry(stop)}에서 ${stop.days}일, 사진 ${stop.photoCount}장을 남겼어요.${photoNote}`,
+      description: `${stay}${photoNote}`,
       coverFileKey: stop.coverFileKey,
     });
   }
