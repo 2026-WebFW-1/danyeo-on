@@ -1,8 +1,8 @@
+import ArrowLink from '@/components/common/ArrowLink';
 import StatRow from '@/components/common/StatRow';
 import { TRIP_PARAM } from '@/constants/journey';
 import { formatTripStats } from '@/utils/formatTripStats';
 
-import ArrowLink from './ArrowLink';
 import { SECTION_CLASS } from './sectionClass';
 
 /**
