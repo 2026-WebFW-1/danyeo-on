@@ -8,6 +8,7 @@ import seojin from '@/data/fixtures/seojin.journey.json';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import MapPage from '@/pages/MapPage/MapPage';
+import { usePlaybackStore } from '@/stores/playbackStore';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useCorrections', () => ({ useCorrections: vi.fn() }));
@@ -33,6 +34,24 @@ async function openMap(entry = '/map') {
       </MemoryRouter>,
     ),
   );
+}
+
+function getEditButton() {
+  return container.querySelector('button[aria-label="이동 수단 고치기"]');
+}
+
+function getPanel() {
+  return container.querySelector('section[aria-label="이동 수단 고치기"]');
+}
+
+// 고치기 목록에서 그 구간 줄의 이동 수단 버튼이에요.
+function getPanelModeButton(route, label) {
+  return getPanel().querySelector(`[aria-label="${route} 이동 수단"] [aria-label="${label}"]`);
+}
+
+async function openEditing(entry) {
+  await openMap(entry);
+  await click(getEditButton());
 }
 
 function getLabel(text) {
@@ -86,9 +105,107 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('01 이동 수단 바꾸기', () => {
-  test('지점에서 출발하는 구간의 라벨은 눌러서 고칠 수 있어요', async () => {
+describe('01 이동 수단 고치기 모드', () => {
+  test('평소에는 라벨을 누를 수 없고, 범례의 고치기로 들어가요', async () => {
     await openMap();
+
+    expect(getLabel('기차 · 343km').tagName).toBe('P');
+    expect(getLabelButton('기차 · 343km')).toBeUndefined();
+    expect(getPanel()).toBeNull();
+
+    await click(getEditButton());
+
+    expect(getLabelButton('기차 · 343km')).toBeDefined();
+    expect(getPanel()).not.toBeNull();
+    expect(container.querySelector('section[aria-label="이동 수단"]')).toBeNull();
+  });
+
+  test('들어가면 재생을 멈추고 끝으로 옮겨서 모든 라벨을 보여 줘요', async () => {
+    window.matchMedia.mockReturnValue({ matches: false });
+    await openMap();
+    expect(usePlaybackStore.getState().isPlaying).toBe(true);
+    expect(getLabel('기차 · 343km')).toBeUndefined();
+
+    await click(getEditButton());
+
+    expect(usePlaybackStore.getState().isPlaying).toBe(false);
+    expect(usePlaybackStore.getState().elapsedMs).toBe(Infinity);
+    expect(getLabelButton('기차 · 343km')).toBeDefined();
+  });
+
+  test('완료나 Esc를 누르면 끝나고 라벨을 다시 누를 수 없어요', async () => {
+    await openEditing();
+    await click(getPanel().querySelector('button'));
+    expect(getPanel()).toBeNull();
+    expect(getLabelButton('기차 · 343km')).toBeUndefined();
+
+    await click(getEditButton());
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(getPanel()).toBeNull();
+  });
+
+  test('기간 탭을 바꾸면 고치기를 끝내요', async () => {
+    await openEditing();
+
+    await click([...container.querySelectorAll('button')].find((b) => b.textContent === '1y'));
+
+    expect(getPanel()).toBeNull();
+  });
+
+  test('목록에는 집에서 나가는 구간을 빼고 모든 구간이 있어요', async () => {
+    await openEditing();
+
+    const editableCount = seojin.legs.filter(
+      (leg) => leg.from !== 'home' && usePlaybackStore.getState().legs.includes(leg),
+    ).length;
+    expect(getPanel().querySelectorAll('li')).toHaveLength(editableCount);
+    // 지도에 라벨이 없는 자동 비행 구간도 목록에서는 고칠 수 있어요.
+    const flightPressed = getPanel().querySelectorAll('[aria-label="비행"][aria-pressed="true"]');
+    expect(flightPressed.length).toBeGreaterThan(0);
+  });
+
+  test('목록에서 이동 수단을 누르면 출발 지점 사진으로 보정을 저장해요', async () => {
+    await openEditing();
+
+    await click(getPanelModeButton('밴쿠버 → 밴프', '기차'));
+
+    const leg = seojin.legs.find((item) => Math.round(item.km) === 552 && item.mode === 'car');
+    expect(add).toHaveBeenCalledWith({ type: 'mode', fromPhotoId: leg.from, mode: 'train' });
+  });
+
+  test('목록에서 지금 이동 수단을 누르면 저장하지 않아요', async () => {
+    await openEditing();
+
+    await click(getPanelModeButton('밴쿠버 → 밴프', '차'));
+
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  test('목록에서 저장에 실패하면 그 줄에 안내를 띄워요', async () => {
+    add.mockRejectedValue({ status: 0, code: 'SAVE_FAILED', message: 'x' });
+    await openEditing();
+
+    await click(getPanelModeButton('밴쿠버 → 밴프', '기차'));
+
+    const row = getPanel().querySelector('[aria-label="밴쿠버 → 밴프 이동 수단"]').closest('li');
+    expect(row.querySelector('[role="alert"]').textContent).toContain('저장하지 못했어요');
+  });
+
+  test('목록 줄에 포커스하면 지도에서 그 구간을 진하게 그려요', async () => {
+    await openEditing();
+
+    await act(async () => getPanelModeButton('밴쿠버 → 밴프', '차').focus());
+
+    const leg = seojin.legs.find((item) => Math.round(item.km) === 552 && item.mode === 'car');
+    expect(container.querySelector(`[data-leg-highlight="${leg.id}"]`)).not.toBeNull();
+  });
+});
+
+describe('01 고치기 모드의 라벨 메뉴', () => {
+  test('지점에서 출발하는 구간의 라벨은 눌러서 고칠 수 있어요', async () => {
+    await openEditing();
 
     expect(getLabelButton('기차 · 544km')).toBeDefined();
     expect(getLabelButton('차 · 552km')).toBeDefined();
@@ -105,14 +222,14 @@ describe('01 이동 수단 바꾸기', () => {
       status: 'ready',
       error: null,
     });
-    await openMap(`/map?trip=${FUKUOKA_TRIP.id}`);
+    await openEditing(`/map?trip=${FUKUOKA_TRIP.id}`);
 
     expect(getLabel('기차 · 545km').tagName).toBe('P');
     expect(getLabelButton('기차 · 545km')).toBeUndefined();
   });
 
   test('라벨을 누르면 메뉴가 열리고 지금 이동 수단에 표시가 있어요', async () => {
-    await openMap();
+    await openEditing();
 
     await click(getLabelButton('기차 · 343km'));
 
@@ -124,7 +241,7 @@ describe('01 이동 수단 바꾸기', () => {
   });
 
   test('다른 이동 수단을 고르면 출발 지점 사진으로 보정을 저장하고 메뉴를 닫아요', async () => {
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('차'));
@@ -134,7 +251,7 @@ describe('01 이동 수단 바꾸기', () => {
   });
 
   test('지금 이동 수단을 고르면 저장하지 않고 닫아요', async () => {
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('기차'));
@@ -145,7 +262,7 @@ describe('01 이동 수단 바꾸기', () => {
 
   test('저장에 실패하면 메뉴를 닫지 않고 안내를 띄워요', async () => {
     add.mockRejectedValue({ status: 0, code: 'SAVE_FAILED', message: 'x' });
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('비행'));
@@ -156,7 +273,7 @@ describe('01 이동 수단 바꾸기', () => {
 
   test('보정을 불러오는 동안에는 골라도 저장하지 않아요', async () => {
     vi.mocked(useCorrections).mockReturnValue({ status: 'loading', add });
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('차'));
@@ -166,7 +283,7 @@ describe('01 이동 수단 바꾸기', () => {
   });
 
   test('Esc를 누르거나 메뉴 밖을 누르면 닫혀요', async () => {
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await act(async () => {
@@ -184,7 +301,7 @@ describe('01 이동 수단 바꾸기', () => {
   });
 
   test('열린 라벨을 다시 누르면 닫히고, 다른 라벨을 누르면 그 라벨의 메뉴로 바뀌어요', async () => {
-    await openMap();
+    await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getLabelButton('차 · 552km'));
@@ -200,7 +317,7 @@ describe('01 이동 수단 바꾸기', () => {
       status: 'ready',
       error: null,
     });
-    await openMap();
+    await openEditing();
 
     await click(getLabelButton('비행 · 343km'));
 

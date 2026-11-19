@@ -1,16 +1,18 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { PERIOD_PARAM, TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
 import { usePlayback } from '@/hooks/usePlayback';
+import { canEditLegMode } from '@/utils/legMode';
 import { parsePeriod } from '@/utils/mapScreen';
 import { selectLegsByPeriod } from '@/utils/periodLegs';
 import { calcPositionAtStop } from '@/utils/playback';
 import { selectLegsByTrip } from '@/utils/tripLegs';
 
 import ArrivalStack from './ArrivalStack';
+import LegModePanel from './LegModePanel';
 import MapHeader from './MapHeader';
 import MoveLegend from './MoveLegend';
 import PeriodTabs from './PeriodTabs';
@@ -35,8 +37,10 @@ const NO_STOPS = [];
  *    재생 부품(머리·재생 버튼·범례·타임라인·도착 카드)은 그리지 않고, ?trip=·?period=도 볼 게 없어 무시됩니다.
  *  - 여행이 없는지는 불러오기를 마친 뒤(status 'ready')의 journey.trips로 판단합니다.
  *    불러오는 동안에는 journey가 없어서, 안내가 잠깐 보였다 사라지지 않게 지도만 그립니다.
- *  - 구간 라벨을 누르면 이동 수단을 고칩니다(RouteMap의 isLegModeEditable). 고치면 Journey가 다시 계산돼
- *    legs가 새 배열로 오지만, 같은 경로라 재생은 처음으로 돌아가지 않습니다(usePlayback).
+ *  - 이동 수단 고치기(기능 명세 M107)는 평소에 숨기고, 범례의 '고치기'를 누르면 고치기 모드로 들어갑니다.
+ *    모드에서는 범례 자리에 구간 목록(LegModePanel)을 펼치고, 지도 라벨도 눌러서 고칠 수 있습니다(RouteMap).
+ *    라벨은 지나온 구간에만 있어서, 들어갈 때 재생을 멈추고 끝으로 옮겨 전체 동선과 라벨을 다 보여 줍니다.
+ *  - 고치면 Journey가 다시 계산돼 legs가 새 배열로 오지만, 같은 경로라 재생 위치는 그대로입니다(usePlayback).
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -54,9 +58,26 @@ export default function MapPage() {
     () => (trip ? selectLegsByTrip(journey, trip.id) : selectLegsByPeriod(journey, period)),
     [journey, trip, period],
   );
-  const { position, seek } = usePlayback(legs);
+  const { position, pause, seek } = usePlayback(legs);
+  const [isEditingMode, setIsEditingMode] = useState(false);
+  const [highlightedLegId, setHighlightedLegId] = useState(null);
+  const hasEditableLeg = legs.some(canEditLegMode);
 
+  const handleStartEdit = () => {
+    pause();
+    seek(null);
+    setIsEditingMode(true);
+  };
+
+  // 목록이 Esc 감시에 쓰는 함수라 같은 함수를 넘겨요.
+  const handleDoneEdit = useCallback(() => {
+    setIsEditingMode(false);
+    setHighlightedLegId(null);
+  }, []);
+
+  // 기간을 바꾸면 처음부터 재생해서 라벨이 다시 하나씩 나와요. 고치던 화면과 달라지니 고치기를 끝내요.
   const handleSelectPeriod = (nextPeriod) => {
+    handleDoneEdit();
     setSearchParams({ [PERIOD_PARAM]: nextPeriod }, { replace: true });
   };
 
@@ -78,6 +99,8 @@ export default function MapPage() {
   const home = journey?.home ?? null;
   const stops = journey?.stops ?? NO_STOPS;
   const hasNoTrips = status === 'ready' && journey.trips.length === 0;
+  // 여행 데이터가 바뀌어 고칠 구간이 없어져도 빈 목록을 띄우지 않게 막아요.
+  const isEditing = isEditingMode && home !== null && !hasNoTrips && hasEditableLeg;
 
   return (
     <main className="relative flex-1 overflow-hidden bg-map">
@@ -87,7 +110,8 @@ export default function MapPage() {
         legs={legs}
         progress={position}
         onSelectStop={handleSelectStop}
-        isLegModeEditable={!hasNoTrips}
+        isLegModeEditing={isEditing}
+        highlightedLegId={isEditing ? highlightedLegId : null}
         className="absolute inset-0 size-full"
       />
 
@@ -103,7 +127,18 @@ export default function MapPage() {
           <MapHeader range={journey.periods[period]} trip={trip} />
           <PeriodTabs period={trip ? null : period} onSelect={handleSelectPeriod} />
           <PlaybackControls />
-          <MoveLegend legs={legs} />
+          {isEditing ? (
+            <LegModePanel
+              legs={legs}
+              home={home}
+              stops={stops}
+              highlightedLegId={highlightedLegId}
+              onHighlight={setHighlightedLegId}
+              onDone={handleDoneEdit}
+            />
+          ) : (
+            <MoveLegend legs={legs} onEdit={hasEditableLeg ? handleStartEdit : undefined} />
+          )}
           <TimelineScrubber home={home} stops={stops} />
           <ArrivalStack stops={stops} />
         </>

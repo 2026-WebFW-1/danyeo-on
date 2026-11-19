@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { LEG_MODES, MODE_EMOJI, MODE_LABEL } from '@/constants/journey';
-import { useCorrections } from '@/hooks/useCorrections';
+import { useSaveLegMode } from '@/hooks/useSaveLegMode';
 import { cn } from '@/utils/cn';
-import { toModeCorrection } from '@/utils/legMode';
 
 const MENU_WIDTH = 132;
 // 라벨과 메뉴 사이 틈이에요.
@@ -12,14 +11,13 @@ const MENU_GAP = 4;
 const MENU_HEIGHT = 140;
 
 /**
- * 01 지도에서 구간 라벨을 누르면 라벨 아래에 여는 이동 수단 메뉴예요(기능 명세 M107).
- * 고르면 보정 { type: 'mode', fromPhotoId, mode }를 저장하고, 스토어가 Journey를 다시 계산해요.
+ * 01 고치기 모드에서 구간 라벨을 누르면 라벨 아래에 여는 이동 수단 메뉴예요(기능 명세 M107).
+ * 저장은 useSaveLegMode가 해요. 고치기 목록(LegModePanel)과 같은 훅이에요.
  *
- * 호출: RouteMap. <svg> 안에서만 쓸 수 있습니다. 메뉴 디자인은 피그마에 없어서 구간 라벨과 같은 모양으로 둡니다.
+ * 호출: LegLabelLayer. <svg> 안에서만 쓸 수 있습니다. 메뉴 디자인은 피그마에 없어서 구간 라벨과 같은 모양으로 둡니다.
  *
  * 의도:
- *  - 보정을 저장하려면 보정 목록을 먼저 불러와야 해요(useCorrections). 무거운 my_data를 읽어서
- *    지도를 열 때마다 부르지 않고 메뉴를 열 때만 불러요. 그래서 이 메뉴만 RouteMap 안에서 스토어를 씁니다.
+ *  - 보정 목록은 무거운 my_data를 읽어서, 메뉴를 열 때 불러요(useSaveLegMode). 그래서 이 메뉴만 지도 안에서 스토어를 씁니다.
  *  - 지금 이동 수단을 고르면 저장하지 않고 닫아요.
  *  - 실패해도 메뉴를 닫지 않고 안내를 띄워서 다시 고를 수 있게 둬요.
  *  - 메뉴 밖을 누르거나 Esc를 누르면 닫아요. 구간 라벨을 누르는 건 라벨이 열고 닫아서(onOpen) 무시해요.
@@ -31,12 +29,10 @@ const MENU_HEIGHT = 140;
  * @param {() => void} props.onClose
  */
 export default function LegModeMenu({ leg, rect, onSaved, onClose }) {
-  const { status, add } = useCorrections();
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasFailed, setHasFailed] = useState(false);
+  const { isLoading, hasLoadFailed, savingLegId, failedLegId, save } = useSaveLegMode();
   const menuRef = useRef(null);
-  const isLoading = status === 'idle' || status === 'loading';
-  const isUnavailable = isLoading || status === 'error';
+  const isSaving = savingLegId !== null;
+  const isUnavailable = isLoading || hasLoadFailed;
 
   useEffect(() => {
     menuRef.current?.querySelector('[aria-checked="true"]')?.focus();
@@ -57,16 +53,7 @@ export default function LegModeMenu({ leg, rect, onSaved, onClose }) {
       onClose();
       return;
     }
-    setIsSaving(true);
-    setHasFailed(false);
-    try {
-      await add(toModeCorrection(leg, mode));
-    } catch {
-      setIsSaving(false);
-      setHasFailed(true);
-      return;
-    }
-    onSaved(leg);
+    if (await save(leg, mode)) onSaved(leg);
   };
 
   const handleKeyDown = (event) => {
@@ -123,12 +110,12 @@ export default function LegModeMenu({ leg, rect, onSaved, onClose }) {
             </button>
           );
         })}
-        {status === 'error' && (
+        {hasLoadFailed && (
           <p role="alert" className="px-2 py-1 text-accent">
             보정을 불러오지 못했어요. 새로고침해 주세요.
           </p>
         )}
-        {hasFailed && (
+        {failedLegId === leg.id && (
           <p role="alert" className="px-2 py-1 text-accent">
             저장하지 못했어요. 다시 골라 주세요.
           </p>
