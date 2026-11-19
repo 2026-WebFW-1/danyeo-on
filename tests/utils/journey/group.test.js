@@ -261,6 +261,25 @@ describe('group', () => {
       expect(findStopOf(result, 'moving')).toBeUndefined();
     });
 
+    test('위치 있는 사진과 같은 시각이면 그 사진의 지점에 들어가고, 지점의 첫 사진은 위치 있는 사진이에요', () => {
+      // given: 서울 지점은 10:00에 끝나고 부산 지점은 11:00에 시작. 위치 없는 사진도 11:00
+      const photos = [
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('sameTime', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busan', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busanLater', '2025-01-01T12:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      const busanStop = findStopOf(result, 'busan');
+      expect(busanStop.id).toBe('busan');
+      expect(busanStop.photoIds).toEqual(['busan', 'sameTime', 'busanLater']);
+      expect(result.unlocated).toEqual([]);
+    });
+
     test.each([
       ['앞뒤 사진과 딱 12시간이면 들어가요', '2025-01-01T12:00:00', []],
       ['앞 사진과 12시간 넘게 떨어지면 unlocated예요', '2025-01-01T12:00:01', ['b']],
