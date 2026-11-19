@@ -32,6 +32,8 @@ const PAGER_BUTTON_CLASS =
  *  - 고른 해는 번호가 아니라 "몇 년 전"으로 기억해요. 사진을 더 올려 Journey가 다시 계산되어 목록이 바뀌어도
  *    보던 해를 그대로 보여 주고, 그 해가 없어지면 가장 최근 해로 돌아가요.
  *  - 한 줄 글은 03 도시 블록과 같은 규칙이에요(첫 글 본문, 비면 제목). 글이 없거나 아직 못 받았으면 그 줄을 빼요.
+ *  - 작은 사진은 넓은 창에서 96px 네 장(피그마)이고, 창이 좁아 글 칸이 408px보다 좁아지면 칸에 맞춰 같이 줄어요.
+ *    96px로 고정하면 좁은 창에서 화면 옆으로 나가요.
  *  - 피그마는 제목과 한 줄 글을 Playfair로 썼지만 도시 이름과 글이 한글이라, 03 도시 이름처럼 본문 글꼴로 써요.
  *
  * @param {object} props
@@ -91,10 +93,14 @@ export default function OnThisDayScene({ journey, items }) {
             <span>사진 {stop.photoCount}장</span>
           </p>
           {thumbs.length > 0 && (
-            <ul className="flex gap-2">
+            <ul className="grid w-full max-w-102 grid-cols-4 gap-2">
               {thumbs.map((photo) => (
                 <li key={photo.id}>
-                  <OnThisDayPhoto fileKey={photo.fileKey} size="thumb" className="size-24" />
+                  <OnThisDayPhoto
+                    fileKey={photo.fileKey}
+                    size="thumb"
+                    className="aspect-square w-full"
+                  />
                 </li>
               ))}
             </ul>
