@@ -446,13 +446,14 @@ function buildPeriods(trips) {
 }
 
 /**
- * group의 집 좌표에 도시 이름을 붙입니다. 지역이 하나뿐이라 집이 없으면 null입니다.
+ * group의 집 좌표에 도시 이름과 나라 코드를 붙입니다. 지역이 하나뿐이라 집이 없으면 null입니다.
+ * 나라 코드는 05 Passport가 집이 있는 나라에 입국 스탬프를 찍지 않으려고 씁니다(#179). 못 찾으면 빈 글자입니다.
  *
  * @param {import('@/types').GroupResult['home']} home
  * @param {import('@/types').Place | null} place
  * @returns {import('@/types').Journey['home']}
  */
-const buildHome = (home, place) => (home ? { ...home, city: place.city } : null);
+const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: place.cc } : null);
 
 /**
  * 사진과 보정으로 화면이 받는 Journey를 만듭니다. 순서만 정하고, 일은 단계마다 함수가 합니다.

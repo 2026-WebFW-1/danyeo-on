@@ -71,7 +71,8 @@
  * 여행이 0개면 배열은 전부 비고 home·periods는 null이에요.
  *
  * @typedef {object} Journey
- * @property {{ lat: number, lng: number, city: string } | null} home
+ * @property {{ lat: number, lng: number, city: string, cc?: string } | null} home
+ *   cc: 집이 있는 나라 코드. 예: 'KR'. 못 찾았으면 빈 글자이고, #179 전에 저장된 Journey에는 없어요
  * @property {Stop[]} stops
  * @property {Leg[]} legs
  * @property {Trip[]} trips

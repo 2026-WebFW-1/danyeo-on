@@ -69,7 +69,7 @@ src/data/
 
 ```js
 {
-  home: { lat, lng, city: '서울' } | null,
+  home: { lat, lng, city: '서울', cc: 'KR' } | null,
   stops: [{                       // 머문 곳 (집은 빠짐)
     id, tripId, lat, lng, city: '밴쿠버', country: '캐나다', cc: 'CA',
     from: '2025-06-28T18:30:51-07:00', to,   // 시간대 붙은 시각

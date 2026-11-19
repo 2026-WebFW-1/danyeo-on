@@ -76,7 +76,18 @@ describe('findSavedPlace', () => {
       expect(savedPlace).toEqual(SEED_VANCOUVER);
     });
 
-    test('집을 찾을 때 저장된 집 근처면 집 이름', () => {
+    test('집을 찾을 때 저장된 집 근처면 집 이름과 나라 코드', () => {
+      // given
+      const savedJourney = savedJourneyOf({ home: { ...HOME, city: '서울', cc: 'KR' } });
+
+      // when
+      const savedPlace = findSavedPlace(savedJourney, HOME.lat, HOME.lng, { isHome: true });
+
+      // then
+      expect(savedPlace).toMatchObject({ city: '서울', cc: 'KR' });
+    });
+
+    test('집을 찾을 때 저장된 집에 나라 코드가 없으면(#179 전에 저장됨) 나라 코드는 빈 글자', () => {
       // given
       const savedJourney = savedJourneyOf({ home: { ...HOME, city: '서울' } });
 
@@ -84,7 +95,7 @@ describe('findSavedPlace', () => {
       const savedPlace = findSavedPlace(savedJourney, HOME.lat, HOME.lng, { isHome: true });
 
       // then
-      expect(savedPlace.city).toBe('서울');
+      expect(savedPlace).toEqual({ city: '서울', country: '', cc: '' });
     });
 
     test('집을 찾을 때 저장된 지점 근처면 그 지점 이름(이전 여행 지점이 집이 됐을 때)', () => {

@@ -28,10 +28,10 @@ export const STAMP_COUNT_WORDS = [
   'TWENTY',
 ];
 
-// 입국 스탬프를 찍지 않는 나라예요. 집이 있는 나라는 "입국"이 아니라서 빼요.
-// Journey.home에는 나라 코드가 없어서, 지금은 서비스 대상(한국에 사는 사람)에 맞춰 한국으로 정해 뒀어요.
-// TODO(endl24): Journey.home에 나라 코드가 생기면 그 값으로 바꾸기
-export const HOME_COUNTRY_CC = 'KR';
+// 집이 있는 나라를 모를 때 대신 쓰는 나라예요. 집이 있는 나라는 "입국"이 아니라서 스탬프를 찍지 않아요.
+// 나라 코드는 Journey.home.cc에 있지만(#179), 그 전에 저장된 Journey에는 없고 이름 찾기가 실패하면 비어요.
+// 그때는 서비스 대상(한국에 사는 사람)에 맞춰 한국으로 봐요.
+export const DEFAULT_HOME_COUNTRY_CC = 'KR';
 
 // 여권 한 쪽의 크기(px)예요. 스탬프 자리(stampSlots)가 이 크기 기준이라, 좁은 화면에서는 통째로 줄여요(useFitScale).
 export const STAMP_PAGE_WIDTH = 1200;

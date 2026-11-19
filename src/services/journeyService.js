@@ -162,8 +162,17 @@ async function buildAndSave(userId, isSuperseded) {
 
   // 찾아 둔 이름을 다시 쓰려고 읽어요. 이름은 덤이라 못 읽어도 계산은 막지 않고 모두 새로 찾아요.
   const savedJourney = await getJourney(userId).catch(() => null);
-  const findPlace = (lat, lng, options) =>
-    findSavedPlace(savedJourney, lat, lng, options) ?? reverseCity(lat, lng);
+  const findPlace = async (lat, lng, options) => {
+    const savedPlace = findSavedPlace(savedJourney, lat, lng, options);
+    if (!savedPlace) return reverseCity(lat, lng);
+    // #179 전에 저장된 집은 나라 코드가 없어서 한 번 더 찾아 채워요(05 Passport가 집 나라를 써요).
+    // 찾기가 실패하면 저장된 이름을 그대로 써요. 실패한 이름으로 덮지 않으려는 #158과 같은 이유예요.
+    if (options?.isHome && !savedPlace.cc) {
+      const found = await reverseCity(lat, lng);
+      return found.cc ? { ...savedPlace, country: found.country, cc: found.cc } : savedPlace;
+    }
+    return savedPlace;
+  };
 
   let journey;
   try {

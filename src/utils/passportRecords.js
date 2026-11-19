@@ -1,9 +1,9 @@
-import { HOME_COUNTRY_CC, RECORD_CITY_LIMIT } from '@/constants/passport';
+import { RECORD_CITY_LIMIT } from '@/constants/passport';
 import { getCityKey } from '@/utils/cityKey';
 import { getCountryName } from '@/utils/countryName';
 import { calcDistanceKm } from '@/utils/distance';
 import { toLocalDate } from '@/utils/localDate';
-import { groupOutings } from '@/utils/passportStamps';
+import { getHomeCountryCc, groupOutings } from '@/utils/passportStamps';
 
 /**
  * 지점의 나라 이름이에요. 이름을 못 찾았으면 스탬프와 같이 나라 코드로 찾아요.
@@ -41,11 +41,12 @@ function pickMax(items, getValue) {
 function selectMostVisited(journey) {
   // Map은 넣은 순서를 지켜서, 횟수가 같으면 먼저 들어간 나라가 앞에 남아요.
   const countries = new Map();
+  const homeCc = getHomeCountryCc(journey);
 
   for (const visits of groupOutings(journey)) {
     const countedHere = new Set();
     for (const { stop } of visits) {
-      if (stop.cc === HOME_COUNTRY_CC) continue;
+      if (stop.cc === homeCc) continue;
       if (!countries.has(stop.cc)) countries.set(stop.cc, { visits: 0, stops: [] });
       const country = countries.get(stop.cc);
       country.stops.push(stop);
