@@ -8,6 +8,7 @@ import { selectJourneyTotals } from '@/utils/journeyTotals';
 
 import HomeGlobe from './HomeGlobe';
 import HomeHero from './HomeHero';
+import OnThisDay from './OnThisDay';
 
 /**
  * 00 홈 첫 화면
@@ -19,6 +20,7 @@ import HomeHero from './HomeHero';
  *  - 숫자와 글자는 전부 Journey에서 계산해요. 계정마다 달라요.
  *  - 데이터를 읽는 동안은 지구본만 그려요. 0으로 시작한 숫자가 바뀌어 보이지 않게 해요.
  *  - routes를 useMemo로 감싸요. 새 배열을 넘기면 HomeGlobe가 경로를 처음부터 다시 그려요.
+ *  - 첫 화면은 Nav(h-14) 아래 한 화면 높이 칸이라 숫자 줄이 그 바닥에 붙어요. 그 아래가 1년 전 이맘때(00b, OnThisDay)예요.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/timeline?node-id=10-2
  */
@@ -39,19 +41,22 @@ export default function HomePage() {
   const totals = journey ? selectJourneyTotals(journey) : null;
 
   return (
-    // 왼쪽 글이 화면 폭으로 늘어나면 지구본을 덮어서 마우스가 닿지 않아요. items-start로 글 폭만큼만 차지해요.
-    <main className="relative flex flex-1 flex-col items-start overflow-hidden bg-canvas px-16 pt-48.5 pb-14.25">
-      <HomeGlobe home={journey?.home ?? null} routes={routes} />
-      {journey && (
-        <>
-          <HomeHero range={journey.periods?.all ?? null} totals={totals} />
-          <StatRow
-            items={formatMiniStats(totals)}
-            variant="mini"
-            className="relative mt-auto pt-10"
-          />
-        </>
-      )}
+    <main className="flex flex-1 flex-col bg-canvas">
+      {/* 왼쪽 글이 화면 폭으로 늘어나면 지구본을 덮어서 마우스가 닿지 않아요. items-start로 글 폭만큼만 차지해요. */}
+      <section className="relative flex min-h-[calc(100dvh-3.5rem)] flex-col items-start overflow-hidden px-16 pt-48.5 pb-14.25">
+        <HomeGlobe home={journey?.home ?? null} routes={routes} />
+        {journey && (
+          <>
+            <HomeHero range={journey.periods?.all ?? null} totals={totals} />
+            <StatRow
+              items={formatMiniStats(totals)}
+              variant="mini"
+              className="relative mt-auto pt-10"
+            />
+          </>
+        )}
+      </section>
+      {journey && <OnThisDay journey={journey} />}
     </main>
   );
 }
