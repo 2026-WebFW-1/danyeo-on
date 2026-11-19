@@ -2,6 +2,7 @@ import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { formatPassportHeader } from '@/utils/formatPassportHeader';
 import { formatPassportStats } from '@/utils/passportStats';
 
+import CalendarSection from './CalendarSection';
 import PassportIntro from './PassportIntro';
 import PassportStats from './PassportStats';
 import StampSection from './StampSection';
@@ -15,14 +16,15 @@ import StampSection from './StampSection';
  *
  * 의도:
  *  - 여행이 하나도 없으면 머리 없이 15a와 같은 안내만 보여요(03 R110과 같아요).
- *  - 피그마의 CALENDAR · RECORDS는 다음 PR에서 이 아래에 붙여요(#174).
+ *  - 피그마의 RECORDS는 다음 PR에서 이 아래에 붙여요(#174).
  *
  * @param {object} props
  * @param {import('@/types').Journey | null} props.journey 머리말의 기간을 셀 때 써요
  * @param {import('@/types').PassportStats} props.stats
  * @param {import('@/types').PassportStamp[]} props.stamps
+ * @param {import('@/types').PassportCalendar} props.calendar
  */
-export default function PassportView({ journey, stats, stamps }) {
+export default function PassportView({ journey, stats, stamps, calendar }) {
   const header = formatPassportHeader(journey, { stamps: stamps.length, ...stats });
 
   if (!header) {
@@ -39,6 +41,7 @@ export default function PassportView({ journey, stats, stamps }) {
       <PassportIntro header={header} />
       <PassportStats items={formatPassportStats(stats)} />
       <StampSection stamps={stamps} />
+      <CalendarSection calendar={calendar} />
     </main>
   );
 }
