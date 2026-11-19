@@ -208,4 +208,138 @@ describe('group', () => {
       expect(findStopOf(result, 'p_6a6b8f')).toBeUndefined();
     });
   });
+
+  describe('위치 없는 사진을 앞뒤 사진의 시간으로 채우기', () => {
+    /** 시각만 있고 위치(GPS)가 없는 사진이에요. */
+    const makeNoGpsPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: null,
+      lng: null,
+    });
+    /** 서울에서 약 325km 떨어진 부산에서 찍은 사진이에요. */
+    const makeBusanPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: 35.1,
+      lng: 129,
+    });
+
+    test('앞뒤 사진이 같은 지점이면 그 지점에 시각 순으로 들어가고, 지점의 중심·기간은 그대로예요', () => {
+      // given: 서울 10:00 · 위치 없음 12:00 · 서울 14:00
+      const located = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makePhoto('c', '2025-01-01T14:00:00', '+09:00'),
+      ];
+      const photos = [...located, makeNoGpsPhoto('b', '2025-01-01T12:00:00')];
+
+      // when
+      const result = group(photos);
+
+      // then
+      const withoutFill = group(located);
+      expect(result.stops).toEqual([{ ...withoutFill.stops[0], photoIds: ['a', 'b', 'c'] }]);
+      expect(result.trips).toEqual(withoutFill.trips);
+      expect(result.unlocated).toEqual([]);
+    });
+
+    test('앞뒤 사진이 다른 지점이면 unlocated에 남아요', () => {
+      // given: 서울 10:00 · 위치 없음 11:00 · 부산 12:00
+      const photos = [
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('moving', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busan', '2025-01-01T12:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      expect(result.unlocated).toEqual(['moving']);
+      expect(findStopOf(result, 'moving')).toBeUndefined();
+    });
+
+    test('위치 있는 사진과 같은 시각이면 그 사진의 지점에 들어가고, 지점의 첫 사진은 위치 있는 사진이에요', () => {
+      // given: 서울 지점은 10:00에 끝나고 부산 지점은 11:00에 시작. 위치 없는 사진도 11:00
+      const photos = [
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('sameTime', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busan', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busanLater', '2025-01-01T12:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      const busanStop = findStopOf(result, 'busan');
+      expect(busanStop.id).toBe('busan');
+      expect(busanStop.photoIds).toEqual(['busan', 'sameTime', 'busanLater']);
+      expect(result.unlocated).toEqual([]);
+    });
+
+    test('여러 지점에 여러 장을 뒤섞어 받아도 각 지점에 시각 순으로 들어가요', () => {
+      // given: 서울 01-01 10:00~14:00, 부산 01-02 10:00~14:00. 위치 없는 사진은 지점마다 2장씩 섞어서 받음
+      const photos = [
+        makeNoGpsPhoto('busanLate', '2025-01-02T13:00:00'),
+        makePhoto('seoulStart', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('seoulLate', '2025-01-01T13:00:00'),
+        makeBusanPhoto('busanStart', '2025-01-02T10:00:00'),
+        makeNoGpsPhoto('seoulEarly', '2025-01-01T11:00:00'),
+        makePhoto('seoulEnd', '2025-01-01T14:00:00', '+09:00'),
+        makeNoGpsPhoto('busanEarly', '2025-01-02T11:00:00'),
+        makeBusanPhoto('busanEnd', '2025-01-02T14:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      expect(result.stops.map((stop) => stop.photoIds)).toEqual([
+        ['seoulStart', 'seoulEarly', 'seoulLate', 'seoulEnd'],
+        ['busanStart', 'busanEarly', 'busanLate', 'busanEnd'],
+      ]);
+      expect(result.unlocated).toEqual([]);
+    });
+
+    test.each([
+      ['앞뒤 사진과 딱 12시간이면 들어가요', '2025-01-01T12:00:00', []],
+      ['앞 사진과 12시간 넘게 떨어지면 unlocated예요', '2025-01-01T12:00:01', ['b']],
+      ['뒤 사진과 12시간 넘게 떨어지면 unlocated예요', '2025-01-01T11:59:59', ['b']],
+    ])('%s', (_, takenAt, expectedUnlocated) => {
+      // given: 서울 01-01 00:00 · 위치 없음 · 서울 01-02 00:00 (24시간 사이라 같은 지점)
+      const photos = [
+        makePhoto('a', '2025-01-01T00:00:00', '+09:00'),
+        makeNoGpsPhoto('b', takenAt),
+        makePhoto('c', '2025-01-02T00:00:00', '+09:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      expect(result.stops).toHaveLength(1);
+      expect(result.unlocated).toEqual(expectedUnlocated);
+    });
+
+    test('맨 앞·맨 뒤 사진과 시각 없는 사진은 받은 순서대로 unlocated에 남아요', () => {
+      // given: 서울 10:00 · 11:00 사이에는 없고, 그 앞(09:00)과 뒤(12:00), 시각 없는 사진
+      const photos = [
+        makeNoGpsPhoto('last', '2025-01-01T12:00:00'),
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        { id: 'noTime', takenAt: null, offset: null, lat: null, lng: null },
+        makePhoto('c', '2025-01-01T11:00:00', '+09:00'),
+        makeNoGpsPhoto('first', '2025-01-01T09:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      expect(result.unlocated).toEqual(['last', 'noTime', 'first']);
+      expect(result.stops[0].photoIds).toEqual(['a', 'c']);
+    });
+  });
 });
