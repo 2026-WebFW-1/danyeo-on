@@ -15,6 +15,8 @@ import {
   calcPositionAtDate,
   calcPositionAtStop,
   calcTimeAtElapsed,
+  calcRefreshedElapsedMs,
+  isSameRoute,
 } from '@/utils/playback';
 
 const legs = seojin.legs;
@@ -317,5 +319,54 @@ describe('calcPositionAtStop', () => {
 
   test('도착하는 구간이 없으면 null이에요', () => {
     expect(calcPositionAtStop(legs, 'none')).toBeNull();
+  });
+});
+
+describe('isSameRoute', () => {
+  test('구간 ID가 같은 순서로 모두 같으면 새 객체여도 같은 경로예요', () => {
+    const refreshed = legs.map((leg) => ({ ...leg, mode: 'car' }));
+    expect(isSameRoute(legs, refreshed)).toBe(true);
+  });
+
+  test('구간이 빠지거나 순서가 다르면 다른 경로예요', () => {
+    expect(isSameRoute(legs, legs.slice(1))).toBe(false);
+    expect(isSameRoute(legs.slice(0, 2), [legs[1], legs[0]])).toBe(false);
+  });
+
+  test('구간 ID가 같아도 출발·도착 지점이 다르면 다른 경로예요', () => {
+    // 구간 ID는 순번이라, 사진을 빼서 지점이 바뀌어도 구간 수가 같으면 ID가 같아요.
+    const moved = legs.map((leg, index) => (index === 3 ? { ...leg, to: 'p_other' } : leg));
+    expect(isSameRoute(legs, moved)).toBe(false);
+  });
+});
+
+describe('calcRefreshedElapsedMs', () => {
+  // 0번 구간을 5,000km로 바꿔서 이동 시간이 달라진 새 일정이에요(약 1.1초 → 1.5초).
+  const longer = legs.map((leg, index) => (index === 0 ? { ...leg, km: 5000 } : leg));
+  const nextTimeline = buildTimeline(longer);
+
+  test('이동 중이면 그 구간을 간 비율을 지켜요', () => {
+    const elapsed = steps[1].startMs + steps[1].moveMs * 0.25;
+    const next = calcRefreshedElapsedMs(timeline, nextTimeline, elapsed);
+    expect(calcPosition(nextTimeline, next)).toEqual({ legIndex: 1, t: 0.25 });
+  });
+
+  test('머무는 중이면 도착 순간으로 되감지 않고 머문 시간을 지켜요', () => {
+    const arriveMs = steps[0].startMs + steps[0].moveMs;
+    const next = calcRefreshedElapsedMs(timeline, nextTimeline, arriveMs + 400);
+    const nextStep = nextTimeline.steps[0];
+    expect(next).toBeCloseTo(nextStep.startMs + nextStep.moveMs + 400);
+  });
+
+  test('도착한 순간이면 새 일정의 도착 순간이에요', () => {
+    const arriveMs = steps[2].startMs + steps[2].moveMs;
+    const nextStep = nextTimeline.steps[2];
+    expect(calcRefreshedElapsedMs(timeline, nextTimeline, arriveMs)).toBeCloseTo(
+      nextStep.startMs + nextStep.moveMs,
+    );
+  });
+
+  test('다 그린 상태면 그대로 다 그린 상태예요', () => {
+    expect(calcRefreshedElapsedMs(timeline, nextTimeline, Infinity)).toBe(Infinity);
   });
 });

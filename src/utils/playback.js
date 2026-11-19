@@ -216,3 +216,47 @@ export function calcPositionAtStop(legs, stopId) {
   const legIndex = legs.findIndex((leg) => leg.to === stopId);
   return legIndex === -1 ? null : { legIndex, t: 1 };
 }
+
+/**
+ * 두 구간 목록이 같은 경로인지예요. 같은 순서로 구간마다 ID와 출발·도착 지점이 모두 같으면 같은 경로로 봐요.
+ * 보정으로 Journey를 다시 계산하면 이동 수단 같은 값만 바뀐 같은 구간이 새 객체로 와요.
+ * 구간 ID는 순번(leg_1, leg_2 …)이라, 사진을 빼서 지점이 바뀌어도 구간 수가 같으면 ID가 같아요.
+ * 그래서 출발·도착 지점까지 봐요.
+ *
+ * @param {import('@/types').Leg[]} a
+ * @param {import('@/types').Leg[]} b
+ * @returns {boolean}
+ */
+export function isSameRoute(a, b) {
+  return (
+    a.length === b.length &&
+    a.every(
+      (leg, index) =>
+        leg.id === b[index].id && leg.from === b[index].from && leg.to === b[index].to,
+    )
+  );
+}
+
+/**
+ * 같은 경로의 새 일정으로 바꿔 끼울 때, 지난 시간을 새 일정의 같은 자리로 옮겨요(playbackStore.refresh).
+ * 이동 중이면 그 구간을 간 비율(t)을 지키고, 머무는 중이면 머문 시간을 지켜요.
+ * calcPosition은 머무는 동안을 모두 t: 1로 줄여서, 위치로만 옮기면 도착 순간으로 되감겨요.
+ * 머무는 시간은 도착지가 집인지로만 정해져서(buildTimeline) 같은 경로면 바뀌지 않아요.
+ *
+ * @param {PlaybackTimeline} from 지금 일정
+ * @param {PlaybackTimeline} to 새 일정. from과 구간 수가 같아요
+ * @param {number} elapsedMs from 기준 지난 시간
+ * @returns {number} to 기준 지난 시간. 다 그린 상태면 Infinity
+ */
+export function calcRefreshedElapsedMs(from, to, elapsedMs) {
+  const position = calcPosition(from, elapsedMs);
+  if (!position) return Infinity;
+
+  const { legIndex, t } = position;
+  const step = from.steps[legIndex];
+  const nextStep = to.steps[legIndex];
+  const nextArriveMs = nextStep.startMs + nextStep.moveMs;
+  const stayedMs = Math.max(0, elapsedMs) - (step.startMs + step.moveMs);
+  if (t === 1 && stayedMs > 0) return nextArriveMs + Math.min(stayedMs, nextStep.stayMs);
+  return nextStep.startMs + t * nextStep.moveMs;
+}

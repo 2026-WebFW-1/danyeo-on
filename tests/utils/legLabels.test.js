@@ -60,6 +60,15 @@ describe('selectVisibleLegLabels', () => {
     expect(visible.every(({ leg }) => leg.mode !== 'flight')).toBe(true);
   });
 
+  test('비행으로 고친 구간은 라벨을 남겨요. 라벨에서 다시 고칠 수 있게요', () => {
+    const flight = seojin.legs.find((leg) => leg.mode === 'flight' && leg.kind === 'between');
+    const userFlight = { ...flight, modeSource: 'user' };
+
+    expect(selectVisibleLegLabels([flight], seojin.home, seojin.stops)).toEqual([]);
+    const visible = selectVisibleLegLabels([userFlight], seojin.home, seojin.stops);
+    expect(visible.map(({ leg }) => leg)).toEqual([userFlight]);
+  });
+
   test('구간이 몰린 곳의 라벨은 숨겨서 전체보다 적어요', () => {
     const groundLegs = seojin.legs.filter((leg) => leg.mode !== 'flight');
     const visible = selectVisibleLegLabels(seojin.legs, seojin.home, seojin.stops);

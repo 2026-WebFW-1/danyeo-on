@@ -1,6 +1,7 @@
 // 01 지도 위 기차·차 구간 라벨의 글자와 자리를 계산해요. 좌표는 지도 viewBox(1440 폭) 기준이에요.
 
 import { formatInbound } from '@/utils/formatInbound';
+import { canEditLegMode } from '@/utils/legMode';
 import { calcLegPoint, mapProjection } from '@/utils/routeMap';
 
 const LABEL_HEIGHT = 26;
@@ -101,14 +102,17 @@ function calcLabelCandidates(leg) {
 
 /**
  * 재생 범위 전체에서 구간 라벨의 자리를 정해요. 비행은 라벨이 없어요.
- * 라벨은 집 표시와 지점 점을 가리지 않고, 먼저 지나온 라벨이 자리를 차지해요. 놓을 자리가 없으면 숨겨요.
+ * 다만 사용자가 비행으로 고친 구간은 라벨을 남겨요. 라벨이 이동 수단을 다시 고치는 입구라서요.
+ * 라벨은 집 표시와 지점 점을 가리지 않고, 놓을 자리가 없으면 숨겨요.
+ * 자리는 이동 수단을 고칠 수 있는 구간(canEditLegMode)이 먼저, 그 안에서는 먼저 지나온 구간이 먼저 차지해요.
+ * 왕복은 가는 선과 오는 선이 겹쳐서, 시간 순서대로만 주면 고칠 수 없는 가는 구간(집 → 지점)이 늘 자리를 가져가요.
  * 아직 도착하지 않은 지점의 점도 미리 피해요. 범위 전체로 정해 두고 지나온 구간만 그리면
  * 재생이 진행돼도 보이던 라벨이 옮겨 가거나 사라지지 않아요.
  *
  * @param {import('@/types').Leg[]} legs 재생 범위의 구간, 시간 순서
  * @param {import('@/types').Journey['home']} home
  * @param {import('@/types').Stop[]} stops
- * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]}
+ * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]} 시간 순서
  */
 export function selectVisibleLegLabels(legs, home, stops) {
   const routeStopIds = new Set(legs.flatMap((leg) => [leg.from, leg.to]));
@@ -119,13 +123,22 @@ export function selectVisibleLegLabels(legs, home, stops) {
     occupied.push(calcPointRect(mapProjection([home.lng, home.lat]), HOME_RING_RADIUS));
   }
 
-  return legs.flatMap((leg) => {
-    if (leg.mode === 'flight') return [];
+  const labelLegs = legs.filter((leg) => leg.mode !== 'flight' || leg.modeSource === 'user');
+  const placingOrder = [
+    ...labelLegs.filter((leg) => canEditLegMode(leg)),
+    ...labelLegs.filter((leg) => !canEditLegMode(leg)),
+  ];
+  const rectByLegId = new Map();
+  for (const leg of placingOrder) {
     const rect = calcLabelCandidates(leg).find((candidate) =>
       occupied.every((other) => !isOverlapping(candidate, other)),
     );
-    if (!rect) return [];
+    if (!rect) continue;
     occupied.push(rect);
-    return [{ leg, rect }];
-  });
+    rectByLegId.set(leg.id, rect);
+  }
+
+  return labelLegs
+    .filter((leg) => rectByLegId.has(leg.id))
+    .map((leg) => ({ leg, rect: rectByLegId.get(leg.id) }));
 }

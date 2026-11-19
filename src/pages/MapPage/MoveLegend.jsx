@@ -21,10 +21,14 @@ const LEGEND_ROWS = [
  * 책임: 지금 기간의 구간을 이동 수단별로 세어 지도 선 모양과 함께 보여 줍니다.
  * 호출: MapPage
  *
+ * 의도: 이동 수단은 거리로 추정해서 틀릴 수 있어요. 추정이라는 안내 옆에 고치기 입구를 둬서,
+ *       평소엔 지도를 보기만 하고 고치고 싶을 때만 고치기 모드(LegModePanel)로 들어가요.
+ *
  * @param {object} props
  * @param {import('@/types').Leg[]} props.legs 지금 기간의 구간
+ * @param {() => void} [props.onEdit] 고치기 모드로 들어가요. 고칠 수 있는 구간이 없으면 넘기지 않아요
  */
-export default function MoveLegend({ legs }) {
+export default function MoveLegend({ legs, onEdit }) {
   const counts = useMemo(() => countLegsByMode(legs), [legs]);
 
   return (
@@ -47,7 +51,19 @@ export default function MoveLegend({ legs }) {
           </span>
         </p>
       ))}
-      <p className="text-2xs text-muted">거리와 이동 시간으로 추정</p>
+      <p className="flex items-center gap-2 text-2xs text-muted">
+        거리와 이동 시간으로 추정
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="이동 수단 고치기"
+            className="text-ink underline underline-offset-2 hover:text-accent"
+          >
+            고치기
+          </button>
+        )}
+      </p>
     </section>
   );
 }

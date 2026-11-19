@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { usePlaybackStore } from '@/stores/playbackStore';
-import { calcPosition } from '@/utils/playback';
+import { calcPosition, isSameRoute } from '@/utils/playback';
 
 // 탭을 숨기면 requestAnimationFrame이 멈췄다가, 돌아왔을 때 그동안의 시간이 한 프레임에 몰려 와요.
 // 그만큼 건너뛰지 않게 한 프레임에 흘릴 시간을 잘라요.
@@ -35,6 +35,10 @@ export function usePlaybackPosition() {
  * 그래서 렌더할 때마다 새로 만드는 배열(예: legs.filter(...))을 그대로 넘기면 계속 처음으로 돌아가요.
  * 이럴 땐 useMemo로 감싸서 넘겨 주세요.
  *
+ * 다만 새 배열이어도 같은 경로(구간 ID가 같은 순서)면 처음으로 돌아가지 않고 지금 자리에서 이어 가요(isSameRoute).
+ * 이동 수단을 고치면 Journey를 다시 계산해서 같은 구간이 새 객체로 오기 때문이에요.
+ * 기간 탭을 바꿔도 구간이 똑같으면(예: 여행이 모두 2년 안이라 2Y와 ALL이 같음) 볼 게 달라지지 않아서 그대로 둬요.
+ *
  * @param {import('@/types').Leg[]} legs 집을 포함한 전체 구간, 시간 순서
  * @returns {{
  *   position: import('@/utils/routeMap').RouteProgress | null,
@@ -54,9 +58,16 @@ export function usePlayback(legs) {
   const pause = usePlaybackStore((state) => state.pause);
   const seek = usePlaybackStore((state) => state.seek);
 
+  // 이 화면에서 마지막으로 실은 구간이에요. 스토어의 legs는 페이지를 나가도 남아서 처음 열었는지 알 수 없어요.
+  const loadedLegsRef = useRef(null);
+
   // 화면에 그리기 전에 구간을 실어요. useEffect면 한 번은 옛 위치(처음 열 땐 다 그린 상태)로 그려져요.
   useLayoutEffect(() => {
-    usePlaybackStore.getState().load(legs);
+    const { load, refresh } = usePlaybackStore.getState();
+    const loadedLegs = loadedLegsRef.current;
+    if (loadedLegs && loadedLegs !== legs && isSameRoute(loadedLegs, legs)) refresh(legs);
+    else load(legs);
+    loadedLegsRef.current = legs;
   }, [legs]);
 
   useEffect(() => {

@@ -11,7 +11,9 @@ export const PERIOD_PARAM = 'period';
 // 01 화면에서 한 여행만 재생할 때 여행 ID를 남기는 칸 이름이에요. 예: /map?trip=p_356b49
 export const TRIP_PARAM = 'trip';
 
-// 비행은 지도에서 비행기 아이콘을 써서 이모지가 없어요.
-export const MODE_EMOJI = { train: '🚆', car: '🚗' };
+// 구간의 이동 수단이에요. 01 지도의 이동 수단 메뉴가 이 순서로 보여요.
+export const LEG_MODES = ['flight', 'train', 'car'];
+// 비행은 지도에서 비행기 아이콘으로 보여요. 비행 이모지는 이동 수단 메뉴와, 비행으로 고친 구간의 라벨에만 써요.
+export const MODE_EMOJI = { flight: '✈️', train: '🚆', car: '🚗' };
 // 구간 데이터는 버스를 구분하지 못해서 버스도 '차'로 보여요.
 export const MODE_LABEL = { flight: '비행', train: '기차', car: '차' };

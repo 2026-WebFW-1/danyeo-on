@@ -132,4 +132,28 @@ describe('usePlayback', () => {
     expect(getState().legs).toBe(firstTrip);
     expect(getState().elapsedMs).toBe(0);
   });
+
+  test('같은 경로가 새 배열로 오면(이동 수단을 고친 뒤) 처음으로 돌아가지 않아요', () => {
+    mount();
+    runFrame(1000);
+    runFrame(1050);
+
+    const refreshed = legs.map((leg) => ({ ...leg, mode: 'car' }));
+    mount(refreshed);
+
+    expect(getState().legs).toBe(refreshed);
+    expect(getState().elapsedMs).toBe(50);
+  });
+
+  test('페이지를 다시 열면 스토어에 같은 경로가 남아 있어도 처음부터 재생해요', () => {
+    mount();
+    runFrame(1000);
+    runFrame(1050);
+    act(() => root.unmount());
+
+    root = createRoot(container);
+    mount(legs.map((leg) => ({ ...leg })));
+
+    expect(getState().elapsedMs).toBe(0);
+  });
 });

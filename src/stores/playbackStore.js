@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { buildDateTrack, buildTimeline, calcElapsedAtTime, calcElapsedMs } from '@/utils/playback';
+import {
+  buildDateTrack,
+  buildTimeline,
+  calcElapsedAtTime,
+  calcElapsedMs,
+  calcRefreshedElapsedMs,
+} from '@/utils/playback';
 
 /**
  * 01 지도 재생의 상태예요. 지도·PAUSE 버튼·타임라인·도착 사진 카드가 같이 봐요.
@@ -15,6 +21,8 @@ import { buildDateTrack, buildTimeline, calcElapsedAtTime, calcElapsedMs } from 
  * @property {boolean} isPlaying
  * @property {(legs: import('@/types').Leg[]) => void} load
  *   구간을 싣고 처음부터 재생해요. 움직임 줄이기 설정이면 재생 없이 다 그린 상태로 시작해요
+ * @property {(legs: import('@/types').Leg[]) => void} refresh
+ *   같은 경로의 새 구간으로 바꿔 끼워요. 진행 위치와 재생 상태는 그대로예요. 이동 수단을 고친 뒤에 써요
  * @property {() => void} play 재생. 끝난 뒤에 부르면 처음부터
  * @property {() => void} resume 지금 자리에서 이어서 재생. 맨 끝이면 처음으로 돌아가지 않고 멈춘 채예요
  * @property {() => void} pause
@@ -45,6 +53,18 @@ export const usePlaybackStore = create((set, get) => ({
       dateTrack: buildDateTrack(legs, timeline),
       elapsedMs: reduceMotion ? Infinity : 0,
       isPlaying: !reduceMotion && timeline.steps.length > 0,
+    });
+  },
+
+  refresh: (legs) => {
+    const { timeline, elapsedMs } = get();
+    const nextTimeline = buildTimeline(legs);
+    // 재생 시간은 지난 ms라서, 구간 길이가 바뀌어도 같은 자리에 있게 새 일정으로 옮겨요.
+    set({
+      legs,
+      timeline: nextTimeline,
+      dateTrack: buildDateTrack(legs, nextTimeline),
+      elapsedMs: calcRefreshedElapsedMs(timeline, nextTimeline, elapsedMs),
     });
   },
 
