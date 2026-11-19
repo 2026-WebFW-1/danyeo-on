@@ -170,3 +170,26 @@ describe('seekToDate', () => {
     expect(getState().isPlaying).toBe(false);
   });
 });
+
+describe('refresh', () => {
+  test('같은 경로의 새 구간으로 바꿔도 위치와 재생 상태는 그대로예요', () => {
+    getState().tick(5000);
+    getState().pause();
+    const before = position();
+    const refreshed = legs.map((leg) => ({ ...leg, mode: 'car' }));
+
+    getState().refresh(refreshed);
+
+    expect(getState().legs).toBe(refreshed);
+    expect(position()).toEqual(before);
+    expect(getState().isPlaying).toBe(false);
+  });
+
+  test('다 그린 상태였으면 다 그린 상태로 남아요', () => {
+    getState().seek(null);
+
+    getState().refresh(legs.map((leg) => ({ ...leg })));
+
+    expect(position()).toBeNull();
+  });
+});

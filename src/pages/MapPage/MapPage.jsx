@@ -35,6 +35,8 @@ const NO_STOPS = [];
  *    재생 부품(머리·재생 버튼·범례·타임라인·도착 카드)은 그리지 않고, ?trip=·?period=도 볼 게 없어 무시됩니다.
  *  - 여행이 없는지는 불러오기를 마친 뒤(status 'ready')의 journey.trips로 판단합니다.
  *    불러오는 동안에는 journey가 없어서, 안내가 잠깐 보였다 사라지지 않게 지도만 그립니다.
+ *  - 구간 라벨을 누르면 이동 수단을 고칩니다(RouteMap의 isLegModeEditable). 고치면 Journey가 다시 계산돼
+ *    legs가 새 배열로 오지만, 같은 경로라 재생은 처음으로 돌아가지 않습니다(usePlayback).
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -85,6 +87,7 @@ export default function MapPage() {
         legs={legs}
         progress={position}
         onSelectStop={handleSelectStop}
+        isLegModeEditable={!hasNoTrips}
         className="absolute inset-0 size-full"
       />
 

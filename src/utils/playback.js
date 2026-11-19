@@ -216,3 +216,15 @@ export function calcPositionAtStop(legs, stopId) {
   const legIndex = legs.findIndex((leg) => leg.to === stopId);
   return legIndex === -1 ? null : { legIndex, t: 1 };
 }
+
+/**
+ * 두 구간 목록이 같은 경로인지예요. 구간 ID가 같은 순서로 모두 같으면 같은 경로로 봐요.
+ * 보정으로 Journey를 다시 계산하면 이동 수단 같은 값만 바뀐 같은 구간이 새 객체로 와요.
+ *
+ * @param {import('@/types').Leg[]} a
+ * @param {import('@/types').Leg[]} b
+ * @returns {boolean}
+ */
+export function isSameRoute(a, b) {
+  return a.length === b.length && a.every((leg, index) => leg.id === b[index].id);
+}

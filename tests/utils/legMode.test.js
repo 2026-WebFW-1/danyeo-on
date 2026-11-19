@@ -4,7 +4,7 @@ import edge from '@/data/fixtures/edge.journey.json';
 import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
-import { legMode } from '@/utils/legMode';
+import { canEditLegMode, legMode, toModeCorrection } from '@/utils/legMode';
 
 /** 도시 이름 두 개로 구간을 찾아요. 집은 'home'으로 적어요. */
 function findLeg(journey, fromCity, toCity) {
@@ -52,5 +52,28 @@ describe('legMode', () => {
 
     expect(leg).toMatchObject({ km: 552, mode: 'car', modeSource: 'user' });
     expect(legMode(leg.km)).toBe('train');
+  });
+});
+
+describe('canEditLegMode', () => {
+  test('집에서 나가는 구간은 고칠 수 없어요(보정을 찾을 집 사진이 없어서)', () => {
+    expect(canEditLegMode(findLeg(seojin, 'home', '부산'))).toBe(false);
+  });
+
+  test('지점에서 출발하는 구간은 고칠 수 있어요. 집으로 돌아오는 구간도요', () => {
+    expect(canEditLegMode(findLeg(seojin, '부산', '경주'))).toBe(true);
+    expect(canEditLegMode(findLeg(seojin, '경주', 'home'))).toBe(true);
+  });
+});
+
+describe('toModeCorrection', () => {
+  test('출발 지점 ID를 fromPhotoId로 써요. 지점 ID는 그 지점의 첫 사진이라 buildJourney가 찾을 수 있어요', () => {
+    const leg = findLeg(seojin, '부산', '경주');
+    const from = seojin.stops.find((stop) => stop.id === leg.from);
+
+    const correction = toModeCorrection(leg, 'train');
+
+    expect(correction).toEqual({ type: 'mode', fromPhotoId: leg.from, mode: 'train' });
+    expect(from.photoIds).toContain(correction.fromPhotoId);
   });
 });

@@ -15,6 +15,7 @@ import {
   calcPositionAtDate,
   calcPositionAtStop,
   calcTimeAtElapsed,
+  isSameRoute,
 } from '@/utils/playback';
 
 const legs = seojin.legs;
@@ -317,5 +318,17 @@ describe('calcPositionAtStop', () => {
 
   test('도착하는 구간이 없으면 null이에요', () => {
     expect(calcPositionAtStop(legs, 'none')).toBeNull();
+  });
+});
+
+describe('isSameRoute', () => {
+  test('구간 ID가 같은 순서로 모두 같으면 새 객체여도 같은 경로예요', () => {
+    const refreshed = legs.map((leg) => ({ ...leg, mode: 'car' }));
+    expect(isSameRoute(legs, refreshed)).toBe(true);
+  });
+
+  test('구간이 빠지거나 순서가 다르면 다른 경로예요', () => {
+    expect(isSameRoute(legs, legs.slice(1))).toBe(false);
+    expect(isSameRoute(legs.slice(0, 2), [legs[1], legs[0]])).toBe(false);
   });
 });
