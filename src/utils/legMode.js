@@ -6,6 +6,15 @@ const FLIGHT_OVER_KM = 700;
 // 이 거리 이상이면 기차예요. 딱 150km도 기차예요.
 const TRAIN_FROM_KM = 150;
 
+// 이동 수단마다 속도와 더 드는 시간이에요. 집 <> 첫, 마지막 지점의 이동 시간과 05 Passport의 비행 시간을 추정할 때 써요.
+// 집 사진 시각을 쓰면 서울 -> 방콕이 100시간이 되어버리니 거리 ÷ 속도로 추정해요.
+// 수단이 늘면 여기에 한 줄만 더하면 돼요.
+const TRAVEL_MODES = {
+  flight: { kmh: 800, extraHours: 0.5 }, // 타고 내리는 시간
+  train: { kmh: 120, extraHours: 0 },
+  car: { kmh: 70, extraHours: 0 },
+};
+
 /**
  * 구간 거리로 이동 수단을 정해요. buildJourney가 구간의 mode를 채울 때 써요(modeSource: 'auto').
  * 사용자가 고친 이동 수단(modeSource: 'user')은 여기서 다루지 않아요.
@@ -17,6 +26,18 @@ export function legMode(km) {
   if (km > FLIGHT_OVER_KM) return 'flight';
   if (km >= TRAIN_FROM_KM) return 'train';
   return 'car';
+}
+
+/**
+ * 거리와 이동 수단으로 걸린 시간을 추정해요.
+ * 집에서 나간 시각과 돌아온 시각은 사진으로 알 수 없어서 buildJourney가 이 값으로 채워요.
+ *
+ * @param {number} km 구간 거리
+ * @param {import('@/types').Leg['mode']} mode
+ * @returns {number} 시간. 예: 3717km 비행 → 5.15
+ */
+export function calcTravelHours(km, mode) {
+  return km / TRAVEL_MODES[mode].kmh + TRAVEL_MODES[mode].extraHours;
 }
 
 /**

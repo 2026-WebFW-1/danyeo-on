@@ -1,22 +1,11 @@
 import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
-import { legMode } from '@/utils/legMode';
+import { calcTravelHours, legMode } from '@/utils/legMode';
 import { toLocalDate } from '@/utils/localDate';
 
 // 1. 상수
 const DEFAULT_OFFSET = '+09:00';
-
-/**
- * 이동 수단마다 속도와 더 드는 시간입니다. 집 <> 첫, 마지막 지점의 이동 시간을 추정할 때 씁니다.
- * 집 사진 시각을 쓰면 서울 -> 방콕이 100시간이 되어버리니 거리 ÷ 속도로 추정합니다.
- * 수단이 늘면 여기에 한 줄만 더하면 됩니다.
- */
-const TRAVEL_MODES = {
-  flight: { kmh: 800, extraHours: 0.5 }, // 타고 내리는 시간
-  train: { kmh: 120, extraHours: 0 },
-  car: { kmh: 70, extraHours: 0 },
-};
 
 /**
  * 구간 종류마다 어느 쪽 시각을 추정하는지입니다. 집 쪽 시각만 사진으로 알 수 없습니다.
@@ -62,16 +51,6 @@ const toInstant = (photo) => Date.parse(withOffset(photo));
  * @returns {number} 예: 5.1347 → 5.1
  */
 const roundHours = (hours) => Math.round(hours * 10) / 10;
-
-/**
- * 거리와 이동 수단으로 걸린 시간을 추정해요.
- * 집에서 나간 시각과 돌아온 시각은 사진으로 알 수 없어서 이 값으로 채워요.
- *
- * @param {number} km 구간 거리
- * @param {import('@/types').Leg['mode']} mode
- * @returns {number} 시간. 예: 3717km 비행 → 5.15
- */
-const calcTravelHours = (km, mode) => km / TRAVEL_MODES[mode].kmh + TRAVEL_MODES[mode].extraHours;
 
 /**
  * 밀리초 시각을 그 시간대의 현지 시각 문자열로 바꿉니다. (toInstant를 거꾸로)
