@@ -280,6 +280,30 @@ describe('group', () => {
       expect(result.unlocated).toEqual([]);
     });
 
+    test('여러 지점에 여러 장을 뒤섞어 받아도 각 지점에 시각 순으로 들어가요', () => {
+      // given: 서울 01-01 10:00~14:00, 부산 01-02 10:00~14:00. 위치 없는 사진은 지점마다 2장씩 섞어서 받음
+      const photos = [
+        makeNoGpsPhoto('busanLate', '2025-01-02T13:00:00'),
+        makePhoto('seoulStart', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('seoulLate', '2025-01-01T13:00:00'),
+        makeBusanPhoto('busanStart', '2025-01-02T10:00:00'),
+        makeNoGpsPhoto('seoulEarly', '2025-01-01T11:00:00'),
+        makePhoto('seoulEnd', '2025-01-01T14:00:00', '+09:00'),
+        makeNoGpsPhoto('busanEarly', '2025-01-02T11:00:00'),
+        makeBusanPhoto('busanEnd', '2025-01-02T14:00:00'),
+      ];
+
+      // when
+      const result = group(photos);
+
+      // then
+      expect(result.stops.map((stop) => stop.photoIds)).toEqual([
+        ['seoulStart', 'seoulEarly', 'seoulLate', 'seoulEnd'],
+        ['busanStart', 'busanEarly', 'busanLate', 'busanEnd'],
+      ]);
+      expect(result.unlocated).toEqual([]);
+    });
+
     test.each([
       ['앞뒤 사진과 딱 12시간이면 들어가요', '2025-01-01T12:00:00', []],
       ['앞 사진과 12시간 넘게 떨어지면 unlocated예요', '2025-01-01T12:00:01', ['b']],
