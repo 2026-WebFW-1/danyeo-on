@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
 
+import ArrowLink from '@/components/common/ArrowLink';
 import { LINE_DOT_TOP_PX, LINE_INTRO_PX } from '@/constants/places';
 import { useReveal } from '@/hooks/useReveal';
 import { cn } from '@/utils/cn';
 
-import ArrowLink from './ArrowLink';
 import CityPhoto from './CityPhoto';
 import StopPosts from './StopPosts';
 
