@@ -118,6 +118,30 @@
  */
 
 /**
+ * 05 Passport 통계 6칸의 숫자예요. km · flights · countries · cities · photos는 JourneyTotals와 같은 값이에요.
+ *
+ * @typedef {object} PassportStats
+ * @property {number} km 이동 거리 합
+ * @property {number} flights 비행 구간 수(편도)
+ * @property {number} flightHours 비행 구간을 거리 ÷ 속도로 추정한 시간의 합. 반올림한 정수예요
+ * @property {number} nightsAway 집 밖에서 잔 밤 수. 여행마다 (일수 - 1)에, 집에 안 들르고 이어진 여행 사이(gap)의 밤을 더해요
+ * @property {number} countries 나라 수
+ * @property {number} cities 도시 수
+ * @property {number} photos 사진 수. 경유 지점의 사진은 빼요
+ */
+
+/**
+ * 05 입국 스탬프 하나예요. 나라마다 하나이고, 그 나라에 처음 들어간 여행을 가리켜요.
+ *
+ * @typedef {object} PassportStamp
+ * @property {string} cc 나라 코드. 예: 'JP'. 나라마다 하나라 key로 써요
+ * @property {string} country 나라 이름. 예: '일본'
+ * @property {string} tripId 처음 들어간 여행 ID. 누르면 01 지도의 ?trip=으로 가요
+ * @property {string} enteredOn 처음 들어간 현지 날짜. 예: '2024-10-03'
+ * @property {number} days 그 입국에서 머문 날 수. 집에 돌아오기 전까지 이어서 머문 같은 나라 도시를 합쳐요(gap으로 나뉜 여행도요)
+ */
+
+/**
  * 02 챕터 화면 머리의 `03 / 12`에 쓰는 챕터 하나예요.
  *
  * @typedef {object} ChapterItem

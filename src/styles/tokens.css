@@ -51,6 +51,11 @@
   --color-route: #ff3d99; /* 지구본 경로 곡선 */
   --color-journey-start: #9b5cff; /* 13h″ 진행 손글씨 시작(보라). 가운데는 accent */
   --color-journey-end: #ff7a59; /* 13h″ 진행 손글씨 끝(코랄) */
+  /* 05 입국 스탬프 잉크. 피그마 stamp/ink-* 이름이에요. 분홍 스탬프는 accent를 그대로 써요 */
+  --color-stamp-ink-1: #1f3a6b; /* 남색 */
+  --color-stamp-ink-2: #2f5d46; /* 초록 */
+  --color-stamp-ink-3: #7a4b2a; /* 갈색 */
+  --color-stamp-ink-5: #1a1a1a; /* 검정 */
 
   /* 글꼴 파일은 index.html에서 받습니다. --font-sans를 바꾸면 Preflight가 body 기본 글꼴로 씁니다 */
   --font-sans: 'Noto Sans KR', sans-serif;

@@ -1,0 +1,44 @@
+import NoTripsNotice from '@/components/common/NoTripsNotice';
+import { formatPassportHeader } from '@/utils/formatPassportHeader';
+import { formatPassportStats } from '@/utils/passportStats';
+
+import PassportIntro from './PassportIntro';
+import PassportStats from './PassportStats';
+import StampSection from './StampSection';
+
+/**
+ * 05 Passport 화면. 여행을 여권처럼 모아, 통계와 나라별 입국 스탬프를 보여 줘요.
+ *
+ * 책임: 받은 값만 그려요. 데이터를 읽는 건 PassportPage가 해요(코드 컨벤션 4·5절).
+ * 호출: PassportPage가 계산해 둔 값을 넘겨서 써요.
+ * <PassportView journey={journey} stats={stats} stamps={stamps} />
+ *
+ * 의도:
+ *  - 여행이 하나도 없으면 머리 없이 15a와 같은 안내만 보여요(03 R110과 같아요).
+ *  - 피그마의 CALENDAR · RECORDS는 다음 PR에서 이 아래에 붙여요(#174).
+ *
+ * @param {object} props
+ * @param {import('@/types').Journey | null} props.journey 머리말의 기간을 셀 때 써요
+ * @param {import('@/types').PassportStats} props.stats
+ * @param {import('@/types').PassportStamp[]} props.stamps
+ */
+export default function PassportView({ journey, stats, stamps }) {
+  const header = formatPassportHeader(journey, { stamps: stamps.length, ...stats });
+
+  if (!header) {
+    return (
+      <main className="flex flex-1 items-center justify-center bg-canvas px-30 py-20">
+        <h1 className="sr-only">PASSPORT</h1>
+        <NoTripsNotice />
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 bg-canvas pb-24">
+      <PassportIntro header={header} />
+      <PassportStats items={formatPassportStats(stats)} />
+      <StampSection stamps={stamps} />
+    </main>
+  );
+}
