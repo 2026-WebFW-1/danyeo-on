@@ -160,6 +160,26 @@
  */
 
 /**
+ * 05 기록(RECORDS) 세 칸의 값이에요(selectPassportRecords). 고를 지점이 없으면 그 칸은 null이에요.
+ *
+ * @typedef {object} PassportRecords
+ * @property {{ stop: Stop, hasMostPhotos: boolean } | null} longestStay 가장 오래 머문 지점. 사진도 가장 많이 남겼으면 hasMostPhotos가 true예요
+ * @property {{ stop: Stop, km: number, homeCity: string } | null} farthest 집에서 직선거리가 가장 먼 지점. km는 반올림한 정수이고, 집을 모르면 null이에요
+ * @property {{ cc: string, country: string, visits: number, cities: string[], coverStop: Stop } | null} mostVisited
+ *   따로 나간 횟수(visits)가 가장 많은 나라. 집이 있는 나라는 빼요. cities는 간 순서대로 겹치지 않게 모은 도시 이름이에요
+ */
+
+/**
+ * 05 기록 카드 하나에 들어갈 글자와 사진이에요(formatPassportRecords).
+ *
+ * @typedef {object} PassportRecordCard
+ * @property {string} label 예: 'LONGEST STAY'. 카드마다 달라서 key로 써요
+ * @property {string} value 예: '밴쿠버 · 57일'
+ * @property {string} description
+ * @property {string | null} coverFileKey 카드 위 사진. 없으면 회색 칸이에요
+ */
+
+/**
  * 02 챕터 화면 머리의 `03 / 12`에 쓰는 챕터 하나예요.
  *
  * @typedef {object} ChapterItem

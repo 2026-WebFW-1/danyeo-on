@@ -187,6 +187,45 @@ describe('PassportPage', () => {
     });
   });
 
+  test('맨 아래 기록에 가장 오래 머문 곳 · 가장 먼 곳 · 가장 많이 간 나라를 사진과 함께 보여 줘요', async () => {
+    await render(ready(seojin));
+
+    const section = container.querySelector('section[aria-labelledby="passport-records"]');
+    expect(section.querySelector('h2').textContent).toBe('기록');
+    expect(section.textContent).toContain('RECORDS');
+    expect(container.querySelector('main').lastElementChild).toBe(section);
+
+    const cards = [...section.querySelectorAll('li')].map((card) =>
+      [...card.querySelectorAll('p')].map((line) => line.textContent),
+    );
+    expect(cards).toEqual([
+      ['LONGEST STAY', '밴쿠버 · 57일', '캐나다에서 57일, 사진 6장을 남겼어요.'],
+      [
+        'FARTHEST',
+        '바르셀로나 · 9,599km',
+        '서울에서 가장 멀리 간 곳이에요. 2026.01.05에 도착했어요.',
+      ],
+      ['MOST VISITED', '일본 · 5회', '후쿠오카 · 교토 · 도쿄 · 삿포로 · 오사카'],
+    ]);
+    // 피그마의 예시 사진 대신 그 지점의 대표 사진이에요.
+    expect([...section.querySelectorAll('img')].map((img) => img.getAttribute('src'))).toEqual([
+      '/photos/full/vancouver-6.webp',
+      '/photos/full/barcelona-1.webp',
+      '/photos/full/kyoto-11.webp',
+    ]);
+  });
+
+  test('집을 모르면 가장 먼 곳 카드만 빼요', async () => {
+    await render(ready({ ...seojin, home: null }));
+
+    const labels = [
+      ...container.querySelectorAll(
+        'section[aria-labelledby="passport-records"] li p:first-of-type',
+      ),
+    ].map((label) => label.textContent);
+    expect(labels).toEqual(['LONGEST STAY', 'MOST VISITED']);
+  });
+
   test('여행이 0개면 머리 없이 사진 올리기 안내만 보여요', async () => {
     await render(ready(empty));
 

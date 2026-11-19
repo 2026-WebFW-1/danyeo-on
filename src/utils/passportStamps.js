@@ -6,11 +6,12 @@ import { calcDaysBetween, toLocalDate } from '@/utils/localDate';
  * 집을 나가서 돌아올 때까지의 지점을 차례로 모아요. 집에 안 들르고 다음 여행으로 이어진(gap 구간) 여행은 한 번의 외출로 합쳐요.
  * 사진이 14일 넘게 비면 Journey가 여행을 나누는데, 그 사이에도 같은 나라에 머물렀을 수 있어서예요(방콕 → 치앙마이).
  * 경유 지점과 나라 코드를 못 찾은 지점은 빼고, 지점마다 속한 여행 ID를 붙여요.
+ * 기록(RECORDS)의 "가장 많이 간 나라"도 같은 기준으로 세려고 이 함수를 같이 써요.
  *
  * @param {import('@/types').Journey} journey
  * @returns {{ stop: import('@/types').Stop, tripId: string }[][]}
  */
-function groupOutings(journey) {
+export function groupOutings(journey) {
   const stopsById = new Map(journey.stops.map((stop) => [stop.id, stop]));
   const gapArrivals = new Set(
     journey.legs.filter((leg) => leg.kind === 'gap').map((leg) => leg.to),

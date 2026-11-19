@@ -61,3 +61,6 @@ export const CALENDAR_WEEKDAYS = [
   { id: 'sat', label: '' },
   { id: 'sun', label: '' },
 ];
+
+// 기록 MOST VISITED 아래에 이어 적는 도시 수예요. 이보다 많으면 한 곳 덜 적고 "외 N곳"으로 줄여서, 카드 폭(378px)에서 두 줄을 넘지 않게 해요.
+export const RECORD_CITY_LIMIT = 5;
