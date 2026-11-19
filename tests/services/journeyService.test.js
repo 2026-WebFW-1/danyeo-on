@@ -356,8 +356,13 @@ const savedJourneyWithVancouver = () => ({
 const SEOUL = { lat: 37.55789, lng: 126.92071 };
 const SEOUL_PLACE = { city: '서울', country: '한국', cc: 'KR' };
 
-// 저장된 집에는 나라 없이 도시 이름만 있어요(Journey.home).
+// 저장된 집에는 나라 이름 없이 도시 이름과 나라 코드만 있어요(Journey.home, #179).
 const savedJourneyWithSeoulHome = () => ({
+  ...journeyOf('saved'),
+  home: { ...SEOUL, city: '서울', cc: 'KR' },
+});
+// #179 전에 저장된 집이에요. 나라 코드가 없어요.
+const savedJourneyWithOldSeoulHome = () => ({
   ...journeyOf('saved'),
   home: { ...SEOUL, city: '서울' },
 });
@@ -584,8 +589,43 @@ describe('refreshJourney', () => {
       const place = await findPlace(SEOUL.lat, SEOUL.lng, { isHome: true });
 
       // then
-      expect(place.city).toBe('서울');
+      expect(place).toMatchObject({ city: '서울', cc: 'KR' });
       expect(reverseCity).not.toHaveBeenCalled();
+    });
+
+    test('저장된 집에 나라 코드가 없으면(#179 전에 저장됨) 한 번 더 찾아 나라 코드만 채워요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue({ ...SEOUL_PLACE, city: '마포구' });
+      fakeWritableSupabase(savedRow, savedJourneyWithOldSeoulHome);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(SEOUL.lat, SEOUL.lng, { isHome: true });
+
+      // then: 도시 이름은 저장된 이름 그대로예요
+      expect(place).toEqual({ city: '서울', country: '한국', cc: 'KR' });
+      expect(reverseCity).toHaveBeenCalledOnce();
+    });
+
+    test('나라 코드를 채우려다 이름 찾기가 실패하면 저장된 집 이름을 그대로 써요', async () => {
+      // given
+      const userId = newUserId();
+      vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+      vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+      vi.mocked(reverseCity).mockResolvedValue({ ...UNKNOWN_PLACE });
+      fakeWritableSupabase(savedRow, savedJourneyWithOldSeoulHome);
+
+      // when
+      await refreshJourney(userId);
+      const [, , findPlace] = vi.mocked(buildJourney).mock.calls[0];
+      const place = await findPlace(SEOUL.lat, SEOUL.lng, { isHome: true });
+
+      // then
+      expect(place).toEqual({ city: '서울', country: '', cc: '' });
     });
 
     test('집이 바뀌어 저장된 집 자리가 여행 지점이 되면 reverseCity로 나라까지 새로 찾아요', async () => {

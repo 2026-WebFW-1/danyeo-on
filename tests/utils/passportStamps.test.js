@@ -117,6 +117,33 @@ describe('selectPassportStamps', () => {
     ]);
   });
 
+  test('집이 있는 나라(home.cc)에는 스탬프를 찍지 않아요. 한국에 살지 않으면 한국도 찍어요', () => {
+    const journey = {
+      ...journeyOf(
+        [stop('a', 'KR', '2025-01-01', '2025-01-03')],
+        [stop('b', 'JP', '2025-02-01', '2025-02-03')],
+      ),
+      home: { lat: 35.68, lng: 139.76, city: '도쿄', cc: 'JP' },
+    };
+
+    expect(selectPassportStamps(journey).map((stamp) => stamp.cc)).toEqual(['KR']);
+  });
+
+  test.each([
+    ['나라 코드가 없는 집(#179 전에 저장됨)', { lat: 37.55, lng: 126.92, city: '서울' }],
+    ['나라를 못 찾은 집', { lat: 37.55, lng: 126.92, city: '서울', cc: '' }],
+  ])('%s이면 한국에 산다고 보고 한국을 빼요', (_, home) => {
+    const journey = {
+      ...journeyOf([
+        stop('a', 'KR', '2025-01-01', '2025-01-03'),
+        stop('b', 'JP', '2025-01-04', '2025-01-05'),
+      ]),
+      home,
+    };
+
+    expect(selectPassportStamps(journey).map((stamp) => stamp.cc)).toEqual(['JP']);
+  });
+
   test('다음 여행에서 다시 간 나라는 다시 찍지 않아요', () => {
     const journey = journeyOf(
       [stop('a', 'JP', '2025-01-01', '2025-01-03')],

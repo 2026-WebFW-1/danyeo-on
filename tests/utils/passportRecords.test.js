@@ -119,7 +119,20 @@ describe('selectPassportRecords', () => {
     expect(longestStay.stop.city).toBe('부산');
   });
 
-  test('한국은 몇 번을 가도 가장 많이 간 나라에서 빠져요', () => {
+  test('가장 많이 간 나라는 집이 있는 나라(home.cc)를 빼고 세요', () => {
+    const journey = {
+      ...journeyOf(
+        [stop('a', 'JP', '오사카')],
+        [stop('b', 'JP', '삿포로')],
+        [stop('c', 'KR', '부산')],
+      ),
+      home: { lat: 0, lng: 0, city: '도쿄', cc: 'JP' },
+    };
+
+    expect(selectPassportRecords(journey).mostVisited).toMatchObject({ cc: 'KR', visits: 1 });
+  });
+
+  test('집이 한국이면(seojin) 한국은 몇 번을 가도 가장 많이 간 나라에서 빠져요', () => {
     // seojin은 한국 국내 여행도 5번이고 일본보다 먼저 갔어요(강릉). 세면 횟수가 같아 한국이 뽑혀요.
     expect(selectPassportRecords(seojin).mostVisited.cc).toBe('JP');
   });

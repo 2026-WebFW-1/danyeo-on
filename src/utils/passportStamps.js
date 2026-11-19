@@ -1,6 +1,17 @@
-import { HOME_COUNTRY_CC } from '@/constants/passport';
+import { DEFAULT_HOME_COUNTRY_CC } from '@/constants/passport';
 import { getCountryName } from '@/utils/countryName';
 import { calcDaysBetween, toLocalDate } from '@/utils/localDate';
+
+/**
+ * 집이 있는 나라 코드예요. 이 나라에는 입국 스탬프를 찍지 않고, 기록의 "가장 많이 간 나라"에서도 빼요.
+ * 집의 나라 코드(home.cc)가 없으면(#179 전에 저장됐거나 이름 찾기가 실패함) 한국으로 봐요.
+ *
+ * @param {import('@/types').Journey | null | undefined} journey
+ * @returns {string} 예: 'KR'
+ */
+export function getHomeCountryCc(journey) {
+  return journey?.home?.cc || DEFAULT_HOME_COUNTRY_CC;
+}
 
 /**
  * 집을 나가서 돌아올 때까지의 지점을 차례로 모아요. 집에 안 들르고 다음 여행으로 이어진(gap 구간) 여행은 한 번의 외출로 합쳐요.
@@ -35,7 +46,7 @@ export function groupOutings(journey) {
 /**
  * 05 입국 스탬프를 나라에 처음 들어간 순서로 돌려줘요. 여행이 없으면 빈 배열이에요.
  * 나라마다 하나예요. 같은 나라에 다시 가도 첫 입국만 찍고, 몇 번 갔는지는 기록(RECORDS)에서 세요.
- * 경유 지점, 나라 코드를 못 찾은 지점, 집이 있는 나라(HOME_COUNTRY_CC)의 지점은 빼요.
+ * 경유 지점, 나라 코드를 못 찾은 지점, 집이 있는 나라(getHomeCountryCc)의 지점은 빼요.
  *
  * @param {import('@/types').Journey | null | undefined} journey
  * @returns {import('@/types').PassportStamp[]}
@@ -43,13 +54,14 @@ export function groupOutings(journey) {
 export function selectPassportStamps(journey) {
   if (!journey) return [];
 
+  const homeCc = getHomeCountryCc(journey);
   const stamps = [];
   const seen = new Set();
 
   for (const visits of groupOutings(journey)) {
     visits.forEach(({ stop, tripId }, index) => {
       // 집 나라 지점은 스탬프만 안 찍고 목록에는 남겨요. 일본 → 한국 → 일본이면 첫 일본 체류가 한국에서 끊겨요.
-      if (stop.cc === HOME_COUNTRY_CC || seen.has(stop.cc)) return;
+      if (stop.cc === homeCc || seen.has(stop.cc)) return;
       seen.add(stop.cc);
 
       // 체류는 이번 입국에서 그 나라를 떠날 때까지예요. 밴쿠버 → 밴프처럼 이어서 머문 도시를 합쳐요.
