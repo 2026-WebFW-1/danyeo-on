@@ -56,7 +56,7 @@ describe('legMode', () => {
 });
 
 describe('canEditLegMode', () => {
-  test('집에서 나가는 구간은 고칠 수 없어요(보정을 찾을 집 사진이 없어서)', () => {
+  test('집에서 나가는 구간은 고칠 수 없어요(buildJourney가 집 출발 구간의 보정을 보지 않아서)', () => {
     expect(canEditLegMode(findLeg(seojin, 'home', '부산'))).toBe(false);
   });
 

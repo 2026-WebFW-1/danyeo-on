@@ -21,8 +21,9 @@ export function legMode(km) {
 
 /**
  * 사용자가 이 구간의 이동 수단을 고칠 수 있는지예요.
- * 보정은 출발 지점의 사진(fromPhotoId)으로 구간을 찾는데, 집에는 사진이 없어서
- * buildJourney가 집에서 나가는 구간의 보정을 받지 않아요.
+ * 보정은 출발 지점의 사진(fromPhotoId)으로 구간을 찾아요. 집에도 사진은 있지만,
+ * buildJourney가 집에서 나가는 구간의 보정은 보지 않아요(findUserMode).
+ * Journey에서도 집은 지점(Stop)이 아니라 구간의 from이 'home'뿐이라, 화면에는 보낼 사진 ID가 없어요.
  *
  * @param {import('@/types').Leg} leg
  * @returns {boolean}
