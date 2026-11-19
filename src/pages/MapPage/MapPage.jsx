@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { PERIOD_PARAM, TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
+import { useLegModeDraft } from '@/hooks/useLegModeDraft';
 import { usePlayback } from '@/hooks/usePlayback';
 import { canEditLegMode } from '@/utils/legMode';
 import { parsePeriod } from '@/utils/mapScreen';
@@ -38,7 +39,9 @@ const NO_STOPS = [];
  *  - 여행이 없는지는 불러오기를 마친 뒤(status 'ready')의 journey.trips로 판단합니다.
  *    불러오는 동안에는 journey가 없어서, 안내가 잠깐 보였다 사라지지 않게 지도만 그립니다.
  *  - 이동 수단 고치기(기능 명세 M107)는 평소에 숨기고, 범례의 '고치기'를 누르면 고치기 모드로 들어갑니다.
- *    모드에서는 범례 자리에 구간 목록(LegModePanel)을 펼치고, 지도 라벨도 눌러서 고칠 수 있습니다(RouteMap).
+ *    모드에서는 범례 자리에 구간 목록(LegModePanel)을 펼치고, 지도 라벨도 눌러서 고를 수 있습니다(RouteMap).
+ *    고른 수단은 초안(useLegModeDraft)으로 지도·목록·범례에 먼저 보이고, 완료를 눌러야 저장합니다.
+ *    취소·Esc·기간 바꾸기는 초안을 버립니다. 재생(usePlayback)에는 저장된 legs만 넘깁니다.
  *    라벨은 지나온 구간에만 있어서, 들어갈 때 재생을 멈추고 끝으로 옮겨 전체 동선과 라벨을 다 보여 줍니다.
  *  - 고치면 Journey가 다시 계산돼 legs가 새 배열로 오지만, 같은 경로라 재생 위치는 그대로입니다(usePlayback).
  *
@@ -59,6 +62,7 @@ export default function MapPage() {
     [journey, trip, period],
   );
   const { position, pause, seek } = usePlayback(legs);
+  const { displayLegs, changes, setMode, clear } = useLegModeDraft(legs);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [highlightedLegId, setHighlightedLegId] = useState(null);
   const hasEditableLeg = legs.some(canEditLegMode);
@@ -69,15 +73,22 @@ export default function MapPage() {
     setIsEditingMode(true);
   };
 
-  // 목록이 Esc 감시에 쓰는 함수라 같은 함수를 넘겨요.
-  const handleDoneEdit = useCallback(() => {
+  // 저장한 초안은 비우지 않아요. Journey를 다시 계산해 legs가 바뀌면 저절로 비어요(useLegModeDraft).
+  const handleSavedEdit = () => {
     setIsEditingMode(false);
     setHighlightedLegId(null);
-  }, []);
+  };
 
-  // 기간을 바꾸면 처음부터 재생해서 라벨이 다시 하나씩 나와요. 고치던 화면과 달라지니 고치기를 끝내요.
+  // 목록이 Esc 감시에 쓰는 함수라 같은 함수를 넘겨요.
+  const handleCancelEdit = useCallback(() => {
+    clear();
+    setIsEditingMode(false);
+    setHighlightedLegId(null);
+  }, [clear]);
+
+  // 기간을 바꾸면 처음부터 재생해서 라벨이 다시 하나씩 나와요. 고치던 화면과 달라지니 고치기를 취소해요.
   const handleSelectPeriod = (nextPeriod) => {
-    handleDoneEdit();
+    handleCancelEdit();
     setSearchParams({ [PERIOD_PARAM]: nextPeriod }, { replace: true });
   };
 
@@ -107,10 +118,11 @@ export default function MapPage() {
       <RouteMap
         home={home}
         stops={stops}
-        legs={legs}
+        legs={displayLegs}
         progress={position}
         onSelectStop={handleSelectStop}
         isLegModeEditing={isEditing}
+        onChangeLegMode={setMode}
         highlightedLegId={isEditing ? highlightedLegId : null}
         className="absolute inset-0 size-full"
       />
@@ -129,15 +141,18 @@ export default function MapPage() {
           <PlaybackControls />
           {isEditing ? (
             <LegModePanel
-              legs={legs}
+              legs={displayLegs}
+              changes={changes}
               home={home}
               stops={stops}
               highlightedLegId={highlightedLegId}
               onHighlight={setHighlightedLegId}
-              onDone={handleDoneEdit}
+              onChangeMode={setMode}
+              onSaved={handleSavedEdit}
+              onCancel={handleCancelEdit}
             />
           ) : (
-            <MoveLegend legs={legs} onEdit={hasEditableLeg ? handleStartEdit : undefined} />
+            <MoveLegend legs={displayLegs} onEdit={hasEditableLeg ? handleStartEdit : undefined} />
           )}
           <TimelineScrubber home={home} stops={stops} />
           <ArrivalStack stops={stops} />

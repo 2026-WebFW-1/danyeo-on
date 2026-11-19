@@ -20,17 +20,15 @@ import LegModeMenu from './LegModeMenu';
  * @param {object} props
  * @param {{ leg: import('@/types').Leg, rect: import('@/utils/legLabels').MapRect }[]} props.labels 지금 보이는 라벨
  * @param {boolean} props.isEditing 이동 수단 고치기 모드
+ * @param {(leg: import('@/types').Leg, mode: import('@/types').Leg['mode']) => void} [props.onChangeMode]
+ *   메뉴에서 고르면 불러요. 초안에만 담겨요(useLegModeDraft)
  */
-export default function LegLabelLayer({ labels, isEditing }) {
+export default function LegLabelLayer({ labels, isEditing, onChangeMode }) {
   const [openLegId, setOpenLegId] = useState(null);
   const openLabel = labels.find(({ leg }) => leg.id === openLegId);
 
   // 재생 중에는 매 프레임 다시 그려서, 메뉴가 바깥 클릭 리스너를 다시 달지 않게 같은 함수를 넘겨요.
   const handleCloseMenu = useCallback(() => setOpenLegId(null), []);
-
-  const handleSaved = (savedLeg) => {
-    setOpenLegId((id) => (id === savedLeg.id ? null : id));
-  };
 
   const handleToggleMenu = (legId) => {
     setOpenLegId((id) => (id === legId ? null : legId));
@@ -39,7 +37,7 @@ export default function LegLabelLayer({ labels, isEditing }) {
   return (
     <>
       {labels.map(({ leg, rect }) => {
-        const isEditable = isEditing && canEditLegMode(leg);
+        const isEditable = isEditing && onChangeMode !== undefined && canEditLegMode(leg);
         return (
           <LegLabel
             key={leg.id}
@@ -52,12 +50,12 @@ export default function LegLabelLayer({ labels, isEditing }) {
         );
       })}
 
-      {isEditing && openLabel && (
+      {isEditing && onChangeMode && openLabel && (
         <LegModeMenu
           key={openLabel.leg.id}
           leg={openLabel.leg}
           rect={openLabel.rect}
-          onSaved={handleSaved}
+          onSelect={onChangeMode}
           onClose={handleCloseMenu}
         />
       )}

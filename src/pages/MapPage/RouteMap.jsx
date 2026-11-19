@@ -48,7 +48,9 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  * @param {import('@/types').Leg[]} props.legs 집을 포함한 전체 구간, 시간 순서
  * @param {import('@/utils/routeMap').RouteProgress | null} props.progress null이면 모든 구간을 다 그린 상태
  * @param {(stopId: string) => void} [props.onSelectStop]
- * @param {boolean} [props.isLegModeEditing] 켜면 구간 라벨을 눌러 이동 수단을 고쳐요. 01 고치기 모드에서만 켜요
+ * @param {boolean} [props.isLegModeEditing] 켜면 구간 라벨을 눌러 이동 수단을 골라요. 01 고치기 모드에서만 켜요
+ * @param {(leg: import('@/types').Leg, mode: import('@/types').Leg['mode']) => void} [props.onChangeLegMode]
+ *   라벨 메뉴에서 고르면 불러요. 저장은 쓰는 쪽이 해요
  * @param {string | null} [props.highlightedLegId] 진하게 덧그릴 구간. 다 그린 구간만 그려요
  * @param {string} [props.className]
  */
@@ -59,6 +61,7 @@ export default function RouteMap({
   progress,
   onSelectStop,
   isLegModeEditing = false,
+  onChangeLegMode,
   highlightedLegId = null,
   className,
 }) {
@@ -175,6 +178,7 @@ export default function RouteMap({
         key={isLegModeEditing ? 'editing' : 'viewing'}
         labels={arrivedLabels}
         isEditing={isLegModeEditing}
+        onChangeMode={onChangeLegMode}
       />
     </svg>
   );

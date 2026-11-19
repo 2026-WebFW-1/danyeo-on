@@ -22,7 +22,7 @@ const FUKUOKA_TRIP = seojin.trips.find((trip) => trip.name === '후쿠오카');
 
 let container;
 let root;
-let add;
+let addMany;
 
 async function openMap(entry = '/map') {
   await act(() =>
@@ -47,6 +47,14 @@ function getPanel() {
 // 고치기 목록에서 그 구간 줄의 이동 수단 버튼이에요.
 function getPanelModeButton(route, label) {
   return getPanel().querySelector(`[aria-label="${route} 이동 수단"] [aria-label="${label}"]`);
+}
+
+function getPanelButton(text) {
+  return [...getPanel().querySelectorAll('button')].find((button) => button.textContent === text);
+}
+
+function getPanelRow(route) {
+  return getPanel().querySelector(`[aria-label="${route} 이동 수단"]`).closest('li');
 }
 
 async function openEditing(entry) {
@@ -92,8 +100,8 @@ beforeEach(() => {
   // 움직임 줄이기로 열어서 다 그린 상태로 시작해요. 지나온 구간의 라벨이 모두 보여요.
   vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
   vi.mocked(useJourney).mockReturnValue({ journey: seojin, status: 'ready', error: null });
-  add = vi.fn().mockResolvedValue({});
-  vi.mocked(useCorrections).mockReturnValue({ status: 'ready', add });
+  addMany = vi.fn().mockResolvedValue([]);
+  vi.mocked(useCorrections).mockReturnValue({ status: 'ready', addMany });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -104,6 +112,10 @@ afterEach(() => {
   container.remove();
   vi.restoreAllMocks();
 });
+
+// 2Y 목록에서 밴쿠버 → 밴프(차 552km)를 기준으로 봐요.
+const BANFF_ROUTE = '밴쿠버 → 밴프';
+const BANFF_LEG = seojin.legs.find((leg) => Math.round(leg.km) === 552 && leg.mode === 'car');
 
 describe('01 이동 수단 고치기 모드', () => {
   test('평소에는 라벨을 누를 수 없고, 범례의 고치기로 들어가요', async () => {
@@ -133,17 +145,35 @@ describe('01 이동 수단 고치기 모드', () => {
     expect(getLabelButton('기차 · 343km')).toBeDefined();
   });
 
-  test('완료나 Esc를 누르면 끝나고 라벨을 다시 누를 수 없어요', async () => {
+  test('목록에는 집에서 나가는 구간을 빼고 모든 구간이 있어요', async () => {
     await openEditing();
-    await click(getPanel().querySelector('button'));
+
+    const editableLegs = usePlaybackStore.getState().legs.filter((leg) => leg.from !== 'home');
+    const flightCount = editableLegs.filter((leg) => leg.mode === 'flight').length;
+    expect(getPanel().querySelectorAll('li')).toHaveLength(editableLegs.length);
+    // 지도에 라벨이 없는 자동 비행 구간도 목록에서는 고칠 수 있어요.
+    expect(flightCount).toBeGreaterThan(0);
+    expect(getPanel().querySelectorAll('[aria-label="비행"][aria-pressed="true"]')).toHaveLength(
+      flightCount,
+    );
+  });
+
+  test('목록 줄에 포커스하면 지도에서 그 구간을 진하게 그려요', async () => {
+    await openEditing();
+
+    await act(async () => getPanelModeButton(BANFF_ROUTE, '차').focus());
+
+    expect(container.querySelector(`[data-leg-highlight="${BANFF_LEG.id}"]`)).not.toBeNull();
+  });
+
+  test('바꾼 게 없이 완료를 누르면 저장하지 않고 끝내요', async () => {
+    await openEditing();
+
+    await click(getPanelButton('완료'));
+
+    expect(addMany).not.toHaveBeenCalled();
     expect(getPanel()).toBeNull();
     expect(getLabelButton('기차 · 343km')).toBeUndefined();
-
-    await click(getEditButton());
-    await act(async () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    });
-    expect(getPanel()).toBeNull();
   });
 
   test('기간 탭을 바꾸면 고치기를 끝내요', async () => {
@@ -153,53 +183,121 @@ describe('01 이동 수단 고치기 모드', () => {
 
     expect(getPanel()).toBeNull();
   });
+});
 
-  test('목록에는 집에서 나가는 구간을 빼고 모든 구간이 있어요', async () => {
+describe('01 고치기 목록', () => {
+  test('고르면 저장하지 않고 초안으로 보여 줘요', async () => {
     await openEditing();
 
-    const editableCount = seojin.legs.filter(
-      (leg) => leg.from !== 'home' && usePlaybackStore.getState().legs.includes(leg),
-    ).length;
-    expect(getPanel().querySelectorAll('li')).toHaveLength(editableCount);
-    // 지도에 라벨이 없는 자동 비행 구간도 목록에서는 고칠 수 있어요.
-    const flightPressed = getPanel().querySelectorAll('[aria-label="비행"][aria-pressed="true"]');
-    expect(flightPressed.length).toBeGreaterThan(0);
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+
+    expect(addMany).not.toHaveBeenCalled();
+    expect(getPanelModeButton(BANFF_ROUTE, '기차').getAttribute('aria-pressed')).toBe('true');
+    expect(getPanelRow(BANFF_ROUTE).textContent).toContain('바꿈');
+    expect(getPanel().textContent).toContain('1개 바꿨어요');
+    // 지도 라벨도 고른 수단으로 바뀌어요.
+    expect(getLabelButton('기차 · 552km')).toBeDefined();
   });
 
-  test('목록에서 이동 수단을 누르면 출발 지점 사진으로 보정을 저장해요', async () => {
+  test('저장된 수단으로 다시 고르면 초안에서 빠져요', async () => {
     await openEditing();
 
-    await click(getPanelModeButton('밴쿠버 → 밴프', '기차'));
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+    await click(getPanelModeButton(BANFF_ROUTE, '차'));
 
-    const leg = seojin.legs.find((item) => Math.round(item.km) === 552 && item.mode === 'car');
-    expect(add).toHaveBeenCalledWith({ type: 'mode', fromPhotoId: leg.from, mode: 'train' });
+    expect(getPanelRow(BANFF_ROUTE).textContent).not.toContain('바꿈');
+    expect(getPanel().textContent).not.toContain('바꿨어요');
   });
 
-  test('목록에서 지금 이동 수단을 누르면 저장하지 않아요', async () => {
+  test('완료를 누르면 바꾼 구간을 출발 지점 사진으로 한꺼번에 저장하고 끝내요', async () => {
     await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+    await click(
+      getPanelModeButton(BANFF_ROUTE.replace('밴쿠버', '경주').replace('밴프', '서울'), '비행'),
+    );
 
-    await click(getPanelModeButton('밴쿠버 → 밴프', '차'));
+    await click(getPanelButton('완료'));
 
-    expect(add).not.toHaveBeenCalled();
+    const gyeongjuLeg = seojin.legs.find((leg) => Math.round(leg.km) === 285);
+    expect(addMany).toHaveBeenCalledTimes(1);
+    expect(addMany).toHaveBeenCalledWith([
+      { type: 'mode', fromPhotoId: gyeongjuLeg.from, mode: 'flight' },
+      { type: 'mode', fromPhotoId: BANFF_LEG.from, mode: 'train' },
+    ]);
+    expect(getPanel()).toBeNull();
+    // Journey를 다시 계산하기 전까지 고른 수단이 그대로 보여요.
+    expect(getLabel('기차 · 552km')).toBeDefined();
   });
 
-  test('목록에서 저장에 실패하면 그 줄에 안내를 띄워요', async () => {
-    add.mockRejectedValue({ status: 0, code: 'SAVE_FAILED', message: 'x' });
+  test('저장 뒤 다시 계산한 Journey가 오면 초안은 비고 저장된 값을 보여 줘요', async () => {
     await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+    await click(getPanelButton('완료'));
 
-    await click(getPanelModeButton('밴쿠버 → 밴프', '기차'));
+    vi.mocked(useJourney).mockReturnValue({
+      journey: withLeg(BANFF_LEG.id, { mode: 'train', modeSource: 'user' }),
+      status: 'ready',
+      error: null,
+    });
+    await openMap();
+    await click(getEditButton());
 
-    const row = getPanel().querySelector('[aria-label="밴쿠버 → 밴프 이동 수단"]').closest('li');
-    expect(row.querySelector('[role="alert"]').textContent).toContain('저장하지 못했어요');
+    expect(getPanelModeButton(BANFF_ROUTE, '기차').getAttribute('aria-pressed')).toBe('true');
+    expect(getPanelRow(BANFF_ROUTE).textContent).not.toContain('바꿈');
   });
 
-  test('목록 줄에 포커스하면 지도에서 그 구간을 진하게 그려요', async () => {
+  test('취소를 누르면 저장하지 않고 초안을 버려요', async () => {
     await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
 
-    await act(async () => getPanelModeButton('밴쿠버 → 밴프', '차').focus());
+    await click(getPanelButton('취소'));
 
-    const leg = seojin.legs.find((item) => Math.round(item.km) === 552 && item.mode === 'car');
-    expect(container.querySelector(`[data-leg-highlight="${leg.id}"]`)).not.toBeNull();
+    expect(addMany).not.toHaveBeenCalled();
+    expect(getPanel()).toBeNull();
+    expect(getLabel('차 · 552km')).toBeDefined();
+    expect(getLabel('기차 · 552km')).toBeUndefined();
+  });
+
+  test('Esc를 누르면 취소와 같아요', async () => {
+    await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+
+    expect(addMany).not.toHaveBeenCalled();
+    expect(getPanel()).toBeNull();
+
+    await click(getEditButton());
+    expect(getPanelModeButton(BANFF_ROUTE, '차').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  test('저장에 실패하면 끝내지 않고 초안을 남겨서 다시 완료할 수 있어요', async () => {
+    addMany.mockRejectedValueOnce({ status: 0, code: 'SAVE_FAILED', message: 'x' });
+    await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+
+    await click(getPanelButton('완료'));
+
+    expect(getPanel().querySelector('[role="alert"]').textContent).toContain('저장하지 못했어요');
+    expect(getPanelModeButton(BANFF_ROUTE, '기차').getAttribute('aria-pressed')).toBe('true');
+
+    await click(getPanelButton('완료'));
+    expect(addMany).toHaveBeenCalledTimes(2);
+    expect(getPanel()).toBeNull();
+  });
+
+  test('보정을 불러오는 동안에는 고를 수 있지만 완료는 막아요', async () => {
+    vi.mocked(useCorrections).mockReturnValue({ status: 'loading', addMany });
+    await openEditing();
+    await click(getPanelModeButton(BANFF_ROUTE, '기차'));
+
+    await click(getPanelButton('완료'));
+
+    expect(getPanelButton('완료').getAttribute('aria-disabled')).toBe('true');
+    expect(addMany).not.toHaveBeenCalled();
+    expect(getPanel()).not.toBeNull();
   });
 });
 
@@ -240,49 +338,33 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
     expect(document.activeElement).toBe(getMenuItem('기차'));
   });
 
-  test('다른 이동 수단을 고르면 출발 지점 사진으로 보정을 저장하고 메뉴를 닫아요', async () => {
+  test('메뉴에서 고르면 초안에만 담고 닫아요. 완료를 눌러야 저장해요', async () => {
     await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('차'));
 
-    expect(add).toHaveBeenCalledWith({ type: 'mode', fromPhotoId: GRAD_TRAIN.from, mode: 'car' });
+    expect(addMany).not.toHaveBeenCalled();
     expect(getMenu()).toBeNull();
+    expect(getLabelButton('차 · 343km')).toBeDefined();
+
+    await click(getPanelButton('완료'));
+    expect(addMany).toHaveBeenCalledWith([
+      { type: 'mode', fromPhotoId: GRAD_TRAIN.from, mode: 'car' },
+    ]);
   });
 
-  test('지금 이동 수단을 고르면 저장하지 않고 닫아요', async () => {
+  test('지금 이동 수단을 고르면 바꾸지 않고 닫아요', async () => {
     await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
     await click(getMenuItem('기차'));
 
-    expect(add).not.toHaveBeenCalled();
     expect(getMenu()).toBeNull();
+    expect(getPanel().textContent).not.toContain('바꿨어요');
   });
 
-  test('저장에 실패하면 메뉴를 닫지 않고 안내를 띄워요', async () => {
-    add.mockRejectedValue({ status: 0, code: 'SAVE_FAILED', message: 'x' });
-    await openEditing();
-    await click(getLabelButton('기차 · 343km'));
-
-    await click(getMenuItem('비행'));
-
-    expect(getMenu()).not.toBeNull();
-    expect(getMenu().querySelector('[role="alert"]').textContent).toContain('저장하지 못했어요');
-  });
-
-  test('보정을 불러오는 동안에는 골라도 저장하지 않아요', async () => {
-    vi.mocked(useCorrections).mockReturnValue({ status: 'loading', add });
-    await openEditing();
-    await click(getLabelButton('기차 · 343km'));
-
-    await click(getMenuItem('차'));
-
-    expect(getMenuItem('차').getAttribute('aria-disabled')).toBe('true');
-    expect(add).not.toHaveBeenCalled();
-  });
-
-  test('Esc를 누르거나 메뉴 밖을 누르면 닫혀요', async () => {
+  test('Esc를 누르거나 메뉴 밖을 누르면 메뉴만 닫혀요', async () => {
     await openEditing();
     await click(getLabelButton('기차 · 343km'));
 
@@ -292,6 +374,7 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
       );
     });
     expect(getMenu()).toBeNull();
+    expect(getPanel()).not.toBeNull();
 
     await click(getLabelButton('기차 · 343km'));
     await act(async () => {
