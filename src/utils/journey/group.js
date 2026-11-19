@@ -110,18 +110,23 @@ function addToStop(stop, photo, at) {
  * @returns {Map<RawStop, import('@/types').Photo[]>} 받은 순서 그대로
  */
 function fillByTime(stops, located, photos) {
+  const locatedAts = located.map(toTakenMs);
   const stopOf = new Map(stops.flatMap((stop) => stop.photos.map((photo) => [photo, stop])));
 
   const findStopAround = (at) => {
+    // 위치 없는 사진이 수천 장일 수 있어서, 사진마다 located 전체를 훑지 않고 이진 탐색해요.
     // 같은 시각에 찍은 사진이 있으면 앞뒤가 같은 사진일 수 있어요.
-    const prevPhoto = located.findLast((photo) => toTakenMs(photo) <= at);
-    const nextPhoto = located.find((photo) => toTakenMs(photo) >= at);
+    const prevIndex = findFirstIndex(locatedAts, (t) => t > at) - 1;
+    const nextIndex = findFirstIndex(locatedAts, (t) => t >= at);
+    const prevPhoto = located[prevIndex];
+    const nextPhoto = located[nextIndex];
     if (!prevPhoto || !nextPhoto) return null;
 
     const stop = stopOf.get(prevPhoto);
     const isBetweenSameStop = stop === stopOf.get(nextPhoto);
     const isNear =
-      at - toTakenMs(prevPhoto) <= MAX_FILL_GAP_MS && toTakenMs(nextPhoto) - at <= MAX_FILL_GAP_MS;
+      at - locatedAts[prevIndex] <= MAX_FILL_GAP_MS &&
+      locatedAts[nextIndex] - at <= MAX_FILL_GAP_MS;
     return isBetweenSameStop && isNear ? stop : null;
   };
 
@@ -133,6 +138,22 @@ function fillByTime(stops, located, photos) {
     filledByStop.get(stop).push(photo);
   }
   return filledByStop;
+}
+
+/**
+ * @param {number[]} sorted 오름차순
+ * @param {(value: number) => boolean} test 앞쪽은 false, 뒤쪽은 true가 되는 조건
+ * @returns {number} test를 처음 만족하는 위치. 없으면 sorted.length
+ */
+function findFirstIndex(sorted, test) {
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (test(sorted[mid])) high = mid;
+    else low = mid + 1;
+  }
+  return low;
 }
 
 /**
