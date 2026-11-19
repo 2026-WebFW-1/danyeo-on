@@ -1,10 +1,12 @@
 import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { formatPassportHeader } from '@/utils/formatPassportHeader';
+import { formatPassportRecords } from '@/utils/passportRecords';
 import { formatPassportStats } from '@/utils/passportStats';
 
 import CalendarSection from './CalendarSection';
 import PassportIntro from './PassportIntro';
 import PassportStats from './PassportStats';
+import RecordsSection from './RecordsSection';
 import StampSection from './StampSection';
 
 /**
@@ -12,19 +14,20 @@ import StampSection from './StampSection';
  *
  * 책임: 받은 값만 그려요. 데이터를 읽는 건 PassportPage가 해요(코드 컨벤션 4·5절).
  * 호출: PassportPage가 계산해 둔 값을 넘겨서 써요.
- * <PassportView journey={journey} stats={stats} stamps={stamps} />
+ * <PassportView journey={journey} stats={stats} stamps={stamps} calendar={calendar} records={records} />
  *
  * 의도:
  *  - 여행이 하나도 없으면 머리 없이 15a와 같은 안내만 보여요(03 R110과 같아요).
- *  - 피그마의 RECORDS는 다음 PR에서 이 아래에 붙여요(#174).
+ *  - 피그마 순서대로 머리말 · 통계 · 입국 스탬프 · 여행 캘린더 · 기록을 위에서 아래로 놓아요(#174).
  *
  * @param {object} props
  * @param {import('@/types').Journey | null} props.journey 머리말의 기간을 셀 때 써요
  * @param {import('@/types').PassportStats} props.stats
  * @param {import('@/types').PassportStamp[]} props.stamps
  * @param {import('@/types').PassportCalendar} props.calendar
+ * @param {import('@/types').PassportRecords} props.records
  */
-export default function PassportView({ journey, stats, stamps, calendar }) {
+export default function PassportView({ journey, stats, stamps, calendar, records }) {
   const header = formatPassportHeader(journey, { stamps: stamps.length, ...stats });
 
   if (!header) {
@@ -42,6 +45,7 @@ export default function PassportView({ journey, stats, stamps, calendar }) {
       <PassportStats items={formatPassportStats(stats)} />
       <StampSection stamps={stamps} />
       <CalendarSection calendar={calendar} />
+      <RecordsSection cards={formatPassportRecords(records)} />
     </main>
   );
 }
