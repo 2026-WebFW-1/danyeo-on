@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
+import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { PERIOD_PARAM, TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
 import { usePlayback } from '@/hooks/usePlayback';
@@ -30,7 +31,10 @@ const NO_STOPS = [];
  *  - ?trip=이 있으면 ?period=보다 먼저 봐서 그 여행만 재생합니다. 없는 ID는 잘못된 ?period=처럼 무시합니다.
  *  - 기간 탭을 누르면 주소를 ?period=만으로 바꿔서 ?trip=이 같이 지워지고 기간 재생으로 돌아갑니다.
  *  - 재생 상태는 usePlaybackStore에 있고, 버튼·타임라인·카드는 스토어에서 필요한 값만 꺼냅니다.
- *  - 여행이 없는 계정(home: null)은 지도만 그립니다. 빈 상태 화면(15a)이 생기면 그때 바꿉니다.
+ *  - 여행이 없는 계정은 15a처럼 지도 위 가운데에 NoTripsNotice만 띄우고 기간 탭을 흐리게 둡니다.
+ *    재생 부품(머리·재생 버튼·범례·타임라인·도착 카드)은 그리지 않고, ?trip=·?period=도 볼 게 없어 무시됩니다.
+ *  - 여행이 없는지는 불러오기를 마친 뒤(status 'ready')의 journey.trips로 판단합니다.
+ *    불러오는 동안에는 journey가 없어서, 안내가 잠깐 보였다 사라지지 않게 지도만 그립니다.
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -71,6 +75,7 @@ export default function MapPage() {
 
   const home = journey?.home ?? null;
   const stops = journey?.stops ?? NO_STOPS;
+  const hasNoTrips = status === 'ready' && journey.trips.length === 0;
 
   return (
     <main className="relative flex-1 overflow-hidden bg-map">
@@ -83,7 +88,14 @@ export default function MapPage() {
         className="absolute inset-0 size-full"
       />
 
-      {home && (
+      {hasNoTrips && (
+        <>
+          <PeriodTabs period={null} onSelect={handleSelectPeriod} disabled />
+          <NoTripsNotice className="absolute top-1/2 left-1/2 -translate-1/2" />
+        </>
+      )}
+
+      {home && !hasNoTrips && (
         <>
           <MapHeader range={journey.periods[period]} trip={trip} />
           <PeriodTabs period={trip ? null : period} onSelect={handleSelectPeriod} />

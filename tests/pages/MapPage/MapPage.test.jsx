@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import edge from '@/data/fixtures/edge.journey.json';
+import empty from '@/data/fixtures/empty.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { useJourney } from '@/hooks/useJourney';
 import MapPage from '@/pages/MapPage/MapPage';
@@ -52,6 +53,18 @@ function getTab(label) {
 function getPressedTabs() {
   return [...container.querySelectorAll('[aria-label="기간"] [aria-pressed="true"]')].map(
     (button) => button.textContent,
+  );
+}
+
+function getNotice() {
+  return [...container.querySelectorAll('h2')].find(
+    (heading) => heading.textContent === '아직 여행이 없어요',
+  );
+}
+
+function getPlaybackButton() {
+  return [...container.querySelectorAll('button')].find((button) =>
+    /play|pause|replay/i.test(button.textContent),
   );
 }
 
@@ -160,5 +173,65 @@ describe('MapPage ?trip=', () => {
     await act(() => root.render(renderApp(`/map?trip=${OSAKA.id}`)));
 
     expect(usePlaybackStore.getState().legs).toBe(loadedLegs);
+  });
+});
+
+describe('MapPage 여행 0개(15a)', () => {
+  beforeEach(() => {
+    vi.mocked(useJourney).mockReturnValue({ journey: empty, status: 'ready', error: null });
+  });
+
+  test('안내와 [사진 올리기]를 보여 주고 재생 부품은 그리지 않아요', async () => {
+    await openMap('/map');
+
+    expect(getNotice()).toBeDefined();
+    const upload = [...container.querySelectorAll('a')].find(
+      (link) => link.textContent === '사진 올리기',
+    );
+    expect(upload.getAttribute('href')).toBe('/upload');
+    expect(getHeaderText()).toBeUndefined();
+    expect(getPlaybackButton()).toBeUndefined();
+    for (const label of ['이동 수단', '여행 타임라인', '도착한 지점']) {
+      expect(container.querySelector(`[aria-label="${label}"]`)).toBeNull();
+    }
+  });
+
+  test('기간 탭은 흐리게 두고 누를 수 없어요', async () => {
+    await openMap('/map');
+
+    const tabs = [...container.querySelectorAll('[aria-label="기간"] button')];
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['1y', '2y', 'all']);
+    expect(tabs.every((tab) => tab.disabled)).toBe(true);
+    expect(getPressedTabs()).toEqual([]);
+
+    await act(() => getTab('all').click());
+
+    expect(getSearch()).toBe('');
+  });
+
+  test('?trip=·?period=가 붙어 와도 같은 안내를 보여 줘요', async () => {
+    await openMap('/map?period=1y&trip=p_none');
+
+    expect(getNotice()).toBeDefined();
+    expect(getPressedTabs()).toEqual([]);
+    expect(getLoadedLegIds()).toEqual([]);
+  });
+
+  test('불러오는 동안에는 안내도 기간 탭도 없어요', async () => {
+    vi.mocked(useJourney).mockReturnValue({ journey: null, status: 'loading', error: null });
+    await openMap('/map');
+
+    expect(getNotice()).toBeUndefined();
+    expect(container.querySelector('[aria-label="기간"]')).toBeNull();
+  });
+
+  test('여행이 있으면 안내 없이 지금처럼 재생해요', async () => {
+    vi.mocked(useJourney).mockReturnValue(READY);
+    await openMap('/map');
+
+    expect(getNotice()).toBeUndefined();
+    expect(getHeaderText()).toContain('My Journey');
+    expect(getTab('2y').disabled).toBe(false);
+    expect(getPressedTabs()).toEqual(['2y']);
   });
 });
