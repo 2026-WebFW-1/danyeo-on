@@ -5,7 +5,7 @@ import {
   buildTimeline,
   calcElapsedAtTime,
   calcElapsedMs,
-  calcPosition,
+  calcRefreshedElapsedMs,
 } from '@/utils/playback';
 
 /**
@@ -59,13 +59,12 @@ export const usePlaybackStore = create((set, get) => ({
   refresh: (legs) => {
     const { timeline, elapsedMs } = get();
     const nextTimeline = buildTimeline(legs);
-    // 재생 시간은 지난 ms라서, 구간 길이가 바뀌어도 같은 자리에 있게 진행 위치로 바꿔 옮겨요.
-    const position = calcPosition(timeline, elapsedMs);
+    // 재생 시간은 지난 ms라서, 구간 길이가 바뀌어도 같은 자리에 있게 새 일정으로 옮겨요.
     set({
       legs,
       timeline: nextTimeline,
       dateTrack: buildDateTrack(legs, nextTimeline),
-      elapsedMs: calcElapsedMs(nextTimeline, position),
+      elapsedMs: calcRefreshedElapsedMs(timeline, nextTimeline, elapsedMs),
     });
   },
 

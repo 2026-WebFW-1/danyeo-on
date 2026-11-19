@@ -8,6 +8,7 @@ import seojin from '@/data/fixtures/seojin.journey.json';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import MapPage from '@/pages/MapPage/MapPage';
+import { useCorrectionStore } from '@/stores/correctionStore';
 import { usePlaybackStore } from '@/stores/playbackStore';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
@@ -383,6 +384,22 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
     expect(getMenu()).toBeNull();
   });
 
+  test('Esc나 고르기로 닫으면 연 라벨로 포커스가 돌아가요', async () => {
+    await openEditing();
+    await click(getLabelButton('기차 · 343km'));
+
+    await act(async () => {
+      getMenuItem('기차').dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      );
+    });
+    expect(document.activeElement).toBe(getLabelButton('기차 · 343km'));
+
+    await click(getLabelButton('기차 · 343km'));
+    await click(getMenuItem('차'));
+    expect(document.activeElement).toBe(getLabelButton('차 · 343km'));
+  });
+
   test('열린 라벨을 다시 누르면 닫히고, 다른 라벨을 누르면 그 라벨의 메뉴로 바뀌어요', async () => {
     await openEditing();
     await click(getLabelButton('기차 · 343km'));
@@ -405,5 +422,39 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
     await click(getLabelButton('비행 · 343km'));
 
     expect(getMenuItem('비행').getAttribute('aria-checked')).toBe('true');
+  });
+});
+
+describe('01 Journey 다시 계산 알림', () => {
+  afterEach(() => {
+    useCorrectionStore.setState({ journeyStatus: 'idle' });
+  });
+
+  test('계산 중이면 반영하는 중이라고 알려요', async () => {
+    useCorrectionStore.setState({ journeyStatus: 'building' });
+    await openMap();
+
+    expect(container.querySelector('[role="status"]').textContent).toContain('반영하는 중');
+  });
+
+  test('실패하면 알리고 다시 시도로 다시 계산해요', async () => {
+    const refreshJourney = vi.fn();
+    const original = useCorrectionStore.getState().refreshJourney;
+    useCorrectionStore.setState({ journeyStatus: 'failed', refreshJourney });
+    await openMap();
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert.textContent).toContain('다시 정리하지 못했어요');
+    await click(alert.querySelector('button'));
+    expect(refreshJourney).toHaveBeenCalled();
+    useCorrectionStore.setState({ refreshJourney: original });
+  });
+
+  test('계산이 끝났거나 한 적이 없으면 아무것도 안 그려요', async () => {
+    useCorrectionStore.setState({ journeyStatus: 'saved' });
+    await openMap();
+
+    expect(container.textContent).not.toContain('반영하는 중');
+    expect(container.textContent).not.toContain('다시 정리하지 못했어요');
   });
 });

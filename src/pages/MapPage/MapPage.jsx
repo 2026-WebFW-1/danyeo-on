@@ -13,6 +13,7 @@ import { calcPositionAtStop } from '@/utils/playback';
 import { selectLegsByTrip } from '@/utils/tripLegs';
 
 import ArrivalStack from './ArrivalStack';
+import JourneyRefreshNotice from './JourneyRefreshNotice';
 import LegModePanel from './LegModePanel';
 import MapHeader from './MapHeader';
 import MoveLegend from './MoveLegend';
@@ -44,6 +45,7 @@ const NO_STOPS = [];
  *    취소·Esc·기간 바꾸기는 초안을 버립니다. 재생(usePlayback)에는 저장된 legs만 넘깁니다.
  *    라벨은 지나온 구간에만 있어서, 들어갈 때 재생을 멈추고 끝으로 옮겨 전체 동선과 라벨을 다 보여 줍니다.
  *  - 고치면 Journey가 다시 계산돼 legs가 새 배열로 오지만, 같은 경로라 재생 위치는 그대로입니다(usePlayback).
+ *    계산 중이거나 실패하면 머리 아래에 알리고, 실패하면 거기서 다시 계산합니다(JourneyRefreshNotice).
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -156,6 +158,7 @@ export default function MapPage() {
           )}
           <TimelineScrubber home={home} stops={stops} />
           <ArrivalStack stops={stops} />
+          <JourneyRefreshNotice />
         </>
       )}
     </main>

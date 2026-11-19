@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { canEditLegMode } from '@/utils/legMode';
 
@@ -16,6 +16,8 @@ import LegModeMenu from './LegModeMenu';
  *  - 어느 메뉴가 열렸는지는 라벨과 메뉴만 봐서 여기 둡니다. 고치기를 끝내면 RouteMap이 key를 바꿔 닫아요.
  *  - 메뉴는 다른 라벨 위에 보이게 라벨들 뒤에 그려요.
  *  - 타임라인을 앞으로 끌어 라벨이 사라지면 메뉴도 같이 안 보여요.
+ *  - Esc나 고르기로 메뉴를 닫으면 연 라벨로 포커스를 돌려줘요. 메뉴가 사라지면 포커스가 문서 처음으로 빠져서
+ *    키보드로는 지도에서 하던 자리를 잃어요. 메뉴 밖을 눌러 닫을 땐 누른 곳으로 가니 그대로 둬요.
  *
  * @param {object} props
  * @param {{ leg: import('@/types').Leg, rect: import('@/utils/legLabels').MapRect }[]} props.labels 지금 보이는 라벨
@@ -25,10 +27,22 @@ import LegModeMenu from './LegModeMenu';
  */
 export default function LegLabelLayer({ labels, isEditing, onChangeMode }) {
   const [openLegId, setOpenLegId] = useState(null);
+  // 구간 ID → 누를 수 있는 라벨 버튼
+  const triggersRef = useRef(new Map());
   const openLabel = labels.find(({ leg }) => leg.id === openLegId);
 
   // 재생 중에는 매 프레임 다시 그려서, 메뉴가 바깥 클릭 리스너를 다시 달지 않게 같은 함수를 넘겨요.
   const handleCloseMenu = useCallback(() => setOpenLegId(null), []);
+
+  const handleDismissMenu = () => {
+    triggersRef.current.get(openLegId)?.focus();
+    setOpenLegId(null);
+  };
+
+  const setTrigger = (legId, node) => {
+    if (node) triggersRef.current.set(legId, node);
+    else triggersRef.current.delete(legId);
+  };
 
   const handleToggleMenu = (legId) => {
     setOpenLegId((id) => (id === legId ? null : legId));
@@ -46,6 +60,7 @@ export default function LegLabelLayer({ labels, isEditing, onChangeMode }) {
             isOpen={leg.id === openLegId}
             isDimmed={isEditing && !isEditable}
             onOpen={isEditable ? () => handleToggleMenu(leg.id) : undefined}
+            ref={isEditable ? (node) => setTrigger(leg.id, node) : undefined}
           />
         );
       })}
@@ -57,6 +72,7 @@ export default function LegLabelLayer({ labels, isEditing, onChangeMode }) {
           rect={openLabel.rect}
           onSelect={onChangeMode}
           onClose={handleCloseMenu}
+          onDismiss={handleDismissMenu}
         />
       )}
     </>

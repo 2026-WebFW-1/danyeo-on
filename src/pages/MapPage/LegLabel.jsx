@@ -25,8 +25,9 @@ const LABEL_CLASS =
  * @param {boolean} [props.isOpen] 이 라벨의 이동 수단 메뉴가 열려 있으면 true
  * @param {boolean} [props.isDimmed] 고치기 모드에서 고칠 수 없는 라벨이면 true. 흐리게 그려요
  * @param {() => void} [props.onOpen] 없으면 누를 수 없는 라벨이에요
+ * @param {import('react').Ref<HTMLButtonElement>} [props.ref] 누를 수 있는 라벨의 버튼. 메뉴를 닫을 때 포커스를 돌려줘요
  */
-export default function LegLabel({ leg, rect, isOpen = false, isDimmed = false, onOpen }) {
+export default function LegLabel({ leg, rect, isOpen = false, isDimmed = false, onOpen, ref }) {
   const { left, right, top, bottom } = rect;
   const text = formatInbound(leg);
   const content = (
@@ -49,6 +50,7 @@ export default function LegLabel({ leg, rect, isOpen = false, isDimmed = false, 
       <div className="flex h-full justify-center">
         {onOpen ? (
           <button
+            ref={ref}
             type="button"
             // 메뉴 밖을 누르면 닫히는데, 라벨을 누를 땐 라벨이 열고 닫아요(LegModeMenu)
             data-leg-mode-trigger=""
