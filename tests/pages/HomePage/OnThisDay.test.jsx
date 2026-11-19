@@ -5,13 +5,21 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
+import { usePhoto } from '@/hooks/usePhoto';
 import OnThisDay from '@/pages/HomePage/OnThisDay';
 import { getPosts } from '@/services/postService';
 import { usePostStore } from '@/stores/postStore';
 import { getStopPath } from '@/utils/stopPath';
 
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
+vi.mock('@/hooks/usePhoto', () => ({ usePhoto: vi.fn() }));
 vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+
+// 테스트용 사진 파일은 없어서, 진짜 주소를 쓰면 이미지가 못 열려 회색 칸이 되고 <img>가 사라져요.
+// 그 실패가 언제 오느냐에 따라 결과가 달라지지 않게, 늘 열리는 1×1 그림에 어떤 사진인지 #뒤에 붙여 줘요.
+const BLANK_IMAGE =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const photoSrc = (fileKey, size) => `${BLANK_IMAGE}#${size}:${fileKey}`;
 
 const photo = (id) => ({ id, fileKey: `public:/photos/${id}.webp` });
 // 해마다 11월 중순에 한 지점씩 있는 계정이에요. 사진은 지점마다 여섯 장이고 첫 장이 대표 사진이에요.
@@ -82,6 +90,9 @@ beforeEach(() => {
   usePostStore.getState().reset();
   vi.mocked(useMyPhotos).mockReturnValue({ photos: PHOTOS, status: 'ready', error: null });
   vi.mocked(getPosts).mockResolvedValue(POSTS);
+  vi.mocked(usePhoto).mockImplementation((fileKey, size) =>
+    fileKey ? photoSrc(fileKey, size) : null,
+  );
 });
 
 afterEach(async () => {
@@ -112,7 +123,9 @@ describe('OnThisDay', () => {
     const sources = [...container.querySelectorAll('section ul img')].map((img) =>
       img.getAttribute('src'),
     );
-    expect(sources).toEqual([1, 2, 3, 4].map((index) => `/photos/thumb/오사카-${index}.webp`));
+    expect(sources).toEqual(
+      [1, 2, 3, 4].map((index) => photoSrc(`public:/photos/오사카-${index}.webp`, 'thumb')),
+    );
   });
 
   test('[그날의 글 보기 →]는 그 지점이 가는 곳(03의 그 여행)이에요', async () => {
