@@ -33,5 +33,9 @@ export const STAMP_COUNT_WORDS = [
 // TODO(endl24): Journey.home에 나라 코드가 생기면 그 값으로 바꾸기
 export const HOME_COUNTRY_CC = 'KR';
 
+// 여권 한 쪽의 크기(px)예요. 스탬프 자리(stampSlots)가 이 크기 기준이라, 좁은 화면에서는 통째로 줄여요(useFitScale).
+export const STAMP_PAGE_WIDTH = 1200;
+export const STAMP_PAGE_HEIGHT = 640;
+
 // 여권 한 쪽에 찍는 스탬프 수예요. 피그마 한 쪽이 5개씩 두 줄이에요. 넘치면 다음 쪽으로 넘겨요.
 export const STAMPS_PER_PAGE = 10;

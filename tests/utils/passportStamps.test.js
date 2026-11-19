@@ -15,14 +15,16 @@ const stop = (id, cc, from, to, extra = {}) => ({
   ...extra,
 });
 
-/** 여행 하나에 지점을 순서대로 넣은 작은 journey를 만들어요. */
+/** 여행 하나에 지점을 순서대로 넣은 작은 journey를 만들어요. gapLegs는 집에 안 들르고 이어지는 구간이에요. */
 const journeyOf = (...tripStops) => ({
   stops: tripStops.flat(),
+  legs: [],
   trips: tripStops.map((stops, index) => ({
     id: `t${index + 1}`,
     stopIds: stops.map((s) => s.id),
   })),
 });
+const gap = (from, to) => ({ kind: 'gap', tripId: null, from, to });
 
 describe('selectPassportStamps', () => {
   test('seojin은 나라에 처음 들어간 순서로 8개예요. 집이 있는 한국은 빠져요', () => {
@@ -86,6 +88,32 @@ describe('selectPassportStamps', () => {
 
     expect(selectPassportStamps(journey)).toEqual([
       { cc: 'JP', country: 'JP 나라', tripId: 't1', enteredOn: '2025-01-01', days: 3 },
+    ]);
+  });
+
+  test('집에 안 들르고 다음 여행으로 이어지면(gap) 같은 나라 체류를 합쳐요', () => {
+    // edge의 태국: 방콕(9/1–9/3) → 집에 안 들르고 → 치앙마이(9/21–9/23)라 9/1 ~ 9/23, 23일이에요.
+    expect(selectPassportStamps(edge)[0]).toEqual({
+      cc: 'TH',
+      country: '태국',
+      tripId: 'p_3e3110',
+      enteredOn: '2024-09-01',
+      days: 23,
+    });
+  });
+
+  test('gap으로 이어진 다음 여행에서 처음 간 나라는 그 여행을 가리켜요', () => {
+    const journey = {
+      ...journeyOf(
+        [stop('a', 'JP', '2025-01-01', '2025-01-03')],
+        [stop('b', 'TW', '2025-01-20', '2025-01-22')],
+      ),
+      legs: [gap('a', 'b')],
+    };
+
+    expect(selectPassportStamps(journey)).toEqual([
+      expect.objectContaining({ cc: 'JP', tripId: 't1', days: 3 }),
+      expect.objectContaining({ cc: 'TW', tripId: 't2', days: 3 }),
     ]);
   });
 

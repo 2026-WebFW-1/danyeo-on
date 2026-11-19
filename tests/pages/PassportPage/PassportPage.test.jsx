@@ -120,6 +120,15 @@ describe('PassportPage', () => {
     expect(container.querySelector('header p.text-display-md').textContent).toBe('FOURTEEN-STAMPS');
   });
 
+  test('화면이 좁으면 여권 쪽을 통째로 줄여서 오른쪽 스탬프도 보여요', async () => {
+    container.style.width = '600px';
+    await render(ready(seojin));
+
+    const page = container.querySelector('section[aria-labelledby] ol').parentElement;
+    expect(page.style.transform).toBe('scale(0.5)');
+    expect(page.parentElement.style.height).toBe('320px');
+  });
+
   test('여행이 0개면 머리 없이 사진 올리기 안내만 보여요', async () => {
     await render(ready(empty));
 

@@ -57,6 +57,13 @@ describe('selectPassportStats', () => {
     expect(selectPassportStats(journey).nightsAway).toBe(5);
   });
 
+  test('집에 안 들르고 다음 여행으로 이어지면(gap) 그 사이의 밤도 집 밖에서 잔 날에 더해요', () => {
+    // edge는 방콕(9/1–9/3)에서 집에 안 들르고 치앙마이(9/21)로 이어져서, 9/3 → 9/21의 18박이 더해져요.
+    const tripNights = edge.trips.reduce((sum, trip) => sum + trip.days - 1, 0);
+
+    expect(selectPassportStats(edge).nightsAway).toBe(tripNights + 18);
+  });
+
   test.each([
     ['여행이 0개인 journey', empty],
     ['journey가 없을 때', null],

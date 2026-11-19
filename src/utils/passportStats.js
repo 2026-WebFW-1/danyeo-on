@@ -1,6 +1,7 @@
 import { EARTH_CIRCUMFERENCE_KM } from '@/constants/passport';
 import { selectJourneyTotals } from '@/utils/journeyTotals';
 import { calcTravelHours } from '@/utils/legMode';
+import { calcDaysBetween } from '@/utils/localDate';
 
 /**
  * 05 Passport 통계 6칸의 숫자를 계산해요. 여행이 0개면 전부 0이에요.
@@ -21,7 +22,12 @@ export function selectPassportStats(journey) {
     .reduce((sum, leg) => sum + calcTravelHours(leg.km, 'flight'), 0);
 
   // "집 밖에서 잔 날"이라 여행마다 첫날과 마지막 날을 다 센 일수에서 하루를 빼요. 당일치기는 0박이에요.
-  const nightsAway = trips.reduce((sum, trip) => sum + Math.max(trip.days - 1, 0), 0);
+  // 사진이 14일 넘게 비어 여행이 나뉘어도 집에 안 들렀으면(gap 구간) 그 사이도 밖에서 잔 밤이라 더해요.
+  const tripNights = trips.reduce((sum, trip) => sum + Math.max(trip.days - 1, 0), 0);
+  const gapNights = legs
+    .filter((leg) => leg.kind === 'gap')
+    .reduce((sum, leg) => sum + calcDaysBetween(leg.departAt, leg.arriveAt), 0);
+  const nightsAway = tripNights + gapNights;
 
   return {
     km: totals.km,
