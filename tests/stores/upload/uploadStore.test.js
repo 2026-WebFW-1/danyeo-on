@@ -9,12 +9,10 @@ import {
 } from '@/services/photoService';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { readExif } from '@/utils/upload/readExif';
-import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
 vi.mock('@/utils/upload/readExif', () => ({ readExif: vi.fn() }));
-vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
 vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 vi.mock('@/services/photoService', () => ({
   getMyData: vi.fn(),
@@ -215,21 +213,6 @@ describe('stopCollecting', () => {
     await vi.waitFor(() => expect(getState().photos).toHaveLength(1));
     return { files, pending, collecting };
   };
-  // 실제 readPhotos처럼 받은 files만 읽어요. files를 덜 잘랐으면 저장할 행이 늘어나요.
-  const readResultOf = (files) => ({
-    photos: files.map((file, order) => ({
-      order,
-      fileName: file.name,
-      takenAt: null,
-      dedupeKey: `|${file.name}`,
-    })),
-    skipped: [],
-  });
-
-  beforeEach(() => {
-    vi.mocked(readPhotos).mockImplementation(async (files) => readResultOf(files));
-  });
-
   test('모은 장까지만 남기고 다 모은 상태가 되고, 사진 주소는 해제하지 않아요', async () => {
     // given: 3장 중 1장이 모였고 둘째 장을 줄이는 중
     const { files } = await startUntilFirst(['a.jpg', 'b.jpg', 'c.jpg']);
@@ -466,24 +449,10 @@ describe('uploadImages', () => {
 });
 
 describe('save', () => {
-  const TAKEN_AT = '2024-11-24T08:30:49';
+  // 저장된 행과 같은 사진인지 (촬영 시각, 이름)으로 가려서, 쌓을 때 읽은 시각과 맞춰요.
+  const TAKEN_AT = EXIF.takenAt;
   const full = new Blob(['보기용'], { type: 'image/webp' });
   const pick = (names) => getState().start(names.map((name) => photoFile(name)));
-  const readResultOf = (names) => ({
-    photos: names.map((fileName, order) => ({
-      order,
-      fileName,
-      takenAt: TAKEN_AT,
-      offset: null,
-      timeUncertain: true,
-      lat: null,
-      lng: null,
-      camera: null,
-      dedupeKey: `${TAKEN_AT}|${fileName}`,
-    })),
-    skipped: [],
-    counts: { unreadable: 0, noDate: 0, noLocation: 0 },
-  });
   const uploadedKeys = () => vi.mocked(savePhotoImage).mock.calls.map(([fileKey]) => fileKey);
   // 이미지 올리기는 save가 끝난 뒤에도 뒤에서 돌아서, 다 끝날 때까지 기다려요.
   // waitFor는 콜백이 던지는 동안 다시 불러서, 조건을 expect로 적어요.
@@ -508,7 +477,6 @@ describe('save', () => {
     // given: 두 번째 사진은 미리 볼 수 없음
     vi.mocked(resizeThumbnail).mockResolvedValueOnce(thumb).mockResolvedValueOnce(null);
     await pick(['a.jpg', 'b.heic']);
-    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.heic']));
 
     // when
     await getState().save('u1');
@@ -526,10 +494,56 @@ describe('save', () => {
     });
   });
 
+  test('쌓을 때 읽은 촬영 정보로 저장하고, 원본을 다시 읽지 않아요', async () => {
+    // given
+    const located = { ...EXIF, takenAt: '2025-07-12T10:15:30', lat: 35.0, lng: 135.7 };
+    vi.mocked(readExif).mockResolvedValueOnce(located);
+    await pick(['a.jpg']);
+    vi.mocked(readExif).mockClear();
+
+    // when
+    await getState().save('u1');
+    await waitForUploads();
+
+    // then
+    const [[rows]] = vi.mocked(savePhotos).mock.calls;
+    expect(rows[0]).toMatchObject({
+      fileName: 'a.jpg',
+      takenAt: '2025-07-12T10:15:30',
+      offset: '+09:00',
+      lat: 35.0,
+      lng: 135.7,
+      camera: null,
+    });
+    expect(readExif).not.toHaveBeenCalled();
+  });
+
+  test('쌓을 때 열지 못한 파일은 저장하지 않고 수만 세요', async () => {
+    // given: 두 번째 파일은 확장자만 jpg예요
+    const unreadable = {
+      ...EXIF,
+      readable: false,
+      takenAt: null,
+      offset: null,
+      timeUncertain: true,
+      lat: null,
+      lng: null,
+    };
+    vi.mocked(readExif).mockResolvedValueOnce(EXIF).mockResolvedValueOnce(unreadable);
+    await pick(['a.jpg', 'broken.jpg']);
+
+    // when
+    await getState().save('u1');
+    await waitForUploads();
+
+    // then
+    expect(savedFileNames()).toEqual(['a.jpg']);
+    expect(getState().saveResult).toEqual({ saved: 1, existing: 0, unreadable: 1 });
+  });
+
   test('이미 저장한 사진은 두 벌로 저장하지 않고, 다 올라간 이미지는 다시 올리지 않아요', async () => {
     // given: a는 전에 저장했고 이미지도 다 올라간 사진
     await pick(['a.jpg', 'b.jpg']);
-    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
     vi.mocked(savePhotos).mockImplementation(async ([existing, fresh]) => ({
       saved: [fresh.id],
       skipped: [existing.id],
@@ -571,7 +585,6 @@ describe('save', () => {
     test('전에 저장했지만 이미지가 없는 사진은 원래 fileKey로 이어서 올려요', async () => {
       // given: a는 다 올라갔고, b는 창을 닫아 못 올렸어요
       await pick(['a.jpg', 'b.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
       vi.mocked(getMyData).mockResolvedValue({
         photos: [savedRow('a.jpg', 'photos:u1/p_old_a'), savedRow('b.jpg', 'photos:u1/p_old_b')],
       });
@@ -590,7 +603,6 @@ describe('save', () => {
     test('보기용·썸네일 중 하나만 올라간 사진도 다시 올려요', async () => {
       // given: 썸네일만 올라가고 보기용은 못 올렸어요
       await pick(['a.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
       vi.mocked(getMyData).mockResolvedValue({ photos: [savedRow('a.jpg', 'photos:u1/p_old_a')] });
       vi.mocked(getUploadedImagePaths).mockResolvedValue(
         new Set(pathsOf('photos:u1/p_old_a', ['thumb'])),
@@ -607,7 +619,6 @@ describe('save', () => {
     test('이미지 없이 저장한 사진과 데모 사진은 이어 올리지 않아요', async () => {
       // given
       await pick(['a.jpg', 'b.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
       vi.mocked(getMyData).mockResolvedValue({
         photos: [savedRow('a.jpg', null), savedRow('b.jpg', 'demo:x/seojin/b.webp')],
       });
@@ -626,7 +637,6 @@ describe('save', () => {
       // given: 전에 저장한 사진인데, 이번에 고른 파일은 썸네일을 못 만들었어요
       vi.mocked(resizeThumbnail).mockResolvedValue(null);
       await pick(['a.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
 
       // when
       await getState().save('u1');
@@ -643,7 +653,6 @@ describe('save', () => {
         skipped: [],
       }));
       await pick(['a.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
 
       // when
       await getState().save('u1');
@@ -657,7 +666,6 @@ describe('save', () => {
     test('이어 올릴 사진을 찾는 도중 비우면 결과를 덮거나 이미지를 올리지 않아요', async () => {
       // given: 버킷 목록을 받는 중
       await pick(['a.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
       vi.mocked(getMyData).mockResolvedValue({ photos: [savedRow('a.jpg', 'photos:u1/p_old_a')] });
       const listing = Promise.withResolvers();
       vi.mocked(getUploadedImagePaths).mockReturnValueOnce(listing.promise);
@@ -677,7 +685,6 @@ describe('save', () => {
     test('이어 올릴 사진을 못 찾으면 실패 상태가 돼요', async () => {
       // given
       await pick(['a.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
       vi.mocked(getMyData).mockRejectedValue(new Error('네트워크'));
       vi.mocked(getUploadedImagePaths).mockResolvedValue(new Set());
       vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -694,7 +701,6 @@ describe('save', () => {
   test('저장하지 못하면 실패 상태가 되고 이미지는 올리지 않아요', async () => {
     // given
     await pick(['a.jpg']);
-    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
     vi.mocked(savePhotos).mockRejectedValue(new Error('네트워크'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -706,27 +712,9 @@ describe('save', () => {
     expect(savePhotoImage).not.toHaveBeenCalled();
   });
 
-  test('촬영 정보를 읽는 도중 비우면 DB에 저장하지 않아요', async () => {
-    // given: 촬영 정보를 읽는 중
-    await pick(['a.jpg']);
-    const reading = Promise.withResolvers();
-    vi.mocked(readPhotos).mockReturnValueOnce(reading.promise);
-    const saving = getState().save('u1');
-
-    // when
-    getState().reset();
-    reading.resolve(readResultOf(['a.jpg']));
-    await saving;
-
-    // then
-    expect(savePhotos).not.toHaveBeenCalled();
-    expect(getState().saveStatus).toBe('idle');
-  });
-
   test('저장하는 도중 비우면 결과를 덮거나 이미지를 올리지 않아요', async () => {
     // given: 저장 요청이 끝나기 전
     await pick(['a.jpg']);
-    vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg']));
     const pending = Promise.withResolvers();
     vi.mocked(savePhotos).mockReturnValueOnce(pending.promise);
     const saving = getState().save('u1');
@@ -747,7 +735,6 @@ describe('save', () => {
     test('빼 둔 사진은 저장하지 않아요', async () => {
       // given
       await pick(['a.jpg', 'b.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
       getState().answerPass(getState().photos[1].id, 'exclude');
 
       // when
@@ -762,7 +749,6 @@ describe('save', () => {
     test('빼 둔 사진 뒤의 사진도 제 원본으로 올려요', async () => {
       // given: 가운데를 빼면 c의 고른 순서가 밀리기 쉬워요
       await pick(['a.jpg', 'b.jpg', 'c.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg', 'c.jpg']));
       getState().answerPass(getState().photos[1].id, 'exclude');
 
       // when
@@ -778,7 +764,6 @@ describe('save', () => {
     test('나중에 하기로 한 사진은 저장하고 이미지도 올려요', async () => {
       // given
       await pick(['a.jpg', 'b.jpg']);
-      vi.mocked(readPhotos).mockResolvedValue(readResultOf(['a.jpg', 'b.jpg']));
       getState().answerPass(getState().photos[1].id, 'later');
 
       // when
@@ -799,7 +784,6 @@ describe('saveTarget', () => {
 
   test('save에 넘긴 곳을 두고, 넘기지 않으면 여행 보기예요', async () => {
     await getState().start([photoFile('a.jpg')]);
-    vi.mocked(readPhotos).mockResolvedValue({ photos: [], skipped: [], counts: {} });
 
     await getState().save('u1', 'sort');
     expect(getState().saveTarget).toBe('sort');
@@ -810,7 +794,6 @@ describe('saveTarget', () => {
 
   test('reset하면 여행 보기로 돌아가요', async () => {
     await getState().start([photoFile('a.jpg')]);
-    vi.mocked(readPhotos).mockResolvedValue({ photos: [], skipped: [], counts: {} });
     await getState().save('u1', 'sort');
 
     getState().reset();
@@ -829,10 +812,6 @@ describe('refreshJourney', () => {
       skipped: [],
     }));
     await getState().start([photoFile('a.jpg')]);
-    vi.mocked(readPhotos).mockResolvedValue({
-      photos: [{ order: 0, fileName: 'a.jpg', takenAt: null, dedupeKey: '|a.jpg' }],
-      skipped: [],
-    });
     const building = Promise.withResolvers();
     vi.mocked(refreshJourney).mockReturnValue(building.promise);
 
@@ -855,10 +834,6 @@ describe('refreshJourney', () => {
       skipped: [],
     }));
     await getState().start([photoFile('a.jpg')]);
-    vi.mocked(readPhotos).mockResolvedValue({
-      photos: [{ order: 0, fileName: 'a.jpg', takenAt: null, dedupeKey: '|a.jpg' }],
-      skipped: [],
-    });
     vi.mocked(refreshJourney).mockImplementation(async () => ({
       stops: [{ id: 'tokyo', photoIds: getState().newPhotoIds }],
       trips: [{ id: 'japan', stopIds: ['tokyo'] }],
