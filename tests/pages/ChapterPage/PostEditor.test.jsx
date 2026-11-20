@@ -435,6 +435,28 @@ describe('저장', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  test('저장 중에는 제목·본문·태그를 고칠 수 없어요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(titleInput().disabled).toBe(true);
+    expect(bodyInput().disabled).toBe(true);
+    expect(tagInput().disabled).toBe(true);
+
+    // when
+    await act(async () => request.resolve());
+
+    // then
+    expect(titleInput().disabled).toBe(false);
+  });
+
   test('새 글은 사진 없이 저장해요', async () => {
     // given
     vi.mocked(savePost).mockResolvedValue();
@@ -567,6 +589,20 @@ describe('취소', () => {
     expect(window.confirm).toHaveBeenCalledWith(LEAVE_QUESTION);
     expect(readDraft('u1', DATE)).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('확인하고 바로 편집기가 사라져도 임시본을 남기지 않아요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when: 0.5초가 지나기 전에 취소하고, 카드가 닫혀요
+    await click(cancelButton());
+    await act(async () => root.render(<div />));
+
+    // then
+    expect(readDraft('u1', DATE)).toBeNull();
   });
 
   test('고치기 전 내용으로 돌아가고 닫아요', async () => {
@@ -734,6 +770,41 @@ describe('임시 보관', () => {
 
     // then
     expect(findText('저장 안 한 글이 있어요')).toBe(false);
+  });
+
+  test('고친 뒤 0.5초가 지나기 전에 편집기가 사라져도 임시본이 남아요', async () => {
+    // given
+    await open();
+    await type(titleInput(), '새 제목');
+    await pass(100);
+
+    // when: 앱 안 링크로 다른 화면에 가요
+    await act(async () => root.render(<div />));
+
+    // then
+    expect(readDraft('u1', DATE)).toMatchObject({ title: '새 제목' });
+  });
+
+  test('다른 계정으로 바뀌면 그 계정의 임시본을 묻고, 이전 계정의 입력은 남기지 않아요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T11:00:00Z', 'u1이 맡긴 제목');
+    storeDraft('u2', '2025-07-12T11:00:00Z', 'u2가 맡긴 제목');
+    await open();
+    await click(findButton('불러오기'));
+    expect(titleInput().value).toBe('u1이 맡긴 제목');
+
+    // when: 다른 탭에서 u2로 로그인해요
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+
+    // then
+    expect(titleInput().value).toBe(post.title);
+    expect(findText('저장 안 한 글이 있어요')).toBe(true);
+
+    // when
+    await click(findButton('불러오기'));
+
+    // then
+    expect(titleInput().value).toBe('u2가 맡긴 제목');
   });
 
   test('묻는 동안 고쳐도 맡겨 둔 임시본을 덮지 않아요', async () => {

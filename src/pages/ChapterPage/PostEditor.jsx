@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from '@/constants/post';
 import { useAuthStore } from '@/stores/authStore';
@@ -40,6 +40,8 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *  - "저장 실패"는 스토어의 saveError로 보지 않습니다. saveError는 다음 저장까지 남아서, 취소하고 다시 열어도 보이게 돼요.
  *  - 고친 게 있는 동안 0.5초마다 localStorage['post-draft:<userId>:<date>']에 임시본을 둡니다(utils/postDraft).
  *    키에 계정 id가 있어서 다른 계정에는 안 보이고, 저장에 성공하거나 [취소]·[버리기]로 버리면 지웁니다.
+ *    0.5초가 지나기 전에 편집기가 사라지면 그때 바로 씁니다. 계정이 바뀌면 입력을 비우고 새 계정의 임시본을 읽습니다.
+ *  - 저장 중에는 입력을 막습니다. 저장이 끝나면 입력을 비우니, 그 사이에 고친 내용이 사라지지 않게요.
  *  - "저장 안 한 글이 있어요"가 떠 있는 동안에는 임시본을 쓰지 않습니다. 고르기 전에 맡겨 둔 글을 덮지 않게요.
  *  - 앱 안 이동은 막지 않습니다. useBlocker는 createBrowserRouter에서만 동작해서, 대신 임시본으로 글을 지킵니다.
  *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 window.confirm으로 묻습니다.
@@ -59,6 +61,16 @@ export default function PostEditor({ date, dayNumber, onClose }) {
   const [tagText, setTagText] = useState('');
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [hasSaveFailed, setHasSaveFailed] = useState(false);
+  const [draftUserId, setDraftUserId] = useState(userId);
+  const pendingDraftRef = useRef(null);
+
+  // 다른 탭에서 계정이 바뀌어도 편집기는 그대로 남아요. 이전 계정의 입력·임시본을 버리고 새 계정 것을 읽어요.
+  if (draftUserId !== userId) {
+    setDraftUserId(userId);
+    setStoredDraft(userId ? readDraft(userId, date) : null);
+    setDraft(null);
+    setTagText('');
+  }
 
   useEffect(() => {
     if (status === 'idle') fetchPosts();
@@ -84,13 +96,21 @@ export default function PostEditor({ date, dayNumber, onClose }) {
   // 렌더마다 current가 새 객체라서, 내용이 바뀔 때만 타이머를 다시 걸도록 문자열로 견줘요.
   const currentJson = JSON.stringify(current);
   useEffect(() => {
-    if (!userId || !isDirty || isOfferingDraft) return undefined;
-    const timer = setTimeout(
-      () => writeDraft(userId, date, JSON.parse(currentJson)),
-      DRAFT_DELAY_MS,
-    );
+    if (!userId || !isDirty || isOfferingDraft) {
+      pendingDraftRef.current = null;
+      return undefined;
+    }
+    const write = () => {
+      pendingDraftRef.current = null;
+      writeDraft(userId, date, JSON.parse(currentJson));
+    };
+    pendingDraftRef.current = write;
+    const timer = setTimeout(write, DRAFT_DELAY_MS);
     return () => clearTimeout(timer);
   }, [userId, date, isDirty, isOfferingDraft, currentJson]);
+
+  // 0.5초가 지나기 전에 앱 안 링크로 떠나도 마지막 입력이 남게, 사라질 때 못 쓴 임시본을 바로 써요.
+  useEffect(() => () => pendingDraftRef.current?.(), []);
 
   useEffect(() => {
     if (!isDirty) return undefined;
@@ -104,6 +124,12 @@ export default function PostEditor({ date, dayNumber, onClose }) {
     setTagText('');
   };
 
+  // 곧 사라질 때 못 쓴 임시본이 다시 써지지 않게 같이 버려요.
+  const removeStoredDraft = () => {
+    pendingDraftRef.current = null;
+    if (userId) clearDraft(userId, date);
+  };
+
   const handleSave = async () => {
     try {
       await savePost({ date, ...current });
@@ -111,7 +137,7 @@ export default function PostEditor({ date, dayNumber, onClose }) {
       setHasSaveFailed(true); // 쓴 내용은 그대로 둬요.
       return;
     }
-    if (userId) clearDraft(userId, date);
+    removeStoredDraft();
     clearInput();
     setHasSaveFailed(false);
     setIsJustSaved(true);
@@ -130,7 +156,7 @@ export default function PostEditor({ date, dayNumber, onClose }) {
 
   const handleCancel = () => {
     if (isDirty && !window.confirm('저장하지 않은 내용이 있어요. 닫을까요?')) return;
-    if (userId) clearDraft(userId, date);
+    removeStoredDraft();
     clearInput();
     setHasSaveFailed(false);
     setIsJustSaved(false);
@@ -204,7 +230,7 @@ export default function PostEditor({ date, dayNumber, onClose }) {
           type="text"
           name="title"
           maxLength={MAX_POST_TITLE_LENGTH}
-          disabled={!isReady}
+          disabled={!isReady || isSaving}
           value={form.title}
           onChange={(event) => setDraft({ ...form, title: event.target.value })}
           className={FIELD_CLASS}
@@ -216,7 +242,7 @@ export default function PostEditor({ date, dayNumber, onClose }) {
         <textarea
           name="body"
           maxLength={MAX_POST_BODY_LENGTH}
-          disabled={!isReady}
+          disabled={!isReady || isSaving}
           value={form.body}
           onChange={(event) => setDraft({ ...form, body: event.target.value })}
           className={cn(FIELD_CLASS, 'h-40 resize-none')}
@@ -228,7 +254,7 @@ export default function PostEditor({ date, dayNumber, onClose }) {
         <PostTagField
           tags={form.tags}
           text={tagText}
-          isDisabled={!isReady}
+          isDisabled={!isReady || isSaving}
           onTagsChange={(tags) => setDraft({ ...form, tags })}
           onTextChange={setTagText}
         />
