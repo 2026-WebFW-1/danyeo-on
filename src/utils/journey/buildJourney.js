@@ -129,6 +129,23 @@ const collectExcludedIds = (excludeCorrections) =>
 const removePhotos = (photos, excludedIds) => photos.filter((photo) => !excludedIds.has(photo.id));
 
 /**
+ * 나누기 보정을 group이 받는 나누는 시각으로 바꿉니다.
+ * 나눈 자리의 사진을 나중에 빼도 여행이 다시 붙지 않게, 빼기 전 사진 전부에서 찾습니다.
+ * 사진이 지워졌거나 시각이 없으면 나눌 자리를 몰라서 건너뜁니다.
+ *
+ * @param {import('@/types').Correction[]} splitCorrections
+ * @param {import('@/types').Photo[]} photos 올린 사진 전부
+ * @returns {number[]} 밀리초
+ */
+function collectSplitAts(splitCorrections, photos) {
+  const photoById = indexById(photos);
+  return splitCorrections
+    .map((correction) => photoById.get(correction.beforePhotoId))
+    .filter((photo) => photo?.takenAt)
+    .map(toInstant);
+}
+
+/**
  * group의 여행은 trip.stopIds처럼 여행 -> 지점 방향으로만 적혀 있어서,
  * 지점이 어느 여행인지 찾을 수 있게 뒤집은 표를 만듭니다. 집 지점은 어느 여행에도 없어서 이 표에 없습니다.
  * trips: [{ id: 'p_356b49', stopIds: ['p_356b49', 'p_75d831'] }]
@@ -457,7 +474,7 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
 
 /**
  * 사진과 보정으로 화면이 받는 Journey를 만듭니다. 순서만 정하고, 일은 단계마다 함수가 합니다.
- * 순서: exclude 사진 빼기 -> group -> 지점 이름 및 경유 -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
+ * 순서: exclude 사진 빼기 -> group(split으로 나누기) -> 지점 이름 및 경유 -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
  * 규칙은 my-journey의 mock/journey-fixture.mjs와 같아서, seed를 넣으면 fixtures의 *.journey.json과 같게 나옵니다.
  *
  * @param {import('@/types').Photo[]} photos 올린 사진 전부. 순서는 상관없습니다
@@ -468,10 +485,11 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
  * @returns {Promise<import('@/types').Journey>}
  */
 export async function buildJourney(photos, corrections, findPlace) {
-  // 3. (사용자가) 뺀 사진을 거르고 묶기
+  // 3. (사용자가) 뺀 사진을 거르고, 나눈 자리에서 끊어 묶기
   const excludedIds = collectExcludedIds(filterByType(corrections, 'exclude'));
   const keptPhotos = removePhotos(photos, excludedIds);
-  const grouped = group(keptPhotos); // { home, stops, trips, unlocated }
+  const splitAts = collectSplitAts(filterByType(corrections, 'split'), photos);
+  const grouped = group(keptPhotos, splitAts); // { home, stops, trips, unlocated }
   const lookup = {
     photoById: indexById(keptPhotos),
     tripIdByStopId: mapTripIdByStopId(grouped.trips),

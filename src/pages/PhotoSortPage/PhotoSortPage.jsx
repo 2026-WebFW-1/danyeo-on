@@ -115,6 +115,9 @@ export default function PhotoSortPage() {
 
   const handleRename = (trip, name) => add(buildTripRenameInput(trip, name));
   const handleExclude = (trip, photoId) => addMany(buildTripExcludeInputs(trip, photoId));
+  const handleSplit = (photoId) => add({ type: 'split', beforePhotoId: photoId });
+  // 같은 자리를 두 번 나눴을 수 있어서, 그 줄을 떼어 낸 split을 모두 지우고 Journey 계산은 한 번만 해요.
+  const handleUndoSplit = (trip) => removeMany(trip.splitCorrectionIds);
   // 묶음의 사진을 차례로 빼고 Journey 계산은 끝에 한 번만 해요(사진마다 add하면 사진 수만큼 계산해요).
   // 실패하면 던지고, 그 전까지 뺀 사진은 이미 묶음에서 빠져 있어서 다시 누르면 남은 사진만 빼요.
   const handleExcludeMany = (photoIds) =>
@@ -140,6 +143,8 @@ export default function PhotoSortPage() {
           canEdit={isCorrectionsReady}
           onRename={handleRename}
           onExclude={handleExclude}
+          onSplit={handleSplit}
+          onUndoSplit={handleUndoSplit}
         />
       )}
       {tab === 'excluded' && (

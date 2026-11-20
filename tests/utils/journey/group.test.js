@@ -342,4 +342,180 @@ describe('group', () => {
       expect(result.stops[0].photoIds).toEqual(['a', 'c']);
     });
   });
+
+  describe('나누는 시각(split)으로 여행 나누기', () => {
+    /** 사진의 실제 시각(밀리초)이에요. buildJourney가 split 보정의 사진으로 이 값을 넘겨요. */
+    const toMs = (takenAt) => Date.parse(`${takenAt}+09:00`);
+    const makeNoGpsPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: null,
+      lng: null,
+    });
+    const makeBusanPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: 35.1,
+      lng: 129,
+    });
+
+    test('같은 지점 안의 사진 앞에서 나누면 지점과 여행이 둘로 나뉘고, 머문 날도 따로 세요', () => {
+      // given: 서울 01-01 · 01-02 · 01-03, 01-02 사진 앞에서 나누기
+      const photos = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makePhoto('b', '2025-01-02T10:00:00', '+09:00'),
+        makePhoto('c', '2025-01-03T10:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs('2025-01-02T10:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.stops.map((stop) => [stop.id, stop.photoIds, stop.days])).toEqual([
+        ['a', ['a'], 1],
+        ['b', ['b', 'c'], 2],
+      ]);
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['a'], ['b']]);
+    });
+
+    test('지점 사이에서 나누면 지점은 그대로이고 여행만 끊겨요', () => {
+      // given: 집(제주, 사진이 가장 많음)을 떠나 서울 10:00 → 부산 12:00, 부산 사진 앞에서 나누기
+      const homePhotos = ['h1', 'h2', 'h3'].map((id) => ({
+        id,
+        takenAt: '2024-12-20T10:00:00',
+        offset: '+09:00',
+        lat: 33.5,
+        lng: 126.5,
+      }));
+      const photos = [
+        ...homePhotos,
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeBusanPhoto('busan', '2025-01-01T12:00:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T12:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.stops).toEqual(group(photos).stops);
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['seoul'], ['busan']]);
+      expect(result.trips.every((trip) => trip.legs.length === 0)).toBe(true);
+    });
+
+    test.each([
+      [
+        '위치 있는 사진 앞에서 나누면 그 사이 위치 없는 사진은 앞 지점에 남아요',
+        'c',
+        ['a', 'b'],
+        ['c'],
+      ],
+      ['위치 없는 사진 앞에서 나누면 그 사진부터 뒤 지점이에요', 'b', ['a'], ['b', 'c']],
+    ])('%s', (_, splitPhotoId, expectedBefore, expectedAfter) => {
+      // given: 서울 10:00 · 위치 없음 11:00 · 서울 12:00
+      const photos = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('b', '2025-01-01T11:00:00'),
+        makePhoto('c', '2025-01-01T12:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs(photos.find((photo) => photo.id === splitPhotoId).takenAt)];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.stops.map((stop) => stop.photoIds)).toEqual([expectedBefore, expectedAfter]);
+      expect(result.trips).toHaveLength(2);
+      expect(result.unlocated).toEqual([]);
+    });
+
+    test('지점 사이에서 나누면 그 사이 위치 없는 사진은 지금처럼 unlocated예요', () => {
+      // given: 서울 10:00 · 위치 없음 11:00 · 부산 12:00, 부산 사진 앞에서 나누기
+      const photos = [
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('moving', '2025-01-01T11:00:00'),
+        makeBusanPhoto('busan', '2025-01-01T12:00:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T12:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.unlocated).toEqual(['moving']);
+    });
+
+    test('같은 지점의 두 사진 사이를 두 번 나누면, 두 시각 사이의 위치 없는 사진은 unlocated예요', () => {
+      // given: 서울 10:00 · 위치 없음 11:00 · 서울 12:00, 위치 없는 사진 앞과 12:00 사진 앞에서 나누기
+      const photos = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('b', '2025-01-01T11:00:00'),
+        makePhoto('c', '2025-01-01T12:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T11:00:00'), toMs('2025-01-01T12:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then: 위치 없는 사진 하나로는 여행이 될 수 없어서 위치 확인 필요로 가요
+      expect(result.stops.map((stop) => stop.photoIds)).toEqual([['a'], ['c']]);
+      expect(result.trips).toHaveLength(2);
+      expect(result.unlocated).toEqual(['b']);
+    });
+
+    test('나눈 지점과 여행의 머문 날에는 그 지점에 넣은 위치 없는 사진의 날짜도 세요', () => {
+      // given: 서울 01-01 22:00 · 위치 없음 01-01 23:00 · 서울 01-02 01:00, 위치 없는 사진 앞에서 나누기
+      const photos = [
+        makePhoto('a', '2025-01-01T22:00:00', '+09:00'),
+        makeNoGpsPhoto('b', '2025-01-01T23:00:00'),
+        makePhoto('c', '2025-01-02T01:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T23:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.stops[1]).toMatchObject({ photoIds: ['b', 'c'], days: 2 });
+      expect(result.trips[1].days).toBe(2);
+    });
+
+    test('나눠서 지점 중심이 옮겨도 집은 나누기 전 지점으로 정해요', () => {
+      // given: 경도 129에서 위도 35 · 35.4 · 35.7로 하루씩 옮겨 찍은 사진(한 지점), 가운데 사진 앞에서 나누기
+      const photos = [
+        { id: 'a', takenAt: '2025-01-01T10:00:00', offset: '+09:00', lat: 35, lng: 129 },
+        { id: 'b', takenAt: '2025-01-02T10:00:00', offset: '+09:00', lat: 35.4, lng: 129 },
+        { id: 'c', takenAt: '2025-01-03T10:00:00', offset: '+09:00', lat: 35.7, lng: 129 },
+      ];
+      const splitAts = [toMs('2025-01-02T10:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then: 나누기 전에는 지역이 하나라 집이 없어요. 나눈 뒤에도 집이 생기지 않고 여행이 둘이에요
+      expect(result.home).toBeNull();
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['a'], ['b']]);
+    });
+
+    test.each([
+      ['첫 사진', '2025-01-01T10:00:00'],
+      ['마지막 사진 뒤', '2025-01-05T10:00:00'],
+    ])('나누는 시각이 %s이면 아무것도 바뀌지 않아요', (_, takenAt) => {
+      // given: 서울 01-01 · 01-02
+      const photos = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makePhoto('b', '2025-01-02T10:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs(takenAt)];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result).toEqual(group(photos));
+    });
+  });
 });
