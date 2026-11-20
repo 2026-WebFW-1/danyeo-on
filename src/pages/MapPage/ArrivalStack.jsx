@@ -2,41 +2,30 @@ import { usePlaybackPosition } from '@/hooks/usePlayback';
 import { usePlaybackStore } from '@/stores/playbackStore';
 import { selectArrivalStops } from '@/utils/mapScreen';
 
-import ArrivalCard from './ArrivalCard';
-
-// 피그마 01 Arrival stack의 놓인 모양이에요. 0번이 맨 앞(지금 지점)이고 뒤로 갈수록 앞 지점이에요.
-const CARD_POSES = ['', '-translate-y-6 -rotate-3', '-translate-x-6 -translate-y-6 rotate-5'];
+import ArrivalCards from './ArrivalCards';
 
 /**
  * 01 오른쪽 아래의 도착 카드 더미
  *
  * 책임: 지점에 도착해 머무는 동안 그 지점 카드를 맨 앞에 두고, 앞 지점 카드를 뒤에 겹쳐 그립니다.
+ *       카드 더미에 마우스를 올리면 그 여행의 사진을 펼쳐요(ArrivalCards, #187).
  * 호출: MapPage
  *
- * 의도: 나중 카드가 위에 그려지므로 맨 앞 카드가 마지막이 되게 뒤집어 그립니다.
- * 카드 밑의 지도도 누를 수 있게 상자는 포인터를 받지 않습니다.
+ * 의도: 도착한 지점이 없으면 아무것도 그리지 않아요. 펼침 상태는 ArrivalCards가 들고 있어서,
+ *       카드가 사라지면 상태도 같이 사라지고 다음에 나타날 때 접힌 채로 시작해요.
+ *       (마우스를 올린 채 카드가 사라지면 mouseleave가 오지 않아서, 상태를 여기 두면 펼친 채 남아요.)
  *
  * @param {object} props
  * @param {import('@/types').Stop[]} props.stops
+ * @param {import('@/types').Trip[]} props.trips
  */
-export default function ArrivalStack({ stops }) {
+export default function ArrivalStack({ stops, trips }) {
   const legs = usePlaybackStore((state) => state.legs);
   const position = usePlaybackPosition();
   const arrivalStops = selectArrivalStops(legs, stops, position);
 
   if (arrivalStops.length === 0) return null;
 
-  return (
-    <section
-      aria-label="도착한 지점"
-      className="pointer-events-none absolute right-8 bottom-8 size-75"
-    >
-      {arrivalStops
-        .map((stop, index) => ({ stop, pose: CARD_POSES[index] }))
-        .reverse()
-        .map(({ stop, pose }) => (
-          <ArrivalCard key={stop.id} stop={stop} className={pose} />
-        ))}
-    </section>
-  );
+  const trip = trips.find(({ id }) => id === arrivalStops[0].tripId) ?? null;
+  return <ArrivalCards arrivalStops={arrivalStops} stops={stops} trip={trip} />;
 }

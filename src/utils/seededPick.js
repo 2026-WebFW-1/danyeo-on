@@ -58,3 +58,15 @@ export function sortBySeed(items, seed, getKey) {
 export function pickBySeed(items, count, seed, getKey) {
   return sortBySeed(items, seed, getKey).slice(0, count);
 }
+
+/**
+ * 시드와 key로 0 이상 1 미만의 수를 줘요. Math.random처럼 쓰되, 같은 시드 · key면 다시 그려도 같은 값이에요.
+ * 01 도착 카드 사진을 흩뿌릴 때 자리를 조금씩 어긋나게 하는 데 써요(#187).
+ *
+ * @param {number} seed
+ * @param {string} key
+ * @returns {number}
+ */
+export function seededUnit(seed, key) {
+  return hashText(`${seed}:${key}`) / SEED_RANGE;
+}

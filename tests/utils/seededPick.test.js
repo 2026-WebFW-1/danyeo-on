@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { createSeed, pickBySeed, sortBySeed } from '@/utils/seededPick';
+import { createSeed, pickBySeed, seededUnit, sortBySeed } from '@/utils/seededPick';
 
 const items = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
 const keyOf = (item) => item.id;
@@ -112,5 +112,21 @@ describe('pickBySeed', () => {
     expect(picked).toHaveLength(3);
     expect(new Set(picked).size).toBe(3);
     expect(picked.every((label) => labels.includes(label))).toBe(true);
+  });
+});
+
+describe('seededUnit', () => {
+  test('0 이상 1 미만이고, 같은 시드 · key면 같은 값이에요', () => {
+    const values = ['x', 'y', 'rotate', '0', '1'].map((key) => seededUnit(42, key));
+    for (const value of values) {
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+    expect(seededUnit(42, 'x')).toBe(seededUnit(42, 'x'));
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  test('시드가 다르면 다른 값이에요', () => {
+    expect(seededUnit(1, 'x')).not.toBe(seededUnit(2, 'x'));
   });
 });
