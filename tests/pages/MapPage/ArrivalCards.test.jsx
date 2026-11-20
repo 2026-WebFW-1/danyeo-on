@@ -184,7 +184,8 @@ describe('ArrivalCards 사진 펼치기 (#187)', () => {
     vi.mocked(useMyPhotos).mockReturnValue({ photos: [], status: 'loading', error: null });
     await render();
 
-    await hover();
+    // 마우스는 접기를 잠깐 늦춰서(타이머) 바로 열고 닫히는 포커스로 확인해요
+    await act(() => getSection().focus());
     const before = getPhotoTransforms();
 
     vi.mocked(useMyPhotos).mockReturnValue({ photos: PHOTOS, status: 'ready', error: null });
@@ -193,8 +194,8 @@ describe('ArrivalCards 사진 펼치기 (#187)', () => {
     expect(getPhotoTransforms()).toEqual(before);
 
     // 다음에 펼칠 때는 새 목록으로 펼쳐요
-    await unhover();
-    await hover();
+    await act(() => getSection().blur());
+    await act(() => getSection().focus());
     expect(getFan().querySelectorAll('li').length).toBeGreaterThan(before.length);
   });
 });
