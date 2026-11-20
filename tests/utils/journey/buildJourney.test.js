@@ -362,6 +362,43 @@ describe('buildJourney 규칙', () => {
     ]);
   });
 
+  test('나누기 보정의 사진부터 새 여행이고, 사이 구간은 gap이며 이름은 기준 사진이 든 앞 여행에 남아요', async () => {
+    // given: 방콕 여행을 p_b2 앞에서 나누고, 이름은 첫 사진(p_b1)에 걸어 둠
+    const corrections = [
+      { id: 'c_1', type: 'rename', anchorPhotoId: 'p_b1', name: '내 방콕' },
+      { id: 'c_2', type: 'split', beforePhotoId: 'p_b2' },
+    ];
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey.trips.map((trip) => [trip.id, trip.name, trip.nameSource])).toEqual([
+      ['p_b1', '내 방콕', 'user'],
+      ['p_b2', '방콕', 'auto'],
+    ]);
+    expect(journey.legs.map((leg) => leg.kind)).toEqual(['outbound', 'gap', 'return']);
+  });
+
+  test('나눈 자리의 사진을 빼도 여행은 나뉜 채예요', async () => {
+    // given: 방콕 p_b1 · p_b2 · p_b3 중 p_b2 앞에서 나눈 뒤 p_b2를 뺌
+    const photos = [
+      ...BANGKOK_TRIP.slice(0, 4),
+      makePhoto('p_b3', 'bangkok', '2024-07-14T10:00:00'),
+      ...BANGKOK_TRIP.slice(4),
+    ];
+    const corrections = [
+      { id: 'c_1', type: 'split', beforePhotoId: 'p_b2' },
+      { id: 'c_2', type: 'exclude', photoId: 'p_b2' },
+    ];
+
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then
+    expect(journey.trips.map((trip) => trip.stopIds)).toEqual([['p_b1'], ['p_b3']]);
+  });
+
   test('기간 필터 기준일은 오늘이 아니라 마지막 여행이 끝난 날이에요', async () => {
     // when
     const journey = await buildJourney(BANGKOK_TRIP, [], findCity);
