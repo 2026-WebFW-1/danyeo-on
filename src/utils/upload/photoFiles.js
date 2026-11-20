@@ -2,7 +2,7 @@
  * 사용자가 고른 파일을 사진 목록으로 만드는 함수 모음
  *
  * 책임: 파일 이름만 보고 사진을 거르며, 끌어다 놓은 폴더를 파일 목록으로 펼칩니다.(#51)
- *      사진이 실제로 열리는지, 촬영 정보가 있는지는 보지 않습니다. > readPhotos 몫
+ *      사진이 실제로 열리는지, 촬영 정보가 있는지는 보지 않습니다. > 쌓을 때 readExif 몫(uploadStore.start)
  *
  * 호출: SelectPhotosStep의 input change와 drop 핸들러
  *
@@ -29,7 +29,6 @@ export function skipReason(file) {
 
 /**
  * 고른 파일을 사진과 뺀 파일로 나눕니다. 둘 다 순서는 그대로입니다.
- * 뺀 파일은 readPhotos가 못 읽은 파일과 같은 모양이라, 화면은 이어 붙여 한 목록으로 보여 줄 수 있습니다.
  * @param {Iterable<File>} files input.files(FileList)나 File 배열
  * @returns {{ photos: File[], skipped: import('@/types').SkippedFile[] }}
  */

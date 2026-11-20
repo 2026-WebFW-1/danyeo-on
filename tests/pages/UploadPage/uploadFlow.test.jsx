@@ -12,11 +12,11 @@ import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
-import { readPhotos } from '@/utils/upload/readPhotos';
+import { readExif } from '@/utils/upload/readExif';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
-vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
+vi.mock('@/utils/upload/readExif', () => ({ readExif: vi.fn() }));
 // App이 쓰는 getJourney는 그대로 두고, 저장 뒤 만드는 Journey만 가짜로 바꿔요.
 vi.mock('@/services/journeyService', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -35,9 +35,20 @@ vi.mock('@/services/authService', () => ({
 }));
 
 const user = { id: '내계정', email: 'seojin@demo.local', name: '서진' };
+// 촬영 시각이 없어서 정리 화면 끝에서 묻는 사진이에요.
 const file = new File(['원본'], '사진.jpg', { type: 'image/jpeg' });
-// 이름에 번호가 있어 정리 화면에서 묻지 않고 지나가는 사진이에요. file은 번호가 없어서 끝에서 물어요.
+// 촬영 시각이 있어서 정리 화면에서 묻지 않고 지나가는 사진이에요.
 const numbered = new File(['원본'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+/** readExif가 돌려주는 값이에요. file만 촬영 시각이 없어요. */
+const exifOf = (picked) => ({
+  readable: true,
+  takenAt: picked === file ? null : '2024-11-24T08:30:49',
+  offset: null,
+  timeUncertain: true,
+  lat: null,
+  lng: null,
+  camera: null,
+});
 // 사진 줄은 한 장에 300ms쯤 머물다 저절로 지나가서, 다 지나갈 때까지 넉넉히 기다려요.
 const PASS_TIMEOUT = { timeout: 3000 };
 // refreshJourney가 돌려주는 Journey예요. 여행이 없어서 [여행 보기]는 탭을 고르지 않고 넘어가요.
@@ -45,18 +56,6 @@ const EMPTY_JOURNEY = { stops: [], trips: [] };
 let container;
 let root;
 
-// flatMap
-const readPhotoOf = (order, fileName) => ({
-  order,
-  fileName,
-  takenAt: null,
-  offset: null,
-  timeUncertain: true,
-  lat: null,
-  lng: null,
-  camera: null,
-  dedupeKey: `|${fileName}`,
-});
 const findButton = (text) =>
   [...container.querySelectorAll('button')].find((button) => button.textContent === text);
 
@@ -79,10 +78,6 @@ function PhotoSortStub() {
 async function openPass(files) {
   useAuthStore.setState({ user, status: 'authenticated' });
   await useUploadStore.getState().start(files);
-  vi.mocked(readPhotos).mockResolvedValue({
-    photos: files.map((picked, order) => readPhotoOf(order, picked.name)),
-    skipped: [],
-  });
   await act(() =>
     root.render(
       <MemoryRouter initialEntries={['/upload']}>
@@ -119,6 +114,7 @@ beforeEach(() => {
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(new Blob(['썸네일'], { type: 'image/webp' }));
+  vi.mocked(readExif).mockImplementation(async (picked) => exifOf(picked));
   vi.mocked(authService.getSessionUser).mockResolvedValue(user);
   vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
   container = document.createElement('div');
@@ -503,11 +499,10 @@ test('일부를 뺐으면 모으기 화면에서 몇 개를 왜 뺐는지 알려
 test('열어 보니 사진이 아닌 파일은 저장한 뒤 뺐다고 알려요', async () => {
   // given: 두 장 중 확장자만 jpg인 한 장이 열리지 않음
   const broken = new File(['깨짐'], 'IMG_0002.jpg', { type: 'image/jpeg' });
+  vi.mocked(readExif).mockImplementation(async (picked) =>
+    picked === broken ? { ...exifOf(picked), readable: false, takenAt: null } : exifOf(picked),
+  );
   await openPass([numbered, broken]);
-  vi.mocked(readPhotos).mockResolvedValue({
-    photos: [readPhotoOf(0, numbered.name)],
-    skipped: [{ fileName: broken.name, reason: 'unreadable' }],
-  });
   vi.mocked(savePhotos).mockImplementation(async (photos) => ({
     saved: photos.map((photo) => photo.id),
     skipped: [],
@@ -515,11 +510,13 @@ test('열어 보니 사진이 아닌 파일은 저장한 뒤 뺐다고 알려요
   vi.mocked(savePhotoImage).mockReturnValue(new Promise(() => {}));
   vi.mocked(refreshJourney).mockReturnValue(new Promise(() => {}));
 
-  // when: 다 정리하고 저장하면
-  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+  // when: 촬영 시각이 없어 끝에서 묻는 열리지 않는 파일을 나중에로 두고 저장하면
+  await vi.waitFor(() => expect(findButton('나중에')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('나중에').click());
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined());
   await act(() => findButton('여행 보기').click());
 
-  // then
+  // then: 나중에로 뒀어도 열리지 않는 파일은 저장하지 않아요
   await vi.waitFor(() =>
     expect(container.textContent).toContain('1장 저장했어요 · 열리지 않는 파일 1개는 뺐어요'),
   );

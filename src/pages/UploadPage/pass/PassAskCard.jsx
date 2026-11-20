@@ -37,7 +37,7 @@ export default function PassAskCard({ photo, step, total, onAnswer, className })
           {step} / {total}
         </span>
       </p>
-      <p className="mt-3 text-xl break-keep text-muted">날짜도 번호도 없어서 자리를 못 찾았어요.</p>
+      <p className="mt-3 text-xl break-keep text-muted">촬영 시각이 없어서 자리를 못 찾았어요.</p>
       {/* 누르기 전에 결과를 알 수 있게 버튼마다 어떻게 되는지 적어 둬요 */}
       <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-lg">
         {ANSWER_RESULTS.map(({ label, result }) => (

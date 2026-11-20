@@ -11,7 +11,7 @@ import {
 import { createPhotoId, toUploadedFileKey, toUploadedImagePaths } from '@/utils/photoFileKey';
 import { findFirstTripOfPhotos } from '@/utils/tripPager';
 import { toDedupeKey } from '@/utils/upload/dedupeKey';
-import { readPhotos } from '@/utils/upload/readPhotos';
+import { readExif } from '@/utils/upload/readExif';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 const INITIAL_IMAGE_UPLOAD = { total: 0, uploaded: 0, skipped: 0, failed: 0 };
@@ -55,8 +55,8 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
  * @property {(files: File[], skippedFiles?: import('@/types').SkippedFile[]) => Promise<void>} start
- *   이전 작업을 비우고 한 장씩 줄여요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
- * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 촬영 정보를 읽어 저장하고,
+ *   이전 작업을 비우고 한 장씩 줄이며 촬영 정보를 읽어요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
+ * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 쌓을 때 읽은 촬영 정보로 저장하고,
  *   이미지 올리기를 뒤에서 시작해요. target은 saveTarget에 둬요(없으면 'trip').
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
  * @property {(targets: { order: number, fileKey: string }[]) => Promise<void>} uploadImages
@@ -90,6 +90,9 @@ export const useUploadStore = create((set, get) => ({
     // 큰 원본 여러 장을 동시에 디코딩하면 메모리가 급증하므로 한 장씩 처리해요.
     for (const [order, file] of selectedFiles.entries()) {
       const thumb = await resizeThumbnail(file);
+      // 줄인 썸네일에는 촬영 정보가 없어서 원본으로 읽어요.
+      // 정리 화면이 물어볼 사진을 고를 때 필요해서, 저장 전인 여기서 읽어요(getPassKind).
+      const exif = await readExif(file);
       // 디코딩은 도중에 멈출 수 없어서, 끝난 뒤 그사이 reset됐는지 봐요.
       // blob 주소를 만들기 전에 봐야 아무도 해제하지 않는 주소가 생기지 않아요.
       if (currentJob !== jobId) return;
@@ -100,6 +103,7 @@ export const useUploadStore = create((set, get) => ({
         filename: file.name,
         thumb,
         src: thumb ? URL.createObjectURL(thumb) : null,
+        ...exif,
       };
       set((state) => ({
         photos: [...state.photos, photo],
@@ -192,7 +196,8 @@ export const useUploadStore = create((set, get) => ({
 }));
 
 /**
- * 고른 사진의 촬영 정보를 읽어 저장하고, 이미지를 올릴 대상을 골라요.
+ * 쌓을 때 읽은 촬영 정보로 고른 사진을 저장하고, 이미지를 올릴 대상을 골라요.
+ * 열지 못한 파일과 정리 끝에서 빼 둔 사진은 저장하지 않아요.
  * 새로 저장한 사진에 더해, 전에 저장했지만 창을 닫아 이미지가 다 못 올라간 사진도 이어서 올려요.
  * 미리 볼 수 없는 사진(HEIC 등)은 이미지를 못 만들어서 fileKey 없이 저장해요(회색 칸).
  *
@@ -208,40 +213,27 @@ export const useUploadStore = create((set, get) => ({
  * } | null>}
  *   기다리는 사이 reset됐으면 null
  */
-async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) {
-  const { photos: readResults, skipped: unreadableFiles } = await readPhotos(files);
-  // 저장하면 이미지 없는 행이 남고, 같은 사진을 다시 저장해도 이미 있다며 건너뛰어서 회색 칸이 돼요.
-  if (isCancelled()) return null;
-
-  // 빼 둔 사진은 읽은 뒤에 거릅니다. files를 먼저 거르면 order(고른 순서)가 밀려서
-  // uploadImage가 files[order]로 다른 원본을 올립니다.
-  const excludedOrders = new Set(
-    photos.filter((photo) => passAnswers[photo.id] === 'exclude').map((photo) => photo.order),
-  );
-
-  const hasImage = new Set(photos.filter((photo) => photo.thumb).map((photo) => photo.order));
-
-  const filteredOrder = readResults.filter(({ order }) => !excludedOrders.has(order));
-  const rows = filteredOrder.map(
-    ({ order, dedupeKey, fileName, takenAt, offset, lat, lng, camera }) => {
-      const id = createPhotoId();
-      const fileKey = hasImage.has(order) ? toUploadedFileKey(ownerId, id) : null;
-      return {
-        order,
-        dedupeKey,
-        photo: {
-          id,
-          fileName,
-          takenAt,
-          offset,
-          lat,
-          lng,
-          camera,
-          fileKey,
-        },
-      };
-    },
-  );
+async function savePicked(ownerId, { photos, passAnswers }, isCancelled) {
+  // 쌓을 때(start) 원본에서 읽어 둔 촬영 정보를 써서, 같은 파일을 다시 읽지 않아요.
+  const picked = photos.filter((photo) => photo.readable && passAnswers[photo.id] !== 'exclude');
+  const rows = picked.map(({ order, filename, thumb, takenAt, offset, lat, lng, camera }) => {
+    const id = createPhotoId();
+    const fileKey = thumb ? toUploadedFileKey(ownerId, id) : null;
+    return {
+      order,
+      dedupeKey: toDedupeKey(filename, takenAt),
+      photo: {
+        id,
+        fileName: filename,
+        takenAt,
+        offset,
+        lat,
+        lng,
+        camera,
+        fileKey,
+      },
+    };
+  });
 
   const { saved, skipped } = await savePhotos(rows.map((row) => row.photo));
   const savedIds = new Set(saved);
@@ -250,15 +242,15 @@ async function savePicked(ownerId, { files, photos, passAnswers }, isCancelled) 
     .map((row) => ({ order: row.order, fileKey: row.photo.fileKey }));
 
   // 이번 파일로 이미지를 만들 수 있는 사진만 이어 올릴 수 있어요.
-  const skippedRows = rows.filter((row) => !savedIds.has(row.photo.id) && hasImage.has(row.order));
+  const skippedRows = rows.filter((row) => !savedIds.has(row.photo.id) && row.photo.fileKey);
   const resumeTargets = skippedRows.length > 0 ? await findUnfinished(ownerId, skippedRows) : [];
   if (isCancelled()) return null;
 
   return {
     saved: saved.length,
     existing: skipped.length,
-    // 여기서 처음 열어 보고 알게 돼서, 고를 때 뺀 skippedFiles와 따로 셉니다.
-    unreadable: unreadableFiles.length,
+    // 쌓을 때 열어 보고 알게 돼서, 고를 때 이름으로 뺀 skippedFiles와 따로 셉니다.
+    unreadable: photos.filter((photo) => !photo.readable).length,
     newPhotoIds: saved,
     targets: [...newTargets, ...resumeTargets],
   };
