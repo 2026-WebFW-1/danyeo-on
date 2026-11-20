@@ -80,32 +80,30 @@ sequenceDiagram
 
 ## 촬영 정보 읽기
 
-고른 원본은 `readPhotos`가 한 장씩 읽습니다. 아직 화면에서 부르는 곳이 없어서 부르는 쪽은 정해지지 않았습니다.
+쌓을 때(`uploadStore.start`) 사진마다 썸네일을 만든 뒤 원본을 `readExif`로 읽어 `PilePhoto`에 둡니다.
+정리 화면이 저장 전에 물어볼 사진(촬영 시각 없음)을 골라야 해서 이때 읽고, 저장(`savePicked`)은 이 값을 그대로 씁니다(#189).
+300장에서 `readExif`만 따로 재면 0.34초, 썸네일 만들기는 8.2초였습니다(2026-11-20, 같은 브라우저).
 
 ```mermaid
 sequenceDiagram
-    participant 부르는쪽 as 부르는 쪽 (아직 없음)
-    participant 읽기 as readPhotos
+    participant 쌓기 as uploadStore.start
     participant 정보 as readExif
     participant exifr
 
-    부르는쪽->>읽기: readPhotos(원본 files, { onProgress })
     loop 한 장씩 (앞 장이 끝나야 다음 장)
-        읽기->>정보: readExif(file)
+        쌓기->>쌓기: resizeThumbnail(file)
+        쌓기->>정보: readExif(file)
         정보->>exifr: parse(file, 필요한 태그만, 통째로)
         alt 던짐(이미지가 아님) 또는 errors 있음(잘린 파일)
             exifr-->>정보: 실패
-            정보-->>읽기: readable = false
-            읽기->>읽기: skipped에 { fileName, reason: 'unreadable' }
+            정보-->>쌓기: readable = false, 나머지 null
         else 읽음 (EXIF가 없는 사진도 여기)
             exifr-->>정보: tags
             정보->>정보: 촬영 시각·위치·카메라로 바꿈
-            정보-->>읽기: readable = true + 정보
-            읽기->>읽기: photos에 { order, fileName, ...정보, dedupeKey }
+            정보-->>쌓기: readable = true + 정보
         end
-        읽기-->>부르는쪽: onProgress({ done, total })
+        쌓기->>쌓기: photos에 { id, order, filename, thumb, src, ...정보 }
     end
-    읽기-->>부르는쪽: { photos, skipped, counts }
 ```
 
 ## 코드만 봐서는 알기 어려운 것

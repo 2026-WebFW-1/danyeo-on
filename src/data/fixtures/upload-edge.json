@@ -1,6 +1,6 @@
 {
   "generatedBy": "mock/demo-photos.mjs",
-  "about": "각 파일을 readPhotos로 읽었을 때 나와야 하는 값. takenAt은 현지 벽시계 시각(시간대 없음). suspiciousDate·duplicateOf·rawLat은 화면·업로드 단계의 판단 힌트",
+  "about": "각 파일을 readExif로 읽었을 때 나와야 하는 값. takenAt은 현지 벽시계 시각(시간대 없음). suspiciousDate·duplicateOf·rawLat은 화면·업로드 단계의 판단 힌트",
   "cases": [
     {
       "file": "01_full-exif.jpg",
