@@ -1,10 +1,4 @@
-import {
-  ARRIVAL_FAN_CENTER_DEG,
-  ARRIVAL_FAN_MAX_STEP_DEG,
-  ARRIVAL_FAN_RADIUS,
-  ARRIVAL_FAN_SPREAD_DEG,
-  ARRIVAL_FAN_TILT,
-} from '@/constants/arrivalFan';
+import { ARRIVAL_FAN_SLOTS } from '@/constants/arrivalFan';
 import { findCoverIndex, selectStopPhotos } from '@/utils/selectStopPhotos';
 
 /**
@@ -76,25 +70,12 @@ export function selectTripFanPhotos(trip, stops, photos, limit) {
  */
 
 /**
- * 사진 count장을 왼쪽 위로 부채꼴처럼 놓을 자리를 계산해요(#187).
- * 사진 사이 각도는 ARRIVAL_FAN_MAX_STEP_DEG를 넘지 않아서, 장수가 적으면 가운데 방향에 모여요.
- * 첫 사진이 왼쪽, 마지막 사진이 위예요. 여행 순서대로 시계 방향으로 펼쳐져요.
+ * 사진 count장을 카드 왼쪽 위에 흩뿌려 놓을 자리예요(#187). 카드에 가까운 자리(ARRIVAL_FAN_SLOTS)부터 써요.
+ * 자리 수보다 많이 달라고 해도 자리 수만큼만 줘요. selectTripFanPhotos가 그 이상 고르지 않아요.
  *
  * @param {number} count
  * @returns {FanPose[]}
  */
 export function calcFanPoses(count) {
-  const step =
-    count > 1 ? Math.min(ARRIVAL_FAN_MAX_STEP_DEG, ARRIVAL_FAN_SPREAD_DEG / (count - 1)) : 0;
-  const start = ARRIVAL_FAN_CENTER_DEG - (step * (count - 1)) / 2;
-  return Array.from({ length: count }, (_, index) => {
-    const deg = start + step * index;
-    const rad = (deg * Math.PI) / 180;
-    return {
-      x: Math.round(ARRIVAL_FAN_RADIUS * Math.cos(rad)),
-      y: Math.round(ARRIVAL_FAN_RADIUS * Math.sin(rad)),
-      // 위(270°)를 향한 사진은 똑바로, 옆으로 갈수록 바깥으로 기울여요.
-      rotate: Math.round((deg - 270) * ARRIVAL_FAN_TILT),
-    };
-  });
+  return ARRIVAL_FAN_SLOTS.slice(0, count);
 }

@@ -13,7 +13,7 @@ import ArrivalFanPhoto from './ArrivalFanPhoto';
 const CARD_POSES = ['', '-translate-y-6 -rotate-3', '-translate-x-6 -translate-y-6 rotate-5'];
 
 /**
- * 01 오른쪽 아래의 도착 카드 더미. 마우스를 올리면 그 여행의 사진을 부채꼴로 펼쳐요(#187).
+ * 01 오른쪽 아래의 도착 카드 더미. 마우스를 올리면 그 여행의 사진을 왼쪽 위로 흩뿌려 펼쳐요(#187).
  *
  * 호출: ArrivalStack이 도착한 지점이 있을 때만 그려요. 그래서 지점이 사라지면 펼침 상태도 같이 사라져요.
  *
@@ -21,7 +21,7 @@ const CARD_POSES = ['', '-translate-y-6 -rotate-3', '-translate-x-6 -translate-y
  *  - 나중 카드가 위에 그려지므로 맨 앞 카드가 마지막이 되게 뒤집어 그립니다.
  *  - 상자는 포인터를 받지 않고 카드만 받아요. 카드 밖 빈 구석으로는 밑의 지도를 누를 수 있어요.
  *  - 카드에 마우스를 올리거나 키보드로 포커스하면 맨 앞 카드가 속한 여행 전체의 사진을 펼쳐요.
- *    펼친 동안에는 사진 사이 빈틈을 지나도 접히지 않게, 부채꼴을 덮는 보이지 않는 칸을 깔아요.
+ *    펼친 동안에는 사진 사이 빈틈을 지나도 접히지 않게, 펼친 사진을 다 덮는 보이지 않는 칸을 깔아요.
  *  - 펼친 동안 재생을 멈춰요. 카드가 3초 뒤 바뀌면 펼친 사진도 바뀌어서요. 접으면, 멈추기 전에 재생 중이었을 때만 이어서 재생해요.
  *  - 사진은 처음 펼칠 때 받아요(ArrivalFanPhoto). 펼칠 사진이 없는 여행이면 펼치지도, 멈추지도 않아요.
  *
@@ -77,12 +77,12 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
       {isOpen && (
         <div
           aria-hidden="true"
-          className="pointer-events-auto absolute right-0 bottom-0 size-140"
+          className="pointer-events-auto absolute right-0 bottom-0 h-[640px] w-[940px]"
         />
       )}
 
       {hasFan && (
-        // 맨 앞 카드(상자 안 left 32 · top 46, 262 × 약 240)의 가운데가 부채꼴의 중심이에요.
+        // 맨 앞 카드(상자 안 left 32 · top 46, 262 × 약 240)의 가운데가 펼친 자리(ARRIVAL_FAN_SLOTS)의 기준이에요.
         <ul
           aria-label={`${trip.name} 사진`}
           aria-hidden={!isOpen}

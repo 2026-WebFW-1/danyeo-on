@@ -9,8 +9,9 @@ import { cn } from '@/utils/cn';
  * <ArrivalFanPhoto photo={{ id, fileKey, city }} pose={{ x: -280, y: -110, rotate: -25 }} index={0} isOpen isLoaded />
  *
  * 의도:
- *  - 접혀 있을 때는 카드 뒤에 작게 숨어 있다가, 펼치면 자기 자리로 미끄러져 나와요. 하나씩 이어서 나오게 순서만큼 늦춰요.
- *  - 자리는 사진 장수마다 달라서(calcFanPoses) transform을 style로 줘요.
+ *  - 접혀 있을 때는 카드 뒤에 작게 숨어 있다가, 펼치면 자기 자리로 던져지듯 나와요. 하나씩 이어서 나오게 순서만큼 늦추고,
+ *    자리에 닿을 때 살짝 넘쳤다 돌아오는 곡선을 써서 테이블에 떨어지는 느낌을 줘요.
+ *  - 자리는 사진마다 달라서(calcFanPoses) transform을 style로 줘요.
  *  - 이미지는 처음 펼칠 때(isLoaded) 받아요. 지도를 보기만 하는 사람에게 사진 여러 장을 미리 받지 않아요.
  *  - 도착 카드와 같은 흰 테두리 · 그림자예요. 피그마에 펼친 모양이 없어서 카드에 맞췄어요.
  *
@@ -30,7 +31,7 @@ export default function ArrivalFanPhoto({ photo, pose, index, isOpen, isLoaded }
   return (
     <li
       className={cn(
-        'absolute top-0 left-0 w-32 bg-white p-1.5 pb-1 shadow-[0px_10px_28px_0px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none',
+        'absolute top-0 left-0 w-44 bg-white p-2 pb-1.5 shadow-[0px_10px_28px_0px_rgba(0,0,0,0.12)] transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)] motion-reduce:transition-none',
         isOpen ? 'opacity-100' : 'opacity-0',
       )}
       style={{ transform, transitionDelay: isOpen ? `${index * ARRIVAL_FAN_STAGGER_MS}ms` : '0ms' }}
@@ -40,7 +41,7 @@ export default function ArrivalFanPhoto({ photo, pose, index, isOpen, isLoaded }
       ) : (
         <div className="aspect-4/3 w-full bg-line" />
       )}
-      <p className="mt-1 truncate text-center text-2xs text-body">{photo.city}</p>
+      <p className="mt-1.5 truncate text-center text-xs text-body">{photo.city}</p>
     </li>
   );
 }

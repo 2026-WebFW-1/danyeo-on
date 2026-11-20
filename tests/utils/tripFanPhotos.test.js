@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { ARRIVAL_FAN_CENTER_DEG, ARRIVAL_FAN_RADIUS } from '@/constants/arrivalFan';
+import { ARRIVAL_FAN_LIMIT } from '@/constants/arrivalFan';
 import { calcFanPoses, selectTripFanPhotos } from '@/utils/tripFanPhotos';
 
 const photo = (id) => ({ id, fileKey: `public:/photos/${id}.webp` });
@@ -70,29 +70,25 @@ describe('selectTripFanPhotos', () => {
 
 describe('calcFanPoses', () => {
   test('장수만큼 자리를 주고, 모두 카드의 왼쪽 위에 놓여요', () => {
-    const poses = calcFanPoses(8);
+    const poses = calcFanPoses(ARRIVAL_FAN_LIMIT);
 
-    expect(poses).toHaveLength(8);
+    expect(poses).toHaveLength(ARRIVAL_FAN_LIMIT);
     for (const { x, y } of poses) {
-      expect(x).toBeLessThanOrEqual(0);
+      expect(x).toBeLessThan(0);
       expect(y).toBeLessThan(0);
     }
   });
 
-  test('첫 사진은 왼쪽, 마지막 사진은 위쪽이에요', () => {
-    const poses = calcFanPoses(8);
+  test('사진이 적으면 카드에 가까운 자리부터 써요', () => {
+    const distances = calcFanPoses(ARRIVAL_FAN_LIMIT).map(({ x, y }) => Math.hypot(x, y));
 
-    expect(poses[0].x).toBeLessThan(poses.at(-1).x);
-    expect(poses[0].y).toBeGreaterThan(poses.at(-1).y);
-    expect(poses[0].rotate).toBeLessThan(poses.at(-1).rotate);
+    expect(distances).toEqual([...distances].sort((a, b) => a - b));
   });
 
-  test('한 장이면 가운데 방향에 놓아요', () => {
-    const [pose] = calcFanPoses(1);
+  test('흩뿌린 느낌이 나게 기울기가 사진마다 달라요', () => {
+    const rotates = calcFanPoses(ARRIVAL_FAN_LIMIT).map((pose) => pose.rotate);
 
-    const rad = (ARRIVAL_FAN_CENTER_DEG * Math.PI) / 180;
-    expect(pose.x).toBeCloseTo(ARRIVAL_FAN_RADIUS * Math.cos(rad), 0);
-    expect(pose.y).toBeCloseTo(ARRIVAL_FAN_RADIUS * Math.sin(rad), 0);
+    expect(new Set(rotates).size).toBe(rotates.length);
   });
 
   test('0장이면 빈 목록이에요', () => {
