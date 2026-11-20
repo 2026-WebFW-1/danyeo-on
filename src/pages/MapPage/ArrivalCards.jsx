@@ -4,7 +4,8 @@ import { ARRIVAL_FAN_LIMIT } from '@/constants/arrivalFan';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
 import { usePlaybackStore } from '@/stores/playbackStore';
 import { cn } from '@/utils/cn';
-import { calcFanPoses, selectTripFanPhotos } from '@/utils/tripFanPhotos';
+import { createSeed } from '@/utils/seededPick';
+import { scatterFanPoses, selectTripFanPhotos } from '@/utils/tripFanPhotos';
 
 import ArrivalCard from './ArrivalCard';
 import ArrivalFanPhoto from './ArrivalFanPhoto';
@@ -23,6 +24,8 @@ const CARD_POSES = ['', '-translate-y-6 -rotate-3', '-translate-x-6 -translate-y
  *  - 카드에 마우스를 올리거나 키보드로 포커스하면 맨 앞 카드가 속한 여행 전체의 사진을 펼쳐요.
  *    펼친 동안에는 사진 사이 빈틈을 지나도 접히지 않게, 펼친 사진을 다 덮는 보이지 않는 칸을 깔아요.
  *  - 펼친 동안 재생을 멈춰요. 카드가 3초 뒤 바뀌면 펼친 사진도 바뀌어서요. 접으면, 멈추기 전에 재생 중이었을 때만 이어서 재생해요.
+ *  - 펼칠 때마다 새 시드를 만들어 사진을 매번 다른 자리 · 기울기로 흩뿌려요(scatterFanPoses).
+ *    시드는 이벤트에서 만들어 상태로 들고 있어서, 펼친 동안 다시 그려져도 사진이 움직이지 않아요.
  *  - 사진은 처음 펼칠 때 받아요(ArrivalFanPhoto). 펼칠 사진이 없는 여행이면 펼치지도, 멈추지도 않아요.
  *
  * @param {object} props
@@ -35,11 +38,12 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
+  const [seed, setSeed] = useState(0);
   const fan = useMemo(
     () => selectTripFanPhotos(trip, stops, photos, ARRIVAL_FAN_LIMIT),
     [trip, stops, photos],
   );
-  const poses = calcFanPoses(fan.photos.length);
+  const poses = useMemo(() => scatterFanPoses(fan.photos.length, seed), [fan.photos.length, seed]);
   const hasFan = fan.photos.length > 0;
   const isOpen = hasFan && (isHovered || isFocused);
   const photoTotal = fan.photos.length + fan.rest;
@@ -53,14 +57,21 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
     };
   }, [isOpen]);
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
+  // 접혀 있다가 펼칠 때만 새로 흩뿌려요. 마우스와 포커스가 겹쳐도 한 번만이에요.
+  const prepareOpen = () => {
+    if (isHovered || isFocused) return;
+    setSeed(createSeed());
     setHasOpened(true);
   };
 
+  const handleMouseEnter = () => {
+    prepareOpen();
+    setIsHovered(true);
+  };
+
   const handleFocus = () => {
+    prepareOpen();
     setIsFocused(true);
-    setHasOpened(true);
   };
 
   return (
@@ -82,7 +93,7 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
       )}
 
       {hasFan && (
-        // 맨 앞 카드(상자 안 left 32 · top 46, 262 × 약 240)의 가운데가 펼친 자리(ARRIVAL_FAN_SLOTS)의 기준이에요.
+        // 맨 앞 카드(상자 안 left 32 · top 46, 262 × 약 240)의 가운데가 흩뿌린 자리(scatterFanPoses)의 기준이에요.
         <ul
           aria-label={`${trip.name} 사진`}
           aria-hidden={!isOpen}

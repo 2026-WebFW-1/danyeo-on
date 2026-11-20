@@ -1,4 +1,12 @@
-import { ARRIVAL_FAN_SLOTS } from '@/constants/arrivalFan';
+import {
+  ARRIVAL_FAN_BOUNDS,
+  ARRIVAL_FAN_JITTER_X,
+  ARRIVAL_FAN_JITTER_Y,
+  ARRIVAL_FAN_MAX_ROTATE,
+  ARRIVAL_FAN_SLOTS,
+  ARRIVAL_FAN_SPARE_SLOTS,
+} from '@/constants/arrivalFan';
+import { seededUnit, sortBySeed } from '@/utils/seededPick';
 import { findCoverIndex, selectStopPhotos } from '@/utils/selectStopPhotos';
 
 /**
@@ -70,12 +78,46 @@ export function selectTripFanPhotos(trip, stops, photos, limit) {
  */
 
 /**
- * 사진 count장을 카드 왼쪽 위에 흩뿌려 놓을 자리예요(#187). 카드에 가까운 자리(ARRIVAL_FAN_SLOTS)부터 써요.
- * 자리 수보다 많이 달라고 해도 자리 수만큼만 줘요. selectTripFanPhotos가 그 이상 고르지 않아요.
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * 시드로 -1 이상 1 미만의 수를 줘요.
  *
- * @param {number} count
+ * @param {number} seed
+ * @param {string} key
+ * @returns {number}
+ */
+function seededSigned(seed, key) {
+  return seededUnit(seed, key) * 2 - 1;
+}
+
+/**
+ * 사진 count장을 카드 왼쪽 위에 무작위로 흩뿌릴 자리예요(#187). 펼칠 때마다 새 시드를 줘서 매번 다르게 놓여요.
+ *
+ * - 카드에 가까운 기준 자리(ARRIVAL_FAN_SLOTS) count + 여분 곳을 시드로 섞어 count곳을 골라요.
+ * - 고른 자리에서 x · y를 조금씩 어긋나게 하고, 기울기도 무작위로 줘요.
+ * - 어긋나도 ARRIVAL_FAN_BOUNDS 안에 두어서 화면의 다른 부품을 가리지 않아요.
+ * - 같은 시드면 몇 번을 다시 그려도 같은 자리예요. 재생이 멈춘 동안 다시 그려져도 사진이 움직이지 않아요.
+ *
+ * @param {number} count 자리 수(ARRIVAL_FAN_LIMIT)보다 많으면 자리 수만큼만 줘요
+ * @param {number} seed createSeed로 만든 값
  * @returns {FanPose[]}
  */
-export function calcFanPoses(count) {
-  return ARRIVAL_FAN_SLOTS.slice(0, count);
+export function scatterFanPoses(count, seed) {
+  const { minX, maxX, minY, maxY } = ARRIVAL_FAN_BOUNDS;
+  const nearSlots = ARRIVAL_FAN_SLOTS.slice(0, count + ARRIVAL_FAN_SPARE_SLOTS);
+  return sortBySeed(nearSlots, seed, ({ x, y }) => `${x},${y}`)
+    .slice(0, count)
+    .map(({ x, y }, index) => ({
+      x: Math.round(clamp(x + seededSigned(seed, `${index}:x`) * ARRIVAL_FAN_JITTER_X, minX, maxX)),
+      y: Math.round(clamp(y + seededSigned(seed, `${index}:y`) * ARRIVAL_FAN_JITTER_Y, minY, maxY)),
+      rotate: Math.round(seededSigned(seed, `${index}:rotate`) * ARRIVAL_FAN_MAX_ROTATE),
+    }));
 }

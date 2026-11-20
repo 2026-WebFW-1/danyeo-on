@@ -1,7 +1,14 @@
 import { describe, expect, test } from 'vitest';
 
-import { ARRIVAL_FAN_LIMIT } from '@/constants/arrivalFan';
-import { calcFanPoses, selectTripFanPhotos } from '@/utils/tripFanPhotos';
+import {
+  ARRIVAL_FAN_BOUNDS,
+  ARRIVAL_FAN_JITTER_X,
+  ARRIVAL_FAN_JITTER_Y,
+  ARRIVAL_FAN_LIMIT,
+  ARRIVAL_FAN_MAX_ROTATE,
+  ARRIVAL_FAN_SLOTS,
+} from '@/constants/arrivalFan';
+import { scatterFanPoses, selectTripFanPhotos } from '@/utils/tripFanPhotos';
 
 const photo = (id) => ({ id, fileKey: `public:/photos/${id}.webp` });
 
@@ -68,30 +75,41 @@ describe('selectTripFanPhotos', () => {
   });
 });
 
-describe('calcFanPoses', () => {
-  test('장수만큼 자리를 주고, 모두 카드의 왼쪽 위에 놓여요', () => {
-    const poses = calcFanPoses(ARRIVAL_FAN_LIMIT);
+describe('scatterFanPoses', () => {
+  const SEEDS = [0, 1, 42, 123456789, 2 ** 32 - 1];
 
-    expect(poses).toHaveLength(ARRIVAL_FAN_LIMIT);
-    for (const { x, y } of poses) {
-      expect(x).toBeLessThan(0);
-      expect(y).toBeLessThan(0);
+  test('장수만큼 자리를 주고, 모두 화면 부품을 가리지 않는 범위 안이에요', () => {
+    const { minX, maxX, minY, maxY } = ARRIVAL_FAN_BOUNDS;
+    for (const seed of SEEDS) {
+      const poses = scatterFanPoses(ARRIVAL_FAN_LIMIT, seed);
+      expect(poses).toHaveLength(ARRIVAL_FAN_LIMIT);
+      for (const { x, y, rotate } of poses) {
+        expect(x).toBeGreaterThanOrEqual(minX);
+        expect(x).toBeLessThanOrEqual(maxX);
+        expect(y).toBeGreaterThanOrEqual(minY);
+        expect(y).toBeLessThanOrEqual(maxY);
+        expect(Math.abs(rotate)).toBeLessThanOrEqual(ARRIVAL_FAN_MAX_ROTATE);
+      }
     }
   });
 
-  test('사진이 적으면 카드에 가까운 자리부터 써요', () => {
-    const distances = calcFanPoses(ARRIVAL_FAN_LIMIT).map(({ x, y }) => Math.hypot(x, y));
-
-    expect(distances).toEqual([...distances].sort((a, b) => a - b));
+  test('같은 시드면 같은 자리이고, 시드가 다르면 다른 자리예요', () => {
+    expect(scatterFanPoses(5, 42)).toEqual(scatterFanPoses(5, 42));
+    expect(scatterFanPoses(5, 42)).not.toEqual(scatterFanPoses(5, 43));
   });
 
-  test('흩뿌린 느낌이 나게 기울기가 사진마다 달라요', () => {
-    const rotates = calcFanPoses(ARRIVAL_FAN_LIMIT).map((pose) => pose.rotate);
-
-    expect(new Set(rotates).size).toBe(rotates.length);
+  test('사진이 적으면 카드에 가까운 자리 근처에만 놓아요', () => {
+    const farthest = Math.hypot(ARRIVAL_FAN_SLOTS[3].x, ARRIVAL_FAN_SLOTS[3].y);
+    const jitter = Math.hypot(ARRIVAL_FAN_JITTER_X, ARRIVAL_FAN_JITTER_Y);
+    for (const seed of SEEDS) {
+      for (const { x, y } of scatterFanPoses(2, seed)) {
+        expect(Math.hypot(x, y)).toBeLessThanOrEqual(farthest + jitter);
+      }
+    }
   });
 
-  test('0장이면 빈 목록이에요', () => {
-    expect(calcFanPoses(0)).toEqual([]);
+  test('자리 수보다 많이 달라고 해도 자리 수만큼만 줘요', () => {
+    expect(scatterFanPoses(20, 7)).toHaveLength(ARRIVAL_FAN_LIMIT);
+    expect(scatterFanPoses(0, 7)).toEqual([]);
   });
 });
