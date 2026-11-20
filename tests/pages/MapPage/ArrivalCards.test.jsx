@@ -89,7 +89,11 @@ describe('ArrivalCards 사진 펼치기 (#187)', () => {
     await hover();
 
     expect(getFan().getAttribute('aria-hidden')).toBe('false');
-    expect(getSection().textContent).toContain(`${TRIP.name} · 사진`);
+    const photoCount = TRIP.stopIds
+      .map((id) => stopsById.get(id))
+      .filter((stop) => !stop.transit)
+      .reduce((sum, stop) => sum + stop.photoCount, 0);
+    expect(getSection().textContent).toContain(`${TRIP.name} · 사진 ${photoCount}장`);
     // 여행의 지점마다 고르게 골라서, 펼친 사진에 여러 도시가 있어요
     const cities = [...getFan().querySelectorAll('li p')].map((p) => p.textContent);
     expect(new Set(cities).size).toBeGreaterThan(1);

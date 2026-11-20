@@ -46,7 +46,6 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
   const poses = useMemo(() => scatterFanPoses(fan.photos.length, seed), [fan.photos.length, seed]);
   const hasFan = fan.photos.length > 0;
   const isOpen = hasFan && (isHovered || isFocused);
-  const photoTotal = fan.photos.length + fan.rest;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -121,7 +120,7 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
 
       {isOpen && (
         <p className="absolute top-3 left-8 bg-ink px-3 py-1 text-2xs whitespace-nowrap text-white">
-          <span className="font-bold">{trip.name}</span> · 사진 {photoTotal}장
+          <span className="font-bold">{trip.name}</span> · 사진 {fan.total}장
         </p>
       )}
     </section>

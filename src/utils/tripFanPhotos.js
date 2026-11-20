@@ -30,21 +30,22 @@ import { findCoverIndex, selectStopPhotos } from '@/utils/selectStopPhotos';
  * @param {import('@/types').Stop[]} stops 여행 기록의 지점 전부
  * @param {import('@/types').Photo[]} photos 로그인한 사람의 사진 전부(useMyPhotos)
  * @param {number} limit 최대 장수
- * @returns {{ photos: FanPhoto[], rest: number }} rest는 고르지 못하고 남은 장수
+ * @returns {{ photos: FanPhoto[], total: number }} total은 여행의 사진 수예요(경유 지점 빼고).
+ *   사진 목록을 아직 못 받았거나 실패해도 맞는 수가 나오게 지점의 photoCount로 세요
  */
 export function selectTripFanPhotos(trip, stops, photos, limit) {
-  if (!trip) return { photos: [], rest: 0 };
+  if (!trip) return { photos: [], total: 0 };
 
   const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
-  const stopPhotos = trip.stopIds
+  const tripStops = trip.stopIds
     .map((id) => stopsById.get(id))
-    .filter((stop) => stop && !stop.transit)
-    .map((stop) => {
-      const refs = selectStopPhotos(stop, photos);
-      const coverIndex = findCoverIndex(refs, stop.coverFileKey);
-      const ordered = [refs[coverIndex], ...refs.filter((_, index) => index !== coverIndex)];
-      return refs.length === 0 ? [] : ordered.map((ref) => ({ ...ref, city: stop.city }));
-    });
+    .filter((stop) => stop && !stop.transit);
+  const stopPhotos = tripStops.map((stop) => {
+    const refs = selectStopPhotos(stop, photos);
+    const coverIndex = findCoverIndex(refs, stop.coverFileKey);
+    const ordered = [refs[coverIndex], ...refs.filter((_, index) => index !== coverIndex)];
+    return refs.length === 0 ? [] : ordered.map((ref) => ({ ...ref, city: stop.city }));
+  });
 
   // 지점을 돌아가며 한 장씩 세어서, 지점마다 몇 장을 넣을지 정해요.
   const counts = stopPhotos.map(() => 0);
@@ -61,10 +62,9 @@ export function selectTripFanPhotos(trip, stops, photos, limit) {
     }
   }
 
-  const total = stopPhotos.reduce((sum, list) => sum + list.length, 0);
   return {
     photos: stopPhotos.flatMap((list, index) => list.slice(0, counts[index])),
-    rest: total - picked,
+    total: tripStops.reduce((sum, stop) => sum + stop.photoCount, 0),
   };
 }
 

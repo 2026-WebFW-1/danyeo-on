@@ -20,17 +20,19 @@ const stops = [
     city: '오사카',
     transit: false,
     photoIds: ['a1', 'a2', 'a3', 'a4', 'a5'],
+    photoCount: 5,
     coverFileKey: 'public:/photos/a3.webp',
   },
-  { id: 't1', city: '경유', transit: true, photoIds: ['t1'], coverFileKey: null },
+  { id: 't1', city: '경유', transit: true, photoIds: ['t1'], photoCount: 1, coverFileKey: null },
   {
     id: 'b1',
     city: '교토',
     transit: false,
     photoIds: ['b1', 'b2'],
+    photoCount: 2,
     coverFileKey: 'public:/photos/b1.webp',
   },
-  { id: 'c1', city: '나라', transit: false, photoIds: ['c1'], coverFileKey: null },
+  { id: 'c1', city: '나라', transit: false, photoIds: ['c1'], photoCount: 1, coverFileKey: null },
 ];
 
 const trip = { id: 'a1', stopIds: ['a1', 't1', 'b1', 'c1'] };
@@ -43,7 +45,7 @@ describe('selectTripFanPhotos', () => {
 
     // 한 장씩 돌아가며 오사카 2 · 교토 2 · 나라 1
     expect(ids(result)).toEqual(['a3', 'a1', 'b1', 'b2', 'c1']);
-    expect(result.rest).toBe(3);
+    expect(result.total).toBe(8);
   });
 
   test('지점마다 대표 사진을 먼저 뽑고, 도시 이름을 붙여요', () => {
@@ -61,17 +63,19 @@ describe('selectTripFanPhotos', () => {
 
     expect(ids(result)).not.toContain('t1');
     expect(result.photos).toHaveLength(8);
-    expect(result.rest).toBe(0);
+    expect(result.total).toBe(8);
   });
 
   test('사진 목록을 아직 못 받았으면 지점마다 대표 사진 한 장씩이에요', () => {
     const result = selectTripFanPhotos(trip, stops, [], 8);
 
     expect(ids(result)).toEqual(['a1', 'b1']);
+    // 사진 수는 사진 목록과 상관없이 지점의 photoCount로 세요
+    expect(result.total).toBe(8);
   });
 
   test('여행이 없으면 빈 목록이에요', () => {
-    expect(selectTripFanPhotos(undefined, stops, photos, 8)).toEqual({ photos: [], rest: 0 });
+    expect(selectTripFanPhotos(undefined, stops, photos, 8)).toEqual({ photos: [], total: 0 });
   });
 });
 
