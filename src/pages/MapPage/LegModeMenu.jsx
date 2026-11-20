@@ -25,13 +25,21 @@ const MENU_HEIGHT = 100;
  * @param {object} props
  * @param {import('@/types').Leg} props.leg 초안을 얹은 구간. canEditLegMode가 true예요
  * @param {import('@/utils/legLabels').MapRect} props.rect 그 구간 라벨의 자리
+ * @param {number} [props.screenBottom] 확대한 화면에서 라벨 아래 끝의 y. 없으면 rect.bottom이에요(확대하지 않음)
  * @param {(leg: import('@/types').Leg, mode: import('@/types').Leg['mode']) => void} props.onSelect
  * @param {() => void} props.onClose 메뉴 밖을 눌러 닫을 때
  * @param {() => void} props.onDismiss Esc나 고르기로 닫을 때
  */
-export default function LegModeMenu({ leg, rect, onSelect, onClose, onDismiss }) {
+export default function LegModeMenu({
+  leg,
+  rect,
+  screenBottom = rect.bottom,
+  onSelect,
+  onClose,
+  onDismiss,
+}) {
   const menuRef = useRef(null);
-  const isAbove = rect.bottom + MENU_GAP + MENU_HEIGHT > MAP_SIZE.height;
+  const isAbove = screenBottom + MENU_GAP + MENU_HEIGHT > MAP_SIZE.height;
 
   useEffect(() => {
     menuRef.current?.querySelector('[aria-checked="true"]')?.focus();

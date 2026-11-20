@@ -191,7 +191,7 @@ describe('MapPage 여행 0개(15a)', () => {
     expect(upload.getAttribute('href')).toBe('/upload');
     expect(getHeaderText()).toBeUndefined();
     expect(getPlaybackButton()).toBeUndefined();
-    for (const label of ['이동 수단', '여행 타임라인', '도착한 지점']) {
+    for (const label of ['이동 수단', '여행 타임라인', '도착한 지점', '지도 확대']) {
       expect(container.querySelector(`[aria-label="${label}"]`)).toBeNull();
     }
   });
@@ -233,5 +233,50 @@ describe('MapPage 여행 0개(15a)', () => {
     expect(getHeaderText()).toContain('My Journey');
     expect(getTab('2y').disabled).toBe(false);
     expect(getPressedTabs()).toEqual(['2y']);
+  });
+});
+
+describe('MapPage 지도 확대 (#184)', () => {
+  function getZoomButton(label) {
+    return container.querySelector(`[aria-label="지도 확대"] [aria-label="${label}"]`);
+  }
+
+  function getMapTransform() {
+    return container
+      .querySelector('svg[aria-label="여행 경로 지도"] > g')
+      .getAttribute('transform');
+  }
+
+  test('처음에는 세계 지도 전체라 축소 · 전체 보기를 막아요', async () => {
+    await openMap('/map');
+
+    expect(getMapTransform()).toBe('translate(0 0) scale(1)');
+    expect(getZoomButton('지도 확대').disabled).toBe(false);
+    expect(getZoomButton('지도 축소').disabled).toBe(true);
+    expect(getZoomButton('세계 지도 전체 보기').disabled).toBe(true);
+  });
+
+  test('확대 버튼으로 키우고, 전체 보기로 처음 자리로 돌아와요', async () => {
+    await openMap('/map');
+
+    await act(() => getZoomButton('지도 확대').click());
+
+    expect(getMapTransform()).toContain('scale(1.5)');
+    expect(getZoomButton('지도 축소').disabled).toBe(false);
+
+    await act(() => getZoomButton('세계 지도 전체 보기').click());
+
+    expect(getMapTransform()).toBe('translate(0 0) scale(1)');
+  });
+
+  test('확대해도 지점 점은 화면 크기 그대로예요', async () => {
+    await openMap('/map');
+    const stop = container.querySelector('svg g[role="button"]');
+    const before = stop.getBoundingClientRect().width;
+
+    await act(() => getZoomButton('지도 확대').click());
+    await act(() => getZoomButton('지도 확대').click());
+
+    expect(stop.getBoundingClientRect().width).toBeCloseTo(before, 0);
   });
 });

@@ -14,14 +14,16 @@ const VISIBLE_RIGHT_X = 1295;
  * 의도: 데이터에는 한글 도시 이름만 있어서 피그마의 영문(SYDNEY) 대신 한글로 보여 줍니다.
  * 오른쪽 끝에 가까운 지점은 라벨이 잘리지 않게 왼쪽에 놓습니다. 렌더 중에 화면 크기를 재지 않으려고
  * 기준을 좁은 창에 맞춰 고정해서, 넓은 창에서도 같은 지점은 왼쪽에 놓입니다.
+ * 지도를 확대하면 지점이 화면에서 옮겨 가서, 확대한 화면의 x(screenX)로 판단합니다(#184).
  *
  * @param {object} props
  * @param {number} props.x 도착지의 지도 x 좌표
  * @param {number} props.y 도착지의 지도 y 좌표
+ * @param {number} [props.screenX] 확대한 화면에서 도착지의 x 좌표. 없으면 x와 같아요(확대하지 않음)
  * @param {string} props.name 도착지 도시 이름
  */
-export default function DestinationLabel({ x, y, name }) {
-  const isFlipped = x + GAP + BOX.width > VISIBLE_RIGHT_X;
+export default function DestinationLabel({ x, y, screenX = x, name }) {
+  const isFlipped = screenX + GAP + BOX.width > VISIBLE_RIGHT_X;
 
   return (
     <foreignObject

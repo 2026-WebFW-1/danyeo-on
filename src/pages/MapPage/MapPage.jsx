@@ -5,6 +5,7 @@ import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { PERIOD_PARAM, TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
 import { useLegModeDraft } from '@/hooks/useLegModeDraft';
+import { useMapZoom } from '@/hooks/useMapZoom';
 import { usePlayback } from '@/hooks/usePlayback';
 import { canEditLegMode } from '@/utils/legMode';
 import { parsePeriod } from '@/utils/mapScreen';
@@ -16,6 +17,7 @@ import ArrivalStack from './ArrivalStack';
 import JourneyRefreshNotice from './JourneyRefreshNotice';
 import LegModePanel from './LegModePanel';
 import MapHeader from './MapHeader';
+import MapZoomControls from './MapZoomControls';
 import MoveLegend from './MoveLegend';
 import PeriodTabs from './PeriodTabs';
 import PlaybackControls from './PlaybackControls';
@@ -46,6 +48,8 @@ const NO_STOPS = [];
  *    라벨은 지나온 구간에만 있어서, 들어갈 때 재생을 멈추고 끝으로 옮겨 전체 동선과 라벨을 다 보여 줍니다.
  *  - 고치면 Journey가 다시 계산돼 legs가 새 배열로 오지만, 같은 경로라 재생 위치는 그대로입니다(usePlayback).
  *    계산 중이거나 실패하면 머리 아래에 알리고, 실패하면 거기서 다시 계산합니다(JourneyRefreshNotice).
+ *  - 지도는 휠 · 끌기 · 오른쪽 버튼으로 확대하고 옮깁니다(useMapZoom, #184). 기간을 바꿔도 보던 자리는 그대로입니다.
+ *    여행이 없는 계정은 볼 경로가 없어서 버튼을 두지 않습니다.
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -67,6 +71,7 @@ export default function MapPage() {
   const { displayLegs, changes, setMode, clear } = useLegModeDraft(legs);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [highlightedLegId, setHighlightedLegId] = useState(null);
+  const { ref: mapRef, zoom, isDragging, zoomIn, zoomOut, reset: resetZoom } = useMapZoom();
   const hasEditableLeg = legs.some(canEditLegMode);
 
   const handleStartEdit = () => {
@@ -126,6 +131,9 @@ export default function MapPage() {
         isLegModeEditing={isEditing}
         onChangeLegMode={setMode}
         highlightedLegId={isEditing ? highlightedLegId : null}
+        ref={mapRef}
+        zoom={zoom}
+        isDragging={isDragging}
         className="absolute inset-0 size-full"
       />
 
@@ -141,6 +149,7 @@ export default function MapPage() {
           <MapHeader range={journey.periods[period]} trip={trip} />
           <PeriodTabs period={trip ? null : period} onSelect={handleSelectPeriod} />
           <PlaybackControls />
+          <MapZoomControls zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetZoom} />
           {isEditing ? (
             <LegModePanel
               legs={displayLegs}
