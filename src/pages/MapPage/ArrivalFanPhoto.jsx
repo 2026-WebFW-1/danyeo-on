@@ -17,22 +17,24 @@ import { cn } from '@/utils/cn';
  *
  * @param {object} props
  * @param {import('@/utils/tripFanPhotos').FanPhoto} props.photo
- * @param {import('@/utils/tripFanPhotos').FanPose} props.pose
+ * @param {import('@/utils/tripFanPhotos').FanPose} [props.pose] 펼쳤을 때의 자리. 접혀 있으면 없어요
  * @param {number} props.index 펼치는 순서
  * @param {boolean} props.isOpen
  * @param {boolean} props.isLoaded 한 번이라도 펼쳤으면 true. 그때부터 이미지를 받아요
  */
 export default function ArrivalFanPhoto({ photo, pose, index, isOpen, isLoaded }) {
   const src = usePhoto(isLoaded ? photo.fileKey : null, 'thumb');
-  const transform = isOpen
-    ? `translate(-50%, -50%) translate(${pose.x}px, ${pose.y}px) rotate(${pose.rotate}deg)`
-    : 'translate(-50%, -50%) scale(0.5)';
+  const transform =
+    isOpen && pose
+      ? `translate(-50%, -50%) translate(${pose.x}px, ${pose.y}px) rotate(${pose.rotate}deg)`
+      : 'translate(-50%, -50%) scale(0.5)';
 
   return (
     <li
       className={cn(
         'absolute top-0 left-0 w-44 bg-white p-2 pb-1.5 shadow-[0px_10px_28px_0px_rgba(0,0,0,0.12)] transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)] motion-reduce:transition-none',
-        isOpen ? 'opacity-100' : 'opacity-0',
+        // 펼친 사진도 마우스를 받아야, 사진 위에 있는 동안 카드 더미가 접히지 않아요
+        isOpen ? 'pointer-events-auto opacity-100' : 'opacity-0',
       )}
       style={{ transform, transitionDelay: isOpen ? `${index * ARRIVAL_FAN_STAGGER_MS}ms` : '0ms' }}
     >

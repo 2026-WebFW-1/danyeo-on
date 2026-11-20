@@ -32,3 +32,6 @@ export const ARRIVAL_FAN_BOUNDS = { minX: -640, maxX: -30, minY: -360, maxY: -50
 
 // 하나씩 이어서 던져지게 사진마다 늦추는 시간(ms)이에요.
 export const ARRIVAL_FAN_STAGGER_MS = 35;
+
+// 마우스가 카드 · 사진 밖으로 나가고 이만큼(ms) 지나야 접어요. 사진 사이 빈틈을 지날 때 접혔다 펼쳐지지 않게요.
+export const ARRIVAL_FAN_CLOSE_DELAY_MS = 200;

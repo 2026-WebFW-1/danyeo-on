@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
+import { ARRIVAL_FAN_CLOSE_DELAY_MS } from '@/constants/arrivalFan';
 import ArrivalCards from '@/pages/MapPage/ArrivalCards';
 import { usePlaybackStore } from '@/stores/playbackStore';
 import { buildTimeline } from '@/utils/playback';
@@ -47,11 +48,20 @@ async function hover() {
   );
 }
 
-async function unhover() {
+// 사진 사이 빈틈을 지날 때 접히지 않게 잠깐 기다렸다 접어서, 그 시간만큼 기다려요.
+async function unhover({ wait = true } = {}) {
   const card = container.querySelector('article');
-  await act(() =>
-    card.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })),
-  );
+  await act(async () => {
+    card.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+    if (wait) await new Promise((resolve) => setTimeout(resolve, ARRIVAL_FAN_CLOSE_DELAY_MS + 50));
+  });
+}
+
+function getPhotoTransforms() {
+  return [...getFan().querySelectorAll('li')].map((li) => [
+    li.querySelector('p').textContent,
+    li.style.transform,
+  ]);
 }
 
 function setPlaying(isPlaying) {
@@ -155,5 +165,36 @@ describe('ArrivalCards 사진 펼치기 (#187)', () => {
     expect(getFan()).toBeNull();
     expect(getSection().hasAttribute('tabindex')).toBe(false);
     expect(usePlaybackStore.getState().isPlaying).toBe(true);
+  });
+
+  test('마우스가 잠깐 나갔다 바로 들어오면 접지 않아요', async () => {
+    setPlaying(false);
+    await render();
+
+    await hover();
+    await unhover({ wait: false });
+    await hover();
+    await act(() => new Promise((resolve) => setTimeout(resolve, ARRIVAL_FAN_CLOSE_DELAY_MS + 50)));
+
+    expect(getFan().getAttribute('aria-hidden')).toBe('false');
+  });
+
+  test('펼친 동안 사진 목록이 늦게 도착해도 보이던 사진은 그 자리에 그대로예요', async () => {
+    setPlaying(false);
+    vi.mocked(useMyPhotos).mockReturnValue({ photos: [], status: 'loading', error: null });
+    await render();
+
+    await hover();
+    const before = getPhotoTransforms();
+
+    vi.mocked(useMyPhotos).mockReturnValue({ photos: PHOTOS, status: 'ready', error: null });
+    await render();
+
+    expect(getPhotoTransforms()).toEqual(before);
+
+    // 다음에 펼칠 때는 새 목록으로 펼쳐요
+    await unhover();
+    await hover();
+    expect(getFan().querySelectorAll('li').length).toBeGreaterThan(before.length);
   });
 });
