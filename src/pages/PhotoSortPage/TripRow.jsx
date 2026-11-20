@@ -12,24 +12,26 @@ import TripPhotos from './TripPhotos';
  * 07a 여행 표의 줄 하나예요. 번호 · 이름 ✎ · 기간 | 도시 칩(머문 날 수) | 썸네일 3장 · 장수.
  *
  * 호출: TripTable이 여행마다 그려요.
- * <TripRow trip={trip} canEdit onRename={(name) => handleRename(trip, name)} onExclude={handleExclude} />
+ * <TripRow trip={trip} canEdit onRename={(name) => handleRename(trip, name)} onExclude={handleExclude} onSplit={handleSplit} />
  *
  * 의도:
  *  - 도시 칩은 03 도시 블록처럼 경유 지점을 빼고 지점마다 하나씩, 사이를 짧은 선으로 이어요. 도시가 많으면 다음 줄로 넘어가요.
  *  - 썸네일은 줄이 화면 가까이 왔을 때 그려요(useInView). 그 전에는 같은 크기의 회색 칸이에요.
- *  - ⋯를 누르면 줄 아래에 그 여행의 사진을 펼쳐, 사진마다 [빼기]로 뺄 수 있어요. 펼침은 이 줄에서만 쓰는 값이라 여기 둬요.
- *  - 이 여행의 이름 바꾸기 · 빼기는 하나씩 보내요. 요청이 끝날 때까지 ✎ · [저장] · 다른 [빼기]를 막아요.
+ *  - ⋯를 누르면 줄 아래에 그 여행의 사진을 펼쳐, 사진마다 [빼기]로 빼거나 [여기서 나누기]로 나눌 수 있어요.
+ *    펼침은 이 줄에서만 쓰는 값이라 여기 둬요.
+ *  - 이 여행의 이름 바꾸기 · 빼기 · 나누기는 하나씩 보내요. 요청이 끝날 때까지 ✎ · [저장] · 다른 사진 버튼을 막아요.
  *    둘 다 지금 보정으로 입력을 만들어서(buildTripRenameInput · buildTripExcludeInputs), 이름을 옮겨 거는 빼기가 끝나기
  *    전에 새 기준 사진을 빼면 옮긴 걸 모른 채 빼서 이름이 사라져요. 끝나면 보정 목록이 바뀌어 다음 입력은 새 값으로 만들어요.
- *  - 피그마의 체크박스(합치기 C106) · ✂(나누기 C105)는 이 이슈에서 다루지 않아요.
+ *  - 나누기(C105)는 피그마의 줄 ✂ 대신 펼친 사진의 [여기서 나누기]로 해요(#191). 체크박스(합치기 C106)는 다루지 않아요.
  *
  * @param {object} props
  * @param {import('@/utils/photoSort').SortTripRow} props.trip
  * @param {boolean} props.canEdit 보정을 다 불러왔을 때만 true. 이름 바꾸기와 사진 빼기를 막아요
  * @param {(name: string) => Promise<unknown>} props.onRename
  * @param {(photoId: string) => Promise<unknown>} props.onExclude
+ * @param {(photoId: string) => Promise<unknown>} props.onSplit
  */
-export default function TripRow({ trip, canEdit, onRename, onExclude }) {
+export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit }) {
   const { ref: thumbsRef, isInView } = useInView();
   const [isOpen, setIsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -93,7 +95,7 @@ export default function TripRow({ trip, canEdit, onRename, onExclude }) {
             onClick={() => setIsOpen((prev) => !prev)}
             aria-expanded={isOpen}
             aria-controls={panelId}
-            aria-label={`${trip.name} 사진 ${isOpen ? '접기' : '펼쳐 빼기'}`}
+            aria-label={`${trip.name} 사진 ${isOpen ? '접기' : '펼치기'}`}
             className={cn(
               'px-1 font-serif text-lg font-bold text-muted hover:text-ink',
               isOpen && 'text-ink',
@@ -109,8 +111,10 @@ export default function TripRow({ trip, canEdit, onRename, onExclude }) {
           <TripPhotos
             tripName={trip.name}
             photos={trip.photos}
-            canExclude={canEditNow}
+            pendingSplitPhotoIds={trip.pendingSplitPhotoIds}
+            canEdit={canEditNow}
             onExclude={(photoId) => sendOne(() => onExclude(photoId))}
+            onSplit={(photoId) => sendOne(() => onSplit(photoId))}
           />
         </div>
       )}

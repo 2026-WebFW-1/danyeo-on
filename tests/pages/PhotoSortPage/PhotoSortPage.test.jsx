@@ -248,7 +248,7 @@ describe('PhotoSortPage 사진 빼기', () => {
   test('⋯를 누르면 그 여행 사진을 펼치고, [빼기]는 그 사진에 exclude 보정을 더해요', async () => {
     await render('/edit/photos');
 
-    const toggle = container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]');
+    const toggle = container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]');
     await click(toggle);
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -266,7 +266,7 @@ describe('PhotoSortPage 사진 빼기', () => {
     mockCorrections({ addMany: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
     await click(buttonsByText('빼기')[0]);
 
     expect(container.querySelector('[role="alert"]').textContent).toBe('사진을 빼지 못했어요');
@@ -276,7 +276,7 @@ describe('PhotoSortPage 사진 빼기', () => {
     mockCorrections({ corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }] });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
 
     expect(listItems('방콕 · 다낭 사진')).toHaveLength(bangkokPhotoIds.length - 1);
     expect(tabs().find((tab) => tab.textContent.includes('제외한 사진')).textContent).toContain(
@@ -296,7 +296,7 @@ describe('PhotoSortPage 사진 빼기', () => {
     vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', error: null });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
     const total = manyIds.length + stopOf(bangkok.stopIds[1]).photoIds.length;
     expect(listItems('방콕 · 다낭 사진')).toHaveLength(48);
 
@@ -308,9 +308,51 @@ describe('PhotoSortPage 사진 빼기', () => {
     mockCorrections({ status: 'loading' });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
 
     expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
+  });
+});
+
+describe('PhotoSortPage 여행 나누기', () => {
+  const openBangkok = () =>
+    click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
+
+  test('[여기서 나누기]는 그 사진에 split 보정을 더하고, 첫 사진에는 없어요', async () => {
+    await render('/edit/photos');
+    await openBangkok();
+
+    expect(buttonsByText('여기서 나누기')).toHaveLength(bangkokPhotoIds.length - 1);
+
+    await click(buttonsByText('여기서 나누기')[0]);
+
+    expect(corrections.add).toHaveBeenCalledExactlyOnceWith({
+      type: 'split',
+      beforePhotoId: bangkokPhotoIds[1],
+    });
+  });
+
+  test('나누기가 실패하면 그 사진 칸에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCorrections({ add: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
+    await render('/edit/photos');
+    await openBangkok();
+
+    await click(buttonsByText('여기서 나누기')[0]);
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe('여행을 나누지 못했어요');
+  });
+
+  test('저장한 나누기는 다시 계산하기 전까지 그 사진에 정리 중이라고 적고 [여기서 나누기]를 숨겨요', async () => {
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'split', beforePhotoId: bangkokPhotoIds[2] }],
+    });
+    await render('/edit/photos');
+    await openBangkok();
+
+    const card = listItems('방콕 · 다낭 사진')[2];
+    expect(card.textContent).toContain('여기서 나눠요 · 정리 중');
+    expect(buttonsByText('여기서 나누기')).toHaveLength(bangkokPhotoIds.length - 2);
   });
 });
 
@@ -484,7 +526,7 @@ describe('PhotoSortPage 이름을 정한 사진 빼기', () => {
     });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="졸업 전 여행 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="졸업 전 여행 사진 펼치기"]'));
     await click(buttonsByText('빼기')[0]);
 
     expect(bangkokPhotoIds[0]).toBe(bangkok.id);
@@ -523,7 +565,7 @@ describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
     });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
     await click(buttonsByText('빼기')[0]);
 
     expect(buttonsByText('빼기').every((button) => button.disabled)).toBe(true);
@@ -549,7 +591,7 @@ describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
     });
     await render('/edit/photos');
 
-    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼쳐 빼기"]'));
+    await click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
     await click(renameButton('방콕 · 다낭'));
     await type(nameInput(), '졸업 전 여행');
     await click(buttonByText('저장'));

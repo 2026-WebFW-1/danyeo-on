@@ -55,11 +55,15 @@ export default function ExcludedTab({ photos, status, onRestore }) {
             key={photo.id}
             fileKey={photo.fileKey}
             caption={photo.takenAt ? formatDateRange(photo.takenAt, photo.takenAt) : '날짜 없음'}
-            actionLabel="복구"
-            workingLabel="복구하는 중…"
-            failMessage="복구하지 못했어요"
             canAct
-            onAction={() => onRestore(photo)}
+            actions={[
+              {
+                label: '복구',
+                workingLabel: '복구하는 중…',
+                failMessage: '복구하지 못했어요',
+                onAction: () => onRestore(photo),
+              },
+            ]}
           />
         )}
       />
