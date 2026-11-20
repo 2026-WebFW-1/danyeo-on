@@ -101,6 +101,29 @@ describe('useMapZoom', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  test('줄 · 페이지 단위로 오는 휠도 px로 바꿔서 확대해요', async () => {
+    const wheel = (deltaMode, deltaY) =>
+      new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaMode,
+        deltaY,
+        ...getPoint(400, 200),
+      });
+
+    // 픽셀 300 ≈ 줄 18.75(16px) — 같은 만큼 굴린 셈이에요
+    await dispatch(getSvg(), wheel(WheelEvent.DOM_DELTA_PIXEL, -300));
+    const byPixel = latest.zoom.k;
+    await act(() => latest.reset());
+    await dispatch(getSvg(), wheel(WheelEvent.DOM_DELTA_LINE, -300 / 16));
+    expect(latest.zoom.k).toBeCloseTo(byPixel);
+
+    // 한 페이지(-1)는 지도 높이만큼이라 크게 확대돼요
+    await act(() => latest.reset());
+    await dispatch(getSvg(), wheel(WheelEvent.DOM_DELTA_PAGE, -0.25));
+    expect(latest.zoom.k).toBeGreaterThan(1.3);
+  });
+
   test('버튼으로 확대 · 축소하고 처음으로 돌아가요', async () => {
     await act(() => latest.zoomIn());
     expect(latest.zoom.k).toBeCloseTo(MAP_ZOOM_STEP);

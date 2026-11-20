@@ -9,7 +9,21 @@ import {
 import { IDENTITY_ZOOM, panBy, zoomAt } from '@/utils/mapZoom';
 
 // 휠의 deltaMode가 줄(1)이면 px로 바꿔요. 브라우저마다 한 줄이 16px 안팎이에요.
+// 페이지(2) 단위는 한 번에 deltaY가 1 안팎으로 와서, 그대로 쓰면 거의 확대되지 않아요. 지도 높이를 한 페이지로 봐요.
 const LINE_HEIGHT_PX = 16;
+
+/**
+ * 휠이 굴린 양을 px로 바꿔요.
+ *
+ * @param {WheelEvent} event
+ * @param {number} pageHeightPx 한 페이지로 볼 높이
+ * @returns {number}
+ */
+function toWheelPixels(event, pageHeightPx) {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * LINE_HEIGHT_PX;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * pageHeightPx;
+  return event.deltaY;
+}
 
 /**
  * 01 지도를 휠로 확대하고 끌어서 옮기는 훅이에요(#184).
@@ -57,7 +71,7 @@ export function useMapZoom() {
 
     const handleWheel = (event) => {
       event.preventDefault();
-      const deltaY = event.deltaMode === 1 ? event.deltaY * LINE_HEIGHT_PX : event.deltaY;
+      const deltaY = toWheelPixels(event, svg.clientHeight || window.innerHeight);
       const speed = event.ctrlKey ? PINCH_ZOOM_SPEED : WHEEL_ZOOM_SPEED;
       const factor = Math.exp(-deltaY * speed);
       const center = toViewBox(event.clientX, event.clientY);
