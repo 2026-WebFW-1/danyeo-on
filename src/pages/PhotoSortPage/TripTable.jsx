@@ -9,7 +9,8 @@ const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-
  * 07a 여행 묶음 표예요. 머리 줄(TRIP · CITIES · PHOTOS) 아래로 여행을 시간 순서대로 그려요.
  *
  * 호출: PhotoSortPage가 여행 탭에서 그려요.
- * <TripTable trips={trips} canEdit onRename={handleRename} onExclude={handleExclude} onSplit={handleSplit} />
+ * <TripTable trips={trips} canEdit onRename={handleRename} onExclude={handleExclude} onSplit={handleSplit}
+ *   onUndoSplit={handleUndoSplit} />
  *
  * 의도: 여행이 하나도 없으면 고칠 게 없어서 03 · 01과 같은 안내로 사진 올리기에 보내요.
  *
@@ -19,8 +20,9 @@ const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-
  * @param {(trip: import('@/utils/photoSort').SortTripRow, name: string) => Promise<unknown>} props.onRename
  * @param {(trip: import('@/utils/photoSort').SortTripRow, photoId: string) => Promise<unknown>} props.onExclude
  * @param {(photoId: string) => Promise<unknown>} props.onSplit 이 사진부터 새 여행으로 나눠요
+ * @param {(trip: import('@/utils/photoSort').SortTripRow) => Promise<unknown>} props.onUndoSplit
  */
-export default function TripTable({ trips, canEdit, onRename, onExclude, onSplit }) {
+export default function TripTable({ trips, canEdit, onRename, onExclude, onSplit, onUndoSplit }) {
   if (trips.length === 0) {
     return (
       <div className={`${SECTION_CLASS} flex justify-center pt-12`}>
@@ -45,6 +47,7 @@ export default function TripTable({ trips, canEdit, onRename, onExclude, onSplit
             onRename={(name) => onRename(trip, name)}
             onExclude={(photoId) => onExclude(trip, photoId)}
             onSplit={onSplit}
+            onUndoSplit={() => onUndoSplit(trip)}
           />
         ))}
       </ul>

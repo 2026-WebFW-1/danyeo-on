@@ -315,6 +315,7 @@ describe('PhotoSortPage 사진 빼기', () => {
 });
 
 describe('PhotoSortPage 여행 나누기', () => {
+  const secondTripFirstPhotoId = () => stopOf(seojin.trips[1].stopIds[0]).photoIds[0];
   const openBangkok = () =>
     click(container.querySelector('button[aria-label="방콕 · 다낭 사진 펼치기"]'));
 
@@ -353,6 +354,40 @@ describe('PhotoSortPage 여행 나누기', () => {
     const card = listItems('방콕 · 다낭 사진')[2];
     expect(card.textContent).toContain('여기서 나눠요 · 정리 중');
     expect(buttonsByText('여기서 나누기')).toHaveLength(bangkokPhotoIds.length - 2);
+  });
+
+  test('나눠서 생긴 줄의 [나누기 취소]는 그 줄을 떼어 낸 split을 모두 지워요', async () => {
+    // 두 번째 여행의 첫 사진 앞에서 나눈 뒤 다시 계산한 상태예요. 첫 여행은 앞 여행이 없어 나눌 수 없어요.
+    const firstPhotoId = secondTripFirstPhotoId();
+    mockCorrections({
+      corrections: [
+        { id: 'c_1', type: 'split', beforePhotoId: firstPhotoId },
+        { id: 'c_2', type: 'split', beforePhotoId: firstPhotoId },
+      ],
+    });
+    await render('/edit/photos');
+
+    const undoButtons = buttonsByText('나누기 취소');
+    expect(undoButtons).toHaveLength(1);
+
+    await click(undoButtons[0]);
+
+    expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_1', 'c_2']);
+  });
+
+  test('나누기 취소가 실패하면 버튼 옆에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'split', beforePhotoId: secondTripFirstPhotoId() }],
+      removeMany: vi.fn().mockRejectedValue({ code: 'REMOVE_FAILED' }),
+    });
+    await render('/edit/photos');
+
+    await click(buttonByText('나누기 취소'));
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe(
+      '나누기를 취소하지 못했어요',
+    );
   });
 });
 
