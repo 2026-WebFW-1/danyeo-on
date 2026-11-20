@@ -6,6 +6,7 @@ import PostEditor from '@/pages/ChapterPage/PostEditor';
 import { getPosts, savePost } from '@/services/postService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
+import { readDraft } from '@/utils/postDraft';
 
 vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
 
@@ -88,6 +89,7 @@ afterEach(async () => {
   container.remove();
   usePostStore.getState().reset();
   useAuthStore.getState().reset();
+  localStorage.clear();
   vi.resetAllMocks();
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
 });
@@ -433,6 +435,28 @@ describe('저장', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  test('저장 중에는 제목·본문·태그를 고칠 수 없어요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(titleInput().disabled).toBe(true);
+    expect(bodyInput().disabled).toBe(true);
+    expect(tagInput().disabled).toBe(true);
+
+    // when
+    await act(async () => request.resolve());
+
+    // then
+    expect(titleInput().disabled).toBe(false);
+  });
+
   test('새 글은 사진 없이 저장해요', async () => {
     // given
     vi.mocked(savePost).mockResolvedValue();
@@ -479,7 +503,7 @@ describe('저장', () => {
     expect(saveButton().disabled).toBe(false);
   });
 
-  test('실패하면 쓴 내용이 그대로이고, 다시 누르면 저장돼요', async () => {
+  test('실패하면 쓴 내용이 그대로이고, [다시 시도]가 같은 내용으로 저장해요', async () => {
     // given
     vi.mocked(savePost).mockRejectedValueOnce({ status: 500, code: 'x', message: '실패' });
     await open();
@@ -490,7 +514,8 @@ describe('저장', () => {
     await click(saveButton());
 
     // then
-    expect(container.textContent).toContain('저장 실패');
+    expect(container.querySelector('[role="alert"]').textContent).toContain('저장하지 못했어요');
+    expect(container.querySelector('[role="status"]').textContent).toBe('');
     expect(titleInput().value).toBe('새 제목');
     expect(tagInput().value).toBe('여름');
     expect(saveButton().disabled).toBe(false);
@@ -498,10 +523,11 @@ describe('저장', () => {
 
     // when
     vi.mocked(savePost).mockResolvedValue();
-    await click(saveButton());
+    await click(findButton('다시 시도'));
 
     // then
-    expect(container.textContent).not.toContain('저장 실패');
+    expect(savePost).toHaveBeenNthCalledWith(2, ...vi.mocked(savePost).mock.calls[0]);
+    expect(container.textContent).not.toContain('저장하지 못했어요');
     await passNotice();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(tagTexts()).toEqual([...post.tags, '여름']);
@@ -510,6 +536,75 @@ describe('저장', () => {
 });
 
 describe('취소', () => {
+  const LEAVE_QUESTION = '저장하지 않은 내용이 있어요. 닫을까요?';
+
+  beforeEach(() => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  test('고친 게 없으면 묻지 않고 닫아요', async () => {
+    // given
+    await open();
+
+    // when
+    await click(cancelButton());
+
+    // then
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('고친 게 있으면 묻고, 아니요를 고르면 그대로예요', async () => {
+    // given
+    vi.mocked(window.confirm).mockReturnValue(false);
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(cancelButton());
+
+    // then
+    expect(window.confirm).toHaveBeenCalledWith(LEAVE_QUESTION);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(titleInput().value).toBe('새 제목');
+  });
+
+  test('확인하면 임시본도 지우고 닫아요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await open();
+    await type(titleInput(), '새 제목');
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(readDraft('u1', DATE)).not.toBeNull();
+
+    // when
+    await click(cancelButton());
+
+    // then
+    expect(window.confirm).toHaveBeenCalledWith(LEAVE_QUESTION);
+    expect(readDraft('u1', DATE)).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('확인하고 바로 편집기가 사라져도 임시본을 남기지 않아요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when: 0.5초가 지나기 전에 취소하고, 카드가 닫혀요
+    await click(cancelButton());
+    await act(async () => root.render(<div />));
+
+    // then
+    expect(readDraft('u1', DATE)).toBeNull();
+  });
+
   test('고치기 전 내용으로 돌아가고 닫아요', async () => {
     // given
     await open();
@@ -530,7 +625,7 @@ describe('취소', () => {
     expect(savePost).not.toHaveBeenCalled();
   });
 
-  test('저장 실패 뒤 취소하면, 다시 고쳐도 저장 실패가 보이지 않아요', async () => {
+  test('저장 실패 뒤 취소하면, 다시 고쳐도 실패 안내가 보이지 않아요', async () => {
     // given
     vi.mocked(savePost).mockRejectedValue({ status: 500, code: 'x', message: '실패' });
     await open();
@@ -541,16 +636,16 @@ describe('취소', () => {
     await click(cancelButton());
 
     // then
-    expect(container.textContent).not.toContain('저장 실패');
+    expect(container.textContent).not.toContain('저장하지 못했어요');
 
     // when
     await type(titleInput(), '또 고침');
 
     // then
-    expect(container.textContent).not.toContain('저장 실패');
+    expect(container.textContent).not.toContain('저장하지 못했어요');
   });
 
-  test('저장 실패 뒤 닫았다 다시 열어 고쳐도 저장 실패가 보이지 않아요', async () => {
+  test('저장 실패 뒤 닫았다 다시 열어 고쳐도 실패 안내가 보이지 않아요', async () => {
     // given
     vi.mocked(savePost).mockRejectedValue({ status: 500, code: 'x', message: '실패' });
     await open();
@@ -563,6 +658,241 @@ describe('취소', () => {
     await type(titleInput(), '또 고침');
 
     // then
-    expect(container.textContent).not.toContain('저장 실패');
+    expect(container.textContent).not.toContain('저장하지 못했어요');
+  });
+});
+
+describe('임시 보관', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const pass = (ms) => act(async () => vi.advanceTimersByTime(ms));
+  const findText = (text) => container.textContent.includes(text);
+
+  /** 서버 글(10:00 저장)과 견줄 임시본을 저장소에 바로 넣어요. */
+  function storeDraft(userId, savedAt, title = '맡겨 둔 제목') {
+    localStorage.setItem(
+      `post-draft:${userId}:${DATE}`,
+      JSON.stringify({ title, body: post.body, tags: post.tags, photoIds: post.photoIds, savedAt }),
+    );
+  }
+
+  test('고치면 0.5초 뒤에 임시본이 생겨요', async () => {
+    // given
+    await open();
+
+    // when
+    await type(titleInput(), '새 제목');
+    await pass(499);
+
+    // then
+    expect(readDraft('u1', DATE)).toBeNull();
+
+    // when
+    await pass(1);
+
+    // then
+    expect(readDraft('u1', DATE)).toMatchObject({ title: '새 제목', body: post.body });
+  });
+
+  test('저장에 성공하면 임시본이 지워져요', async () => {
+    // given
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+    await type(titleInput(), '새 제목');
+    await pass(500);
+    expect(readDraft('u1', DATE)).not.toBeNull();
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(readDraft('u1', DATE)).toBeNull();
+  });
+
+  test('서버 글보다 새로운 임시본이 있으면 묻고, [불러오기]하면 그 내용으로 채워요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T11:00:00Z');
+
+    // when
+    await open();
+
+    // then
+    expect(findText('저장 안 한 글이 있어요')).toBe(true);
+    expect(titleInput().value).toBe(post.title);
+
+    // when
+    await click(findButton('불러오기'));
+
+    // then
+    expect(findText('저장 안 한 글이 있어요')).toBe(false);
+    expect(titleInput().value).toBe('맡겨 둔 제목');
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  test('[버리기]하면 서버 글 그대로이고 임시본이 지워져요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T11:00:00Z');
+    await open();
+
+    // when
+    await click(findButton('버리기'));
+
+    // then
+    expect(findText('저장 안 한 글이 있어요')).toBe(false);
+    expect(titleInput().value).toBe(post.title);
+    expect(readDraft('u1', DATE)).toBeNull();
+  });
+
+  test('서버 글보다 오래된 임시본이면 묻지 않아요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T09:00:00Z');
+
+    // when
+    await open();
+
+    // then
+    expect(findText('저장 안 한 글이 있어요')).toBe(false);
+  });
+
+  test('다른 계정의 임시본은 보이지 않아요', async () => {
+    // given
+    storeDraft('u2', '2025-07-12T11:00:00Z');
+
+    // when
+    await open();
+
+    // then
+    expect(findText('저장 안 한 글이 있어요')).toBe(false);
+  });
+
+  test('고친 뒤 0.5초가 지나기 전에 편집기가 사라져도 임시본이 남아요', async () => {
+    // given
+    await open();
+    await type(titleInput(), '새 제목');
+    await pass(100);
+
+    // when: 앱 안 링크로 다른 화면에 가요
+    await act(async () => root.render(<div />));
+
+    // then
+    expect(readDraft('u1', DATE)).toMatchObject({ title: '새 제목' });
+  });
+
+  test('다른 계정으로 바뀌면 그 계정의 임시본을 묻고, 이전 계정의 입력은 남기지 않아요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T11:00:00Z', 'u1이 맡긴 제목');
+    storeDraft('u2', '2025-07-12T11:00:00Z', 'u2가 맡긴 제목');
+    await open();
+    await click(findButton('불러오기'));
+    expect(titleInput().value).toBe('u1이 맡긴 제목');
+
+    // when: 다른 탭에서 u2로 로그인해요
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+
+    // then
+    expect(titleInput().value).toBe(post.title);
+    expect(findText('저장 안 한 글이 있어요')).toBe(true);
+
+    // when
+    await click(findButton('불러오기'));
+
+    // then
+    expect(titleInput().value).toBe('u2가 맡긴 제목');
+  });
+
+  test('묻는 동안 고쳐도 맡겨 둔 임시본을 덮지 않아요', async () => {
+    // given
+    storeDraft('u1', '2025-07-12T11:00:00Z');
+    await open();
+
+    // when
+    await type(titleInput(), '다른 제목');
+    await pass(500);
+
+    // then
+    expect(readDraft('u1', DATE).title).toBe('맡겨 둔 제목');
+  });
+
+  test('로그인이 풀린 뒤에는 임시본을 쓰지 않아요', async () => {
+    // given
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await act(async () => useAuthStore.setState({ user: null }));
+    await pass(500);
+
+    // then
+    expect(localStorage.length).toBe(0);
+  });
+
+  test('localStorage가 오류를 던져도 고치고 저장할 수 있어요', async () => {
+    // given
+    const blocked = () => {
+      throw new Error('blocked');
+    };
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(blocked);
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+
+    // when
+    await type(titleInput(), '새 제목');
+    await pass(500);
+    await click(saveButton());
+
+    // then
+    expect(savePost).toHaveBeenCalledWith(expect.objectContaining({ title: '새 제목' }));
+    expect(findText('저장됨 · 방금')).toBe(true);
+  });
+});
+
+describe('떠나기', () => {
+  /** 탭을 닫거나 새로고침할 때처럼 beforeunload를 보내고, 막았는지 돌려줘요. */
+  function leavePage() {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  test('고친 게 있을 때만 탭 닫기·새로고침을 막아요', async () => {
+    // given
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+
+    // then
+    expect(leavePage()).toBe(false);
+
+    // when
+    await type(titleInput(), '새 제목');
+
+    // then
+    expect(leavePage()).toBe(true);
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(leavePage()).toBe(false);
+  });
+
+  test('편집기가 닫히면 더 막지 않아요', async () => {
+    // given
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await act(async () => root.render(null));
+
+    // then
+    expect(leavePage()).toBe(false);
   });
 });
