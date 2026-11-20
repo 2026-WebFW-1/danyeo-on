@@ -19,6 +19,11 @@ const stopOf = (id) => seojin.stops.find((stop) => stop.id === id);
 const photoIdsOf = (trip) => trip.stopIds.flatMap((id) => stopOf(id).photoIds);
 const rename = (anchorPhotoId, name) => ({ id: `c_${name}`, type: 'rename', anchorPhotoId, name });
 const exclude = (photoId, id = `c_${photoId}`) => ({ id, type: 'exclude', photoId });
+const split = (beforePhotoId, id = `c_split_${beforePhotoId}`) => ({
+  id,
+  type: 'split',
+  beforePhotoId,
+});
 const NONE = new Set();
 
 describe('selectSortTrips', () => {
@@ -155,6 +160,44 @@ describe('selectSortTrips 뺀 사진', () => {
     expect(rows.some((row) => row.id === gangneung.id)).toBe(false);
     expect(rows.map((row) => row.no).slice(0, 2)).toEqual(['01', '02']);
     expect(rows[1].id).toBe(seojin.trips[2].id);
+  });
+});
+
+describe('selectSortTrips 나누기', () => {
+  const photoOf = (id) => seojinSeed.photos.find((photo) => photo.id === id);
+
+  test('다시 계산해 나뉜 여행은 떼어 낸 split 보정을 splitIds로 줘요. 첫 여행은 앞 여행이 없어 비어 있어요', () => {
+    const [firstTrip, secondTrip] = seojin.trips;
+    const corrections = [split(photoIdsOf(firstTrip)[0]), split(photoIdsOf(secondTrip)[0])];
+
+    const [firstRow, secondRow] = selectSortTrips(seojin, corrections, seojinSeed.photos, NONE);
+
+    expect(firstRow.splitIds).toEqual([]);
+    expect(secondRow.splitIds).toEqual([corrections[1].id]);
+  });
+
+  test('나눈 자리의 사진이 여행에 없어도 시각이 두 여행 사이면 splitIds에 들어가요', () => {
+    const secondTrip = seojin.trips[1];
+    const { takenAt, offset } = photoOf(photoIdsOf(secondTrip)[0]);
+    const removedPhoto = { id: 'p_removed', takenAt, offset, lat: null, lng: null, fileKey: null };
+    const corrections = [split('p_removed')];
+
+    const rows = selectSortTrips(seojin, corrections, [...seojinSeed.photos, removedPhoto], NONE);
+
+    expect(rows[1].splitIds).toEqual([corrections[0].id]);
+  });
+
+  test('저장했지만 아직 다시 계산하지 않은 나누기는 그 사진을 pendingSplitPhotoIds로 줘요', () => {
+    const trip = tripByName('방콕 · 다낭');
+    const middlePhotoId = photoIdsOf(trip)[2];
+    const corrections = [split(middlePhotoId)];
+
+    const row = selectSortTrips(seojin, corrections, seojinSeed.photos, NONE).find(
+      (item) => item.id === trip.id,
+    );
+
+    expect(row.pendingSplitPhotoIds).toEqual([middlePhotoId]);
+    expect(row.splitIds).toEqual([]);
   });
 });
 
