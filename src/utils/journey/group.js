@@ -24,10 +24,16 @@ const COORD_SCALE = 1e5;
  * @property {import('@/types').LocatedPhoto[]} photos 시각 순
  * @property {number} firstAt 첫 사진의 실제 시각(밀리초)
  * @property {number} lastAt
- * @property {{ from: RawStop, at: number }} [cut] 나누는 시각이 없었으면 from 지점에 이어졌을 지점이에요. at은 그 시각
+ * @property {{ from: RawStop, firstAt: number, lastAt: number }} [cut] 나누는 시각이 없었으면 from 지점에 이어졌을 지점이에요.
+ *   firstAt · lastAt은 두 지점 사이에 있는 나누는 시각 중 처음과 마지막이에요
  */
 
-/** @typedef {{ stop: import('@/types').GroupStop, raw: RawStop }} StopEntry */
+/**
+ * @typedef {object} StopEntry
+ * @property {import('@/types').GroupStop} stop
+ * @property {RawStop} raw
+ * @property {import('@/types').Photo[]} filled fillByTime이 이 지점에 넣은 위치 없는 사진
+ */
 
 const roundCoord = (value) => Math.round(value * COORD_SCALE) / COORD_SCALE;
 const toTakenMs = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
@@ -40,10 +46,10 @@ const toPairs = (items) => items.slice(1).map((item, i) => [items[i], item]);
  * @param {number[]} splitAts 나누는 시각(밀리초)
  * @param {number} after 앞 사진의 시각. 이 시각은 넣지 않아요
  * @param {number} until 뒤 사진의 시각. 이 시각은 넣어요(그 사진부터 새 여행)
- * @returns {number | undefined} 두 시각 사이에 있는 나누는 시각
+ * @returns {number[]} 두 시각 사이에 있는 나누는 시각
  */
-const findSplitBetween = (splitAts, after, until) =>
-  splitAts.find((at) => after < at && at <= until);
+const findSplitsBetween = (splitAts, after, until) =>
+  splitAts.filter((at) => after < at && at <= until);
 
 /**
  * 자정 무렵 시간대를 넘나들면 현지 날짜가 촬영 순서와 거꾸로일 수 있어서, 처음·끝 사진이 아니라 가장 이른·늦은 날짜로 세요.
@@ -83,14 +89,16 @@ function buildStops(photos, splitAts) {
     const at = toTakenMs(photo);
     const current = stops.at(-1);
     const isSame = current && isSameStop(current, photo, at);
-    const cutAt = isSame ? findSplitBetween(splitAts, current.lastAt, at) : undefined;
-    if (isSame && cutAt === undefined) {
+    const cutAts = isSame ? findSplitsBetween(splitAts, current.lastAt, at) : [];
+    if (isSame && cutAts.length === 0) {
       addToStop(current, photo, at);
       continue;
     }
 
     const stop = { lat: photo.lat, lng: photo.lng, photos: [photo], firstAt: at, lastAt: at };
-    if (cutAt !== undefined) stop.cut = { from: current, at: cutAt };
+    if (cutAts.length > 0) {
+      stop.cut = { from: current, firstAt: Math.min(...cutAts), lastAt: Math.max(...cutAts) };
+    }
     stops.push(stop);
   }
   return stops;
@@ -125,6 +133,7 @@ function addToStop(stop, photo, at) {
  * 위치 없는 사진을 앞뒤로 찍은 위치 있는 사진의 지점에 넣어요.
  * 앞뒤가 다른 지점이면 이동 중에 찍었을 수 있어서 넣지 않아요.
  * 한 지점이 나누는 시각으로 갈라졌으면, 그 시각 앞은 앞 지점에, 그 시각부터는 뒤 지점에 넣어요.
+ * 그 사이를 두 번 이상 나눴으면 나누는 시각 사이의 사진은 어느 여행에도 넣지 않아요. 위치 없는 사진만으로는 여행이 될 수 없어서예요.
  *
  * @param {RawStop[]} stops
  * @param {import('@/types').LocatedPhoto[]} located buildStops에 넣은 사진, 시각 순
@@ -152,7 +161,9 @@ function fillByTime(stops, located, photos) {
     const prevStop = stopOf.get(prevPhoto);
     const nextStop = stopOf.get(nextPhoto);
     if (prevStop === nextStop) return prevStop;
-    if (nextStop.cut?.from === prevStop) return at < nextStop.cut.at ? prevStop : nextStop;
+    if (nextStop.cut?.from !== prevStop) return null;
+    if (at < nextStop.cut.firstAt) return prevStop;
+    if (at >= nextStop.cut.lastAt) return nextStop;
     return null;
   };
 
@@ -218,7 +229,8 @@ function groupIntoRegions(stops) {
  */
 function toGroupStop(raw, home, filledPhotos) {
   const first = raw.photos[0];
-  const days = countDays(raw.photos.map((photo) => photo.takenAt));
+  // 나누는 시각 뒤의 위치 없는 사진은 지점의 첫 위치 있는 사진보다 앞일 수 있어서, 넣은 사진까지 세요.
+  const days = countDays([...raw.photos, ...filledPhotos].map((photo) => photo.takenAt));
   const isHome = home !== null && calcDistanceKm(home, raw) <= SAME_PLACE_KM;
   // 안정 정렬이라 같은 시각이면 위치 있는 사진이 앞에 남아서, photoIds[0]이 지점 ID와 같아요.
   const photoIds = [...raw.photos, ...filledPhotos].toSorted(byTakenMs).map((photo) => photo.id);
@@ -260,7 +272,7 @@ function splitIntoRuns(entries, splitAts) {
     if (entry.stop.isHome) {
       current = null;
     } else {
-      const isSplit = findSplitBetween(splitAts, prevLastAt, entry.raw.firstAt) !== undefined;
+      const isSplit = findSplitsBetween(splitAts, prevLastAt, entry.raw.firstAt).length > 0;
       if (!current || entry.raw.firstAt - prevLastAt > MAX_TRIP_GAP_MS || isSplit) {
         current = [];
         runs.push(current);
@@ -283,7 +295,9 @@ function toTrip(run) {
     stopIds: stops.map((stop) => stop.id),
     from: stops[0].from,
     to: stops.at(-1).to,
-    days: countDays(run.flatMap((entry) => entry.raw.photos.map((photo) => photo.takenAt))),
+    days: countDays(
+      run.flatMap((entry) => [...entry.raw.photos, ...entry.filled].map((photo) => photo.takenAt)),
+    ),
     legs: toPairs(stops).map(([from, to]) => toLeg(from, to)),
   };
 }
@@ -313,16 +327,17 @@ export function group(photos, splitAts = []) {
     byTakenMs,
   );
   const rawStops = buildStops(located, splitAts);
-  const home = findHome(rawStops);
+  // 나누면 지점 중심이 옮겨 집이 바뀔 수 있어서, 집은 나누기 전 지점으로 정해요.
+  const home = findHome(splitAts.length > 0 ? buildStops(located, []) : rawStops);
 
   const timedOnly = photos.filter((photo) => hasTime(photo) && !isLocated(photo));
   const filledByStop = fillByTime(rawStops, located, timedOnly);
   const filled = new Set([...filledByStop.values()].flat());
 
-  const entries = rawStops.map((raw) => ({
-    raw,
-    stop: toGroupStop(raw, home, filledByStop.get(raw) ?? []),
-  }));
+  const entries = rawStops.map((raw) => {
+    const filledPhotos = filledByStop.get(raw) ?? [];
+    return { raw, filled: filledPhotos, stop: toGroupStop(raw, home, filledPhotos) };
+  });
 
   return {
     home,

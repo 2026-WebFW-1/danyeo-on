@@ -448,6 +448,58 @@ describe('group', () => {
       expect(result.unlocated).toEqual(['moving']);
     });
 
+    test('같은 지점의 두 사진 사이를 두 번 나누면, 두 시각 사이의 위치 없는 사진은 unlocated예요', () => {
+      // given: 서울 10:00 · 위치 없음 11:00 · 서울 12:00, 위치 없는 사진 앞과 12:00 사진 앞에서 나누기
+      const photos = [
+        makePhoto('a', '2025-01-01T10:00:00', '+09:00'),
+        makeNoGpsPhoto('b', '2025-01-01T11:00:00'),
+        makePhoto('c', '2025-01-01T12:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T11:00:00'), toMs('2025-01-01T12:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then: 위치 없는 사진 하나로는 여행이 될 수 없어서 위치 확인 필요로 가요
+      expect(result.stops.map((stop) => stop.photoIds)).toEqual([['a'], ['c']]);
+      expect(result.trips).toHaveLength(2);
+      expect(result.unlocated).toEqual(['b']);
+    });
+
+    test('나눈 지점과 여행의 머문 날에는 그 지점에 넣은 위치 없는 사진의 날짜도 세요', () => {
+      // given: 서울 01-01 22:00 · 위치 없음 01-01 23:00 · 서울 01-02 01:00, 위치 없는 사진 앞에서 나누기
+      const photos = [
+        makePhoto('a', '2025-01-01T22:00:00', '+09:00'),
+        makeNoGpsPhoto('b', '2025-01-01T23:00:00'),
+        makePhoto('c', '2025-01-02T01:00:00', '+09:00'),
+      ];
+      const splitAts = [toMs('2025-01-01T23:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then
+      expect(result.stops[1]).toMatchObject({ photoIds: ['b', 'c'], days: 2 });
+      expect(result.trips[1].days).toBe(2);
+    });
+
+    test('나눠서 지점 중심이 옮겨도 집은 나누기 전 지점으로 정해요', () => {
+      // given: 경도 129에서 위도 35 · 35.4 · 35.7로 하루씩 옮겨 찍은 사진(한 지점), 가운데 사진 앞에서 나누기
+      const photos = [
+        { id: 'a', takenAt: '2025-01-01T10:00:00', offset: '+09:00', lat: 35, lng: 129 },
+        { id: 'b', takenAt: '2025-01-02T10:00:00', offset: '+09:00', lat: 35.4, lng: 129 },
+        { id: 'c', takenAt: '2025-01-03T10:00:00', offset: '+09:00', lat: 35.7, lng: 129 },
+      ];
+      const splitAts = [toMs('2025-01-02T10:00:00')];
+
+      // when
+      const result = group(photos, splitAts);
+
+      // then: 나누기 전에는 지역이 하나라 집이 없어요. 나눈 뒤에도 집이 생기지 않고 여행이 둘이에요
+      expect(result.home).toBeNull();
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['a'], ['b']]);
+    });
+
     test.each([
       ['첫 사진', '2025-01-01T10:00:00'],
       ['마지막 사진 뒤', '2025-01-05T10:00:00'],
