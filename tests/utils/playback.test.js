@@ -55,6 +55,11 @@ describe('buildTimeline', () => {
     });
   });
 
+  test('지점에서는 도착 카드의 사진을 볼 수 있게 3초 머물러요 (#183)', () => {
+    const stopIndex = legs.findIndex((leg) => leg.to !== 'home');
+    expect(steps[stopIndex].stayMs).toBe(3000);
+  });
+
   test('전체 시간은 마지막 구간이 끝나는 시간이에요', () => {
     const last = steps.at(-1);
     expect(timeline.totalMs).toBe(last.startMs + last.moveMs + last.stayMs);
