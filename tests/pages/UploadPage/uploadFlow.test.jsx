@@ -37,8 +37,9 @@ vi.mock('@/services/authService', () => ({
 }));
 
 const user = { id: '내계정', email: 'seojin@demo.local', name: '서진' };
+// 촬영 시각이 없어서 정리 화면 끝에서 묻는 사진이에요.
 const file = new File(['원본'], '사진.jpg', { type: 'image/jpeg' });
-// 이름에 번호가 있어 정리 화면에서 묻지 않고 지나가는 사진이에요. file은 번호가 없어서 끝에서 물어요.
+// 촬영 시각이 있어서 정리 화면에서 묻지 않고 지나가는 사진이에요.
 const numbered = new File(['원본'], 'IMG_0001.jpg', { type: 'image/jpeg' });
 // 사진 줄은 한 장에 300ms쯤 머물다 저절로 지나가서, 다 지나갈 때까지 넉넉히 기다려요.
 const PASS_TIMEOUT = { timeout: 3000 };
@@ -121,15 +122,15 @@ beforeEach(() => {
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(new Blob(['썸네일'], { type: 'image/webp' }));
-  vi.mocked(readExif).mockResolvedValue({
+  vi.mocked(readExif).mockImplementation(async (picked) => ({
     readable: true,
-    takenAt: '2024-11-24T08:30:49',
+    takenAt: picked === file ? null : '2024-11-24T08:30:49',
     offset: null,
     timeUncertain: true,
     lat: null,
     lng: null,
     camera: null,
-  });
+  }));
   vi.mocked(authService.getSessionUser).mockResolvedValue(user);
   vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
   container = document.createElement('div');
