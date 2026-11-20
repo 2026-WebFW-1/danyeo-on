@@ -7,7 +7,7 @@ const PENDING_SPLIT_CAPTION = '여기서 나눠요 · 정리 중';
  * ⋯로 펼친 여행의 사진 목록이에요. 사진마다 [빼기]와 [여기서 나누기]가 있어요.
  *
  * 호출: TripRow가 펼쳤을 때 줄 아래에 그려요.
- * <TripPhotos tripName="방콕 · 다낭" photos={trip.photos} pendingSplitPhotoIds={trip.pendingSplitPhotoIds}
+ * <TripPhotos tripName="방콕 · 다낭" photos={trip.photos} splittingPhotoIds={trip.splittingPhotoIds}
  *   canEdit onExclude={handleExclude} onSplit={handleSplit} />
  *
  * 의도:
@@ -18,7 +18,7 @@ const PENDING_SPLIT_CAPTION = '여기서 나눠요 · 정리 중';
  * @param {object} props
  * @param {string} props.tripName
  * @param {import('@/types').PhotoRef[]} props.photos
- * @param {string[]} props.pendingSplitPhotoIds
+ * @param {string[]} props.splittingPhotoIds
  * @param {boolean} props.canEdit
  * @param {(photoId: string) => Promise<unknown>} props.onExclude 실패하면 던져요
  * @param {(photoId: string) => Promise<unknown>} props.onSplit 실패하면 던져요
@@ -26,7 +26,7 @@ const PENDING_SPLIT_CAPTION = '여기서 나눠요 · 정리 중';
 export default function TripPhotos({
   tripName,
   photos,
-  pendingSplitPhotoIds,
+  splittingPhotoIds,
   canEdit,
   onExclude,
   onSplit,
@@ -46,7 +46,7 @@ export default function TripPhotos({
       failMessage: '여행을 나누지 못했어요',
       onAction: () => onSplit(photo.id),
     };
-    const canSplit = photo.id !== firstPhotoId && !pendingSplitPhotoIds.includes(photo.id);
+    const canSplit = photo.id !== firstPhotoId && !splittingPhotoIds.includes(photo.id);
     return canSplit ? [exclude, split] : [exclude];
   };
 
@@ -63,7 +63,7 @@ export default function TripPhotos({
           <SortPhotoCard
             key={photo.id}
             fileKey={photo.fileKey}
-            caption={pendingSplitPhotoIds.includes(photo.id) ? PENDING_SPLIT_CAPTION : undefined}
+            caption={splittingPhotoIds.includes(photo.id) ? PENDING_SPLIT_CAPTION : undefined}
             canAct={canEdit}
             actions={buildActions(photo)}
           />

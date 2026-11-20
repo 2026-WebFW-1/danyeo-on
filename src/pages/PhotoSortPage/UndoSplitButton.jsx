@@ -3,7 +3,7 @@ import { useState } from 'react';
 /**
  * 나눠서 생긴 여행 줄의 [나누기 취소]예요. 누르면 그 줄을 떼어 낸 split 보정을 지워 앞 여행과 다시 합쳐요.
  *
- * 호출: TripRow가 trip.splitIds가 있을 때 기간 아래에 그려요.
+ * 호출: TripRow가 trip.splitCorrectionIds가 있을 때 기간 아래에 그려요.
  * <UndoSplitButton canUndo onUndo={() => sendOne(onUndoSplit)} />
  *
  * 의도:

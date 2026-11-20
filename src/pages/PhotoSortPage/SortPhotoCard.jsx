@@ -31,11 +31,11 @@ import PhotoGridCell from '@/components/common/PhotoGridCell';
  * @param {boolean} props.canAct 보정을 다 불러왔을 때만 true
  */
 export default function SortPhotoCard({ fileKey, caption, actions, canAct }) {
-  const [workingKey, setWorkingKey] = useState(null);
+  const [runningLabel, setRunningLabel] = useState(null);
   const [failMessage, setFailMessage] = useState(null);
 
   const handleClick = async (action) => {
-    setWorkingKey(action.label);
+    setRunningLabel(action.label);
     setFailMessage(null);
     try {
       await action.onAction();
@@ -43,7 +43,7 @@ export default function SortPhotoCard({ fileKey, caption, actions, canAct }) {
       console.error(error);
       setFailMessage(action.failMessage);
     } finally {
-      setWorkingKey(null);
+      setRunningLabel(null);
     }
   };
 
@@ -58,10 +58,10 @@ export default function SortPhotoCard({ fileKey, caption, actions, canAct }) {
               key={action.label}
               type="button"
               onClick={() => handleClick(action)}
-              disabled={!canAct || workingKey !== null}
+              disabled={!canAct || runningLabel !== null}
               className="border-b border-ink text-sm font-bold text-ink disabled:border-dim disabled:text-dim"
             >
-              {workingKey === action.label ? action.workingLabel : action.label}
+              {runningLabel === action.label ? action.workingLabel : action.label}
             </button>
           ))}
         </div>

@@ -166,17 +166,17 @@ describe('selectSortTrips 뺀 사진', () => {
 describe('selectSortTrips 나누기', () => {
   const photoOf = (id) => seojinSeed.photos.find((photo) => photo.id === id);
 
-  test('다시 계산해 나뉜 여행은 떼어 낸 split 보정을 splitIds로 줘요. 첫 여행은 앞 여행이 없어 비어 있어요', () => {
+  test('다시 계산해 나뉜 여행은 떼어 낸 split 보정을 splitCorrectionIds로 줘요. 첫 여행은 앞 여행이 없어 비어 있어요', () => {
     const [firstTrip, secondTrip] = seojin.trips;
     const corrections = [split(photoIdsOf(firstTrip)[0]), split(photoIdsOf(secondTrip)[0])];
 
     const [firstRow, secondRow] = selectSortTrips(seojin, corrections, seojinSeed.photos, NONE);
 
-    expect(firstRow.splitIds).toEqual([]);
-    expect(secondRow.splitIds).toEqual([corrections[1].id]);
+    expect(firstRow.splitCorrectionIds).toEqual([]);
+    expect(secondRow.splitCorrectionIds).toEqual([corrections[1].id]);
   });
 
-  test('나눈 자리의 사진이 여행에 없어도 시각이 두 여행 사이면 splitIds에 들어가요', () => {
+  test('나눈 자리의 사진이 여행에 없어도 시각이 두 여행 사이면 splitCorrectionIds에 들어가요', () => {
     const secondTrip = seojin.trips[1];
     const { takenAt, offset } = photoOf(photoIdsOf(secondTrip)[0]);
     const removedPhoto = { id: 'p_removed', takenAt, offset, lat: null, lng: null, fileKey: null };
@@ -184,10 +184,10 @@ describe('selectSortTrips 나누기', () => {
 
     const rows = selectSortTrips(seojin, corrections, [...seojinSeed.photos, removedPhoto], NONE);
 
-    expect(rows[1].splitIds).toEqual([corrections[0].id]);
+    expect(rows[1].splitCorrectionIds).toEqual([corrections[0].id]);
   });
 
-  test('저장했지만 아직 다시 계산하지 않은 나누기는 그 사진을 pendingSplitPhotoIds로 줘요', () => {
+  test('저장했지만 아직 다시 계산하지 않은 나누기는 그 사진을 splittingPhotoIds로 줘요', () => {
     const trip = tripByName('방콕 · 다낭');
     const middlePhotoId = photoIdsOf(trip)[2];
     const corrections = [split(middlePhotoId)];
@@ -196,8 +196,8 @@ describe('selectSortTrips 나누기', () => {
       (item) => item.id === trip.id,
     );
 
-    expect(row.pendingSplitPhotoIds).toEqual([middlePhotoId]);
-    expect(row.splitIds).toEqual([]);
+    expect(row.splittingPhotoIds).toEqual([middlePhotoId]);
+    expect(row.splitCorrectionIds).toEqual([]);
   });
 });
 

@@ -25,8 +25,8 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {number} photoCount 경유 지점의 사진은 빼요(selectTripStats와 같은 기준)
  * @property {import('@/types').PhotoRef[]} photos ⋯로 펼쳐 뺄 수 있는 사진. 경유 지점의 사진도 들어 있어요
  * @property {string | null} renameAnchorId 지금 이름을 정한 rename의 기준 사진. 자동 이름이면 null
- * @property {string[]} splitIds 이 여행을 앞 여행에서 떼어 낸 split 보정. [나누기 취소]가 지워요
- * @property {string[]} pendingSplitPhotoIds 나누기를 저장했지만 다시 계산하기 전이라 아직 이 여행 안에 있는 사진
+ * @property {string[]} splitCorrectionIds 이 여행을 앞 여행에서 떼어 낸 split 보정. [나누기 취소]가 지워요
+ * @property {string[]} splittingPhotoIds 나누기를 저장했지만 다시 계산하기 전이라 아직 이 여행 안에 있는 사진
  */
 
 /**
@@ -44,7 +44,7 @@ const isSplit = (correction) => correction.type === 'split';
 
 // group · buildJourney와 같게, 시간대가 없는 사진은 +09:00으로 봐요.
 const DEFAULT_OFFSET = '+09:00';
-const toInstant = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
+const toTakenMs = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
 
 // 날짜 없는 사진 묶음의 열쇠예요.
 const NO_DATE_KEY = 'none';
@@ -77,7 +77,7 @@ function collectSplits(corrections, photos) {
   return corrections.filter(isSplit).flatMap((correction) => {
     const photo = photoById.get(correction.beforePhotoId);
     if (!photo?.takenAt) return [];
-    return [{ id: correction.id, photoId: photo.id, at: toInstant(photo) }];
+    return [{ id: correction.id, photoId: photo.id, at: toTakenMs(photo) }];
   });
 }
 
@@ -87,8 +87,8 @@ function collectSplits(corrections, photos) {
  * 이름과 뺀 사진은 보정 목록으로 덮어 보여 줘요. buildJourney와 같은 규칙(그 여행 사진에 걸린 마지막 rename,
  * 뺀 사진은 지점에서 빠짐)이라 계산이 끝나 Journey가 바뀌어도 같은 값이에요.
  * 복구한 사진은 어느 지점에 들어갈지 계산해야 알 수 있어서, 계산이 끝난 뒤에 돌아와요.
- * 나누기도 계산이 끝나야 줄이 둘이 돼요. 그 전에는 나눌 사진을 pendingSplitPhotoIds로 알려요.
- * 나눠진 뒤에는 나누는 시각이 앞 여행이 끝난 뒤 ~ 이 여행 첫 사진 사이인 split을 이 여행의 splitIds로 봐요.
+ * 나누기도 계산이 끝나야 줄이 둘이 돼요. 그 전에는 나눌 사진을 splittingPhotoIds로 알려요.
+ * 나눠진 뒤에는 나누는 시각이 앞 여행이 끝난 뒤 ~ 이 여행 첫 사진 사이인 split을 이 여행의 splitCorrectionIds로 봐요.
  *
  * @param {import('@/types').Journey | null | undefined} journey
  * @param {import('@/types').Correction[]} corrections
@@ -116,7 +116,7 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
     const cityPhotoIds = cityStops.flatMap(keptPhotoIds);
     const tripPhotos = tripStops.flatMap(keptPhotoIds).map(toRef);
     const prevTrip = journey.trips[index - 1];
-    const splitIds = prevTrip
+    const splitCorrectionIds = prevTrip
       ? splits
           .filter(({ at }) => Date.parse(prevTrip.to) < at && at <= Date.parse(trip.from))
           .map((item) => item.id)
@@ -131,9 +131,9 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
       thumbs: cityPhotoIds.slice(0, SORT_THUMB_COUNT).map(toRef),
       photoCount: cityPhotoIds.length,
       photos: tripPhotos,
-      splitIds,
+      splitCorrectionIds,
       // 첫 사진 앞에서는 나눌 수 없어서, 첫 사진은 빼고 봐요.
-      pendingSplitPhotoIds: tripPhotos
+      splittingPhotoIds: tripPhotos
         .slice(1)
         .filter((photo) => splitPhotoIds.has(photo.id))
         .map((photo) => photo.id),

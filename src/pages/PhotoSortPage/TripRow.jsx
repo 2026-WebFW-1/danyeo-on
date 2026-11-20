@@ -21,7 +21,7 @@ import UndoSplitButton from './UndoSplitButton';
  *  - 썸네일은 줄이 화면 가까이 왔을 때 그려요(useInView). 그 전에는 같은 크기의 회색 칸이에요.
  *  - ⋯를 누르면 줄 아래에 그 여행의 사진을 펼쳐, 사진마다 [빼기]로 빼거나 [여기서 나누기]로 나눌 수 있어요.
  *    펼침은 이 줄에서만 쓰는 값이라 여기 둬요.
- *  - 나눠서 생긴 줄(trip.splitIds가 있음)에는 기간 아래 [나누기 취소]가 있어요.
+ *  - 나눠서 생긴 줄(trip.splitCorrectionIds가 있음)에는 기간 아래 [나누기 취소]가 있어요.
  *  - 이 여행의 이름 바꾸기 · 빼기 · 나누기는 하나씩 보내요. 요청이 끝날 때까지 ✎ · [저장] · 다른 사진 버튼을 막아요.
  *    둘 다 지금 보정으로 입력을 만들어서(buildTripRenameInput · buildTripExcludeInputs), 이름을 옮겨 거는 빼기가 끝나기
  *    전에 새 기준 사진을 빼면 옮긴 걸 모른 채 빼서 이름이 사라져요. 끝나면 보정 목록이 바뀌어 다음 입력은 새 값으로 만들어요.
@@ -65,7 +65,7 @@ export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit, o
           <p className="font-serif text-xs font-bold tracking-[0.2em] text-muted">
             {trip.dateRange}
           </p>
-          {trip.splitIds.length > 0 && (
+          {trip.splitCorrectionIds.length > 0 && (
             <UndoSplitButton canUndo={canEditNow} onUndo={() => sendOne(onUndoSplit)} />
           )}
         </div>
@@ -118,7 +118,7 @@ export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit, o
           <TripPhotos
             tripName={trip.name}
             photos={trip.photos}
-            pendingSplitPhotoIds={trip.pendingSplitPhotoIds}
+            splittingPhotoIds={trip.splittingPhotoIds}
             canEdit={canEditNow}
             onExclude={(photoId) => sendOne(() => onExclude(photoId))}
             onSplit={(photoId) => sendOne(() => onSplit(photoId))}
