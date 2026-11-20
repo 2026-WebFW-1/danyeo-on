@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from '@/constants/post';
+import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 import { cn } from '@/utils/cn';
+import { clearDraft, isDraftNewer, readDraft, writeDraft } from '@/utils/postDraft';
 import { formatPostDate, isPostDirty, normalizeTags } from '@/utils/postForm';
 
 import PostTagField from './PostTagField';
 
 const SAVED_NOTICE_MS = 1000;
+const DRAFT_DELAY_MS = 500;
 const EMPTY_POST = { title: '', body: '', tags: [], photoIds: [] };
 const FIELD_CLASS =
   'w-full border border-line bg-white px-4 py-3 text-lg leading-body-lg font-normal text-ink disabled:opacity-60';
@@ -16,7 +19,9 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
 /**
  * 그날의 글을 쓰고 고치는 편집기
  *
- * 책임: 그날 글을 보여 주고, 제목·본문·태그를 고쳐 저장합니다. 저장 중·저장됨·실패를 오른쪽 위에 보여 줍니다.
+ * 책임: 그날 글을 보여 주고, 제목·본문·태그를 고쳐 저장합니다. 저장 중·저장됨은 오른쪽 위에,
+ * 저장 실패는 편집기 안에 [다시 시도]와 함께 보여 줍니다(14b).
+ * 쓴 글을 잃지 않게 임시 보관, 다시 열 때 불러오기, 탭 닫기·[취소] 경고도 맡습니다(14b).
  * 왼쪽의 큰 사진과 챕터 머리는 02의 배치라 여기에 없습니다. 너비도 02가 정합니다.
  *
  * 호출: 02 챕터의 글 카드 자리(C). 카드 하나에 날짜 하나로 씁니다.
@@ -33,6 +38,11 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *  - 저장에 성공하면 "저장됨 · 방금"을 1초 보여 준 뒤 onClose를 부릅니다. 바로 닫으면 카드가 사라져 안내를 볼 수 없어요.
  *    그 사이에 다시 고치면 닫지 않습니다. 쓴 내용이 사라지지 않게요.
  *  - "저장 실패"는 스토어의 saveError로 보지 않습니다. saveError는 다음 저장까지 남아서, 취소하고 다시 열어도 보이게 돼요.
+ *  - 고친 게 있는 동안 0.5초마다 localStorage['post-draft:<userId>:<date>']에 임시본을 둡니다(utils/postDraft).
+ *    키에 계정 id가 있어서 다른 계정에는 안 보이고, 저장에 성공하거나 [취소]·[버리기]로 버리면 지웁니다.
+ *  - "저장 안 한 글이 있어요"가 떠 있는 동안에는 임시본을 쓰지 않습니다. 고르기 전에 맡겨 둔 글을 덮지 않게요.
+ *  - 앱 안 이동은 막지 않습니다. useBlocker는 createBrowserRouter에서만 동작해서, 대신 임시본으로 글을 지킵니다.
+ *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 window.confirm으로 묻습니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=195-158
  */
@@ -42,8 +52,10 @@ export default function PostEditor({ date, dayNumber, onClose }) {
   const isSaving = usePostStore((state) => Boolean(state.saving[date]));
   const fetchPosts = usePostStore((state) => state.fetch);
   const savePost = usePostStore((state) => state.save);
+  const userId = useAuthStore((state) => state.user?.id);
 
   const [draft, setDraft] = useState(null);
+  const [storedDraft, setStoredDraft] = useState(() => (userId ? readDraft(userId, date) : null));
   const [tagText, setTagText] = useState('');
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [hasSaveFailed, setHasSaveFailed] = useState(false);
@@ -67,6 +79,25 @@ export default function PostEditor({ date, dayNumber, onClose }) {
   const isReady = status === 'ready';
   const isDirty = isPostDirty(saved, current);
   if (isJustSaved && isDirty) setIsJustSaved(false);
+  const isOfferingDraft = isReady && storedDraft !== null && isDraftNewer(storedDraft, post);
+
+  // 렌더마다 current가 새 객체라서, 내용이 바뀔 때만 타이머를 다시 걸도록 문자열로 견줘요.
+  const currentJson = JSON.stringify(current);
+  useEffect(() => {
+    if (!userId || !isDirty || isOfferingDraft) return undefined;
+    const timer = setTimeout(
+      () => writeDraft(userId, date, JSON.parse(currentJson)),
+      DRAFT_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [userId, date, isDirty, isOfferingDraft, currentJson]);
+
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const warnBeforeLeave = (event) => event.preventDefault();
+    window.addEventListener('beforeunload', warnBeforeLeave);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
+  }, [isDirty]);
 
   const clearInput = () => {
     setDraft(null);
@@ -80,12 +111,26 @@ export default function PostEditor({ date, dayNumber, onClose }) {
       setHasSaveFailed(true); // 쓴 내용은 그대로 둬요.
       return;
     }
+    if (userId) clearDraft(userId, date);
     clearInput();
     setHasSaveFailed(false);
     setIsJustSaved(true);
   };
 
+  const handleLoadDraft = () => {
+    const { title, body, tags, photoIds } = storedDraft;
+    setDraft({ title, body, tags, photoIds });
+    setStoredDraft(null);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft(userId, date);
+    setStoredDraft(null);
+  };
+
   const handleCancel = () => {
+    if (isDirty && !window.confirm('저장하지 않은 내용이 있어요. 닫을까요?')) return;
+    if (userId) clearDraft(userId, date);
     clearInput();
     setHasSaveFailed(false);
     setIsJustSaved(false);
@@ -99,12 +144,8 @@ export default function PostEditor({ date, dayNumber, onClose }) {
           {formatPostDate(date)}
           {dayNumber !== undefined && ` · Day ${dayNumber}`}
         </p>
-        <p
-          role="status"
-          className={cn('shrink-0 text-dim', !isSaving && hasSaveFailed && 'text-accent')}
-        >
+        <p role="status" className="shrink-0 text-dim">
           {isSaving && '저장 중…'}
-          {!isSaving && hasSaveFailed && '저장 실패'}
           {isJustSaved && '저장됨 · 방금'}
         </p>
       </div>
@@ -118,6 +159,41 @@ export default function PostEditor({ date, dayNumber, onClose }) {
             className="shrink-0 border border-ink px-3 py-1 font-medium text-ink"
           >
             다시 불러오기
+          </button>
+        </div>
+      )}
+
+      {isOfferingDraft && (
+        <div className="flex items-center justify-between gap-2 text-sm text-ink">
+          <span>저장 안 한 글이 있어요</span>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={handleLoadDraft}
+              className="border border-ink px-3 py-1 font-medium"
+            >
+              불러오기
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="border border-ink px-3 py-1 font-medium"
+            >
+              버리기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isSaving && hasSaveFailed && (
+        <div role="alert" className="flex items-center justify-between gap-2 text-sm text-accent">
+          <span>저장하지 못했어요</span>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="shrink-0 border border-ink px-3 py-1 font-medium text-ink"
+          >
+            다시 시도
           </button>
         </div>
       )}
