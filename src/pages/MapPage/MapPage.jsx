@@ -157,7 +157,7 @@ export default function MapPage() {
             <MoveLegend legs={displayLegs} onEdit={hasEditableLeg ? handleStartEdit : undefined} />
           )}
           <TimelineScrubber home={home} stops={stops} />
-          <ArrivalStack stops={stops} />
+          <ArrivalStack stops={stops} trips={journey.trips} />
           <JourneyRefreshNotice />
         </>
       )}
