@@ -8,10 +8,12 @@ import {
   savePhotos,
 } from '@/services/photoService';
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { readExif } from '@/utils/upload/readExif';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
+vi.mock('@/utils/upload/readExif', () => ({ readExif: vi.fn() }));
 vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
 vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 vi.mock('@/services/photoService', () => ({
@@ -24,12 +26,23 @@ vi.mock('@/services/photoService', () => ({
 const { getState } = useUploadStore;
 const photoFile = (name) => new File(['사진'], name, { type: 'image/jpeg' });
 const thumb = new Blob(['썸네일'], { type: 'image/webp' });
+// readExif가 촬영 정보를 다 읽은 사진에 돌려주는 값이에요.
+const EXIF = {
+  readable: true,
+  takenAt: '2024-11-24T08:30:49',
+  offset: '+09:00',
+  timeUncertain: false,
+  lat: 34.9949,
+  lng: 135.785,
+  camera: null,
+};
 // refreshJourney가 돌려주는 Journey예요. 여행이 없어서 newTripId는 null이에요.
 const EMPTY_JOURNEY = { stops: [], trips: [] };
 
 beforeEach(() => {
   getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(thumb);
+  vi.mocked(readExif).mockResolvedValue(EXIF);
   vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
 });
 
@@ -73,6 +86,28 @@ describe('start', () => {
     ]);
     expect(getState().isDone).toBe(true);
     expect(resizeThumbnail).toHaveBeenCalledTimes(2);
+  });
+
+  test('원본에서 읽은 촬영 정보를 사진마다 함께 둬요', async () => {
+    // given: 두 번째 사진은 촬영 정보가 없음
+    const files = [photoFile('a.jpg'), photoFile('b.jpg')];
+    const noExif = {
+      ...EXIF,
+      takenAt: null,
+      offset: null,
+      timeUncertain: true,
+      lat: null,
+      lng: null,
+    };
+    vi.mocked(readExif).mockResolvedValueOnce(EXIF).mockResolvedValueOnce(noExif);
+
+    // when
+    await getState().start(files);
+
+    // then
+    expect(vi.mocked(readExif).mock.calls.map(([file]) => file)).toEqual(files);
+    expect(getState().photos[0]).toMatchObject(EXIF);
+    expect(getState().photos[1]).toMatchObject(noExif);
   });
 
   test('미리 볼 수 없는 사진도 회색 칸으로 남기고 다음 사진을 처리해요', async () => {

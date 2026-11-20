@@ -11,6 +11,7 @@ import {
 import { createPhotoId, toUploadedFileKey, toUploadedImagePaths } from '@/utils/photoFileKey';
 import { findFirstTripOfPhotos } from '@/utils/tripPager';
 import { toDedupeKey } from '@/utils/upload/dedupeKey';
+import { readExif } from '@/utils/upload/readExif';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
@@ -55,7 +56,7 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
  *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
  * @property {(files: File[], skippedFiles?: import('@/types').SkippedFile[]) => Promise<void>} start
- *   이전 작업을 비우고 한 장씩 줄여요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
+ *   이전 작업을 비우고 한 장씩 줄이며 촬영 정보를 읽어요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
  * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 촬영 정보를 읽어 저장하고,
  *   이미지 올리기를 뒤에서 시작해요. target은 saveTarget에 둬요(없으면 'trip').
  *   다시 불러도 이미 저장한 사진은 두 벌이 되지 않아요. 창을 닫아 이미지가 다 못 올라간 사진은 이때 이어서 올려요
@@ -90,6 +91,9 @@ export const useUploadStore = create((set, get) => ({
     // 큰 원본 여러 장을 동시에 디코딩하면 메모리가 급증하므로 한 장씩 처리해요.
     for (const [order, file] of selectedFiles.entries()) {
       const thumb = await resizeThumbnail(file);
+      // 줄인 썸네일에는 촬영 정보가 없어서 원본으로 읽어요.
+      // 정리 화면이 물어볼 사진을 고를 때 필요해서, 저장 전인 여기서 읽어요(getPassKind).
+      const exif = await readExif(file);
       // 디코딩은 도중에 멈출 수 없어서, 끝난 뒤 그사이 reset됐는지 봐요.
       // blob 주소를 만들기 전에 봐야 아무도 해제하지 않는 주소가 생기지 않아요.
       if (currentJob !== jobId) return;
@@ -100,6 +104,7 @@ export const useUploadStore = create((set, get) => ({
         filename: file.name,
         thumb,
         src: thumb ? URL.createObjectURL(thumb) : null,
+        ...exif,
       };
       set((state) => ({
         photos: [...state.photos, photo],

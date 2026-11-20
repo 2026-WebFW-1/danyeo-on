@@ -12,10 +12,12 @@ import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { readExif } from '@/utils/upload/readExif';
 import { readPhotos } from '@/utils/upload/readPhotos';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
 vi.mock('@/utils/upload/resizePhoto', () => ({ resizeThumbnail: vi.fn(), resizeFull: vi.fn() }));
+vi.mock('@/utils/upload/readExif', () => ({ readExif: vi.fn() }));
 vi.mock('@/utils/upload/readPhotos', () => ({ readPhotos: vi.fn() }));
 // App이 쓰는 getJourney는 그대로 두고, 저장 뒤 만드는 Journey만 가짜로 바꿔요.
 vi.mock('@/services/journeyService', async (importOriginal) => ({
@@ -119,6 +121,15 @@ beforeEach(() => {
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
   vi.mocked(resizeThumbnail).mockResolvedValue(new Blob(['썸네일'], { type: 'image/webp' }));
+  vi.mocked(readExif).mockResolvedValue({
+    readable: true,
+    takenAt: '2024-11-24T08:30:49',
+    offset: null,
+    timeUncertain: true,
+    lat: null,
+    lng: null,
+    camera: null,
+  });
   vi.mocked(authService.getSessionUser).mockResolvedValue(user);
   vi.mocked(refreshJourney).mockResolvedValue(EMPTY_JOURNEY);
   container = document.createElement('div');
