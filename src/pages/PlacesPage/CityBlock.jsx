@@ -58,6 +58,12 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
     setEditingDate(date);
   };
 
+  // 편집기는 자기 날짜가 아직 열려 있을 때만 닫아요. 지우기는 서버에 다녀오는 동안에도 [+ 글 쓰기]로 다른 날짜를
+  // 열 수 있어서, 늦게 끝난 지우기가 새로 연 편집기를 닫으면 안 돼요.
+  const handleCloseEditor = (date) => {
+    setEditingDate((current) => (current === date ? null : current));
+  };
+
   const photoCell = (
     <CityPhoto
       fileKey={stop.coverFileKey}
@@ -115,7 +121,7 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
           date={editingDate}
           hasPost={posts.some((post) => post.date === editingDate)}
           photoDetails={block.photoDetails}
-          onClose={() => setEditingDate(null)}
+          onClose={() => handleCloseEditor(editingDate)}
         />
       )}
     </div>

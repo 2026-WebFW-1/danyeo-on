@@ -218,6 +218,43 @@ describe('PlacesPage [+ 글 쓰기] (#216)', () => {
     expect(itemOf(banff, '2025-08-26').textContent).not.toContain('글 있음');
   });
 
+  test('사진 목록을 받는 중에는 [+ 글 쓰기]가 없다가, 다 받으면 생겨요', async () => {
+    vi.mocked(useMyPhotos).mockReturnValue({ photos: [], status: 'loading', error: null });
+    await render(BANFF_TRIP);
+    expect(writeButton(blockOf('밴프'))).toBeNull();
+
+    vi.mocked(useMyPhotos).mockReturnValue({
+      photos: seojinSeed.photos,
+      status: 'ready',
+      error: null,
+    });
+    await render(BANFF_TRIP);
+    expect(writeButton(blockOf('밴프'))).not.toBeNull();
+  });
+
+  test('지우는 사이 다른 날짜를 열면, 늦게 끝난 지우기가 새로 연 편집기를 닫지 않아요', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    let finishRemove;
+    vi.mocked(removePost).mockReturnValue(
+      new Promise((resolve) => {
+        finishRemove = resolve;
+      }),
+    );
+    await render(BANFF_TRIP);
+
+    await pick(blockOf('밴프'), '2025-08-26');
+    await click(buttonOf(editorOf(blockOf('밴프')), /^글 지우기$/));
+    // 지우기가 끝나기 전에 [+ 글 쓰기]로 다른 날을 열어요
+    await pick(blockOf('밴프'), '2025-08-25');
+    expect(editorOf(blockOf('밴프')).getAttribute('aria-label')).toBe('글 쓰기');
+
+    await act(async () => finishRemove());
+
+    const editor = editorOf(blockOf('밴프'));
+    expect(editor).not.toBeNull();
+    expect(editor.textContent).toContain(`${formatPostDate('2025-08-25')} · Day 1`);
+  });
+
   test('글 목록과 편집기는 한 번에 하나만 열려요', async () => {
     await render(BANFF_TRIP);
     const banff = blockOf('밴프');
