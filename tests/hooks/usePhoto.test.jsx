@@ -85,13 +85,14 @@ describe('시연용 사진 파일', () => {
     const urls = [...new Set(fileKeys.filter((key) => key.startsWith('public:')))].flatMap(
       (key) => [photoSource(key, 'full'), photoSource(key, 'thumb')],
     );
-    const missing = [];
-    for (const url of urls) {
-      // 없는 주소도 개발 서버가 index.html로 200을 줄 수 있어서 형식까지 봐요
-      const response = await fetch(url, { method: 'HEAD' });
-      if (response.headers.get('content-type') !== 'image/webp') missing.push(url);
-    }
-    expect(missing).toEqual([]);
+    const missing = await Promise.all(
+      urls.map(async (url) => {
+        // 없는 주소도 개발 서버가 index.html로 200을 줄 수 있어서 형식까지 봐요.
+        const response = await fetch(url, { method: 'HEAD' });
+        return response.ok && response.headers.get('content-type') === 'image/webp' ? null : url;
+      }),
+    );
+    expect(missing.filter(Boolean)).toEqual([]);
   });
 });
 

@@ -1,6 +1,7 @@
 import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
+import { collectMergeSpans } from '@/utils/journey/mergeSpans';
 import { calcTravelHours, legMode } from '@/utils/legMode';
 import { toLocalDate } from '@/utils/localDate';
 
@@ -134,11 +135,10 @@ const removePhotos = (photos, excludedIds) => photos.filter((photo) => !excluded
  * 사진이 지워졌거나 시각이 없으면 나눌 자리를 몰라서 건너뜁니다.
  *
  * @param {import('@/types').Correction[]} splitCorrections
- * @param {import('@/types').Photo[]} photos 올린 사진 전부
+ * @param {Map<string, import('@/types').Photo>} photoById 제외 전 전체 사진
  * @returns {number[]} 밀리초
  */
-function collectSplitAts(splitCorrections, photos) {
-  const photoById = indexById(photos);
+function collectSplitAts(splitCorrections, photoById) {
   return splitCorrections
     .map((correction) => photoById.get(correction.beforePhotoId))
     .filter((photo) => photo?.takenAt)
@@ -423,11 +423,19 @@ function nameTrip(tripStops, renameCorrections) {
  * @param {Map<string, import('@/types').Stop>} stopById
  * @param {import('@/types').Leg[]} legs
  * @param {import('@/types').Correction[]} renameCorrections
+ * @param {import('@/types').GroupStop[]} groupStops 집과 경유지를 포함한 지점
  * @returns {import('@/types').Trip[]}
  */
-function buildTrips(groupTrips, stopById, legs, renameCorrections) {
+function buildTrips(groupTrips, stopById, legs, renameCorrections, groupStops) {
+  // 경유 지점은 이동 구간에서 빠질 수 있어, 집을 떠난 자리는 전체 지점에서 찾아요.
+  const afterHome = new Set(
+    groupStops
+      .filter((stop, i) => !stop.isHome && groupStops[i - 1]?.isHome)
+      .map((stop) => stop.id),
+  );
   return groupTrips.map((trip) => {
     const tripStops = trip.stopIds.map((id) => stopById.get(id));
+    const outingStartIds = trip.stopIds.slice(1).filter((id) => afterHome.has(id));
     return {
       id: trip.id,
       ...nameTrip(tripStops, renameCorrections),
@@ -435,6 +443,7 @@ function buildTrips(groupTrips, stopById, legs, renameCorrections) {
       to: tripStops.at(-1).to,
       days: trip.days,
       stopIds: trip.stopIds,
+      ...(outingStartIds.length > 0 && { outingStartIds }),
       legIds: legs.filter((leg) => leg.tripId === trip.id).map((leg) => leg.id),
       chapter: tripStops.some((stop) => stop.chapter),
     };
@@ -474,7 +483,7 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
 
 /**
  * 사진과 보정으로 화면이 받는 Journey를 만듭니다. 순서만 정하고, 일은 단계마다 함수가 합니다.
- * 순서: exclude 사진 빼기 -> group(split으로 나누기) -> 지점 이름 및 경유 -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
+ * 순서: exclude 사진 빼기 -> group(split으로 나누고 merge로 합치기) -> 지점 이름 및 경유 -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
  * 규칙은 my-journey의 mock/journey-fixture.mjs와 같아서, seed를 넣으면 fixtures의 *.journey.json과 같게 나옵니다.
  *
  * @param {import('@/types').Photo[]} photos 올린 사진 전부. 순서는 상관없습니다
@@ -485,11 +494,13 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
  * @returns {Promise<import('@/types').Journey>}
  */
 export async function buildJourney(photos, corrections, findPlace) {
-  // 3. (사용자가) 뺀 사진을 거르고, 나눈 자리에서 끊어 묶기
+  // 3. 보정 시각은 전체 사진에서 찾고, 여행에는 남긴 사진만 넣어요.
   const excludedIds = collectExcludedIds(filterByType(corrections, 'exclude'));
   const keptPhotos = removePhotos(photos, excludedIds);
-  const splitAts = collectSplitAts(filterByType(corrections, 'split'), photos);
-  const grouped = group(keptPhotos, splitAts); // { home, stops, trips, unlocated }
+  const allPhotosById = indexById(photos);
+  const splitAts = collectSplitAts(filterByType(corrections, 'split'), allPhotosById);
+  const mergeSpans = collectMergeSpans(corrections, allPhotosById, excludedIds);
+  const grouped = group(keptPhotos, splitAts, mergeSpans); // { home, stops, trips, unlocated }
   const lookup = {
     photoById: indexById(keptPhotos),
     tripIdByStopId: mapTripIdByStopId(grouped.trips),
@@ -506,7 +517,13 @@ export async function buildJourney(photos, corrections, findPlace) {
   const legs = buildLegs(points, filterByType(corrections, 'mode'), lookup);
 
   // 6. 여행
-  const trips = buildTrips(grouped.trips, stopById, legs, filterByType(corrections, 'rename'));
+  const trips = buildTrips(
+    grouped.trips,
+    stopById,
+    legs,
+    filterByType(corrections, 'rename'),
+    grouped.stops,
+  );
 
   // 7. 기간과 집
   return {

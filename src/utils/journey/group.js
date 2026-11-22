@@ -5,6 +5,7 @@ import { legMode } from '@/utils/legMode';
 // 지점·여행 규칙은 my-journey의 mock/reference-group.mjs와 같아서, seed를 넣으면 fixtures의 *.group.json과 같아요.
 // fillByTime(#170)은 참고 구현에 없지만 seed에는 채울 사진이 없어서 결과가 같아요.
 // 나누는 시각(split, #191)도 참고 구현에 없고, 넘기지 않으면 결과가 같아요.
+// 잇는 구간(merge, #198)도 참고 구현에 없고, 넘기지 않으면 결과가 같아요.
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
@@ -34,6 +35,24 @@ const COORD_SCALE = 1e5;
  * @property {RawStop} raw
  * @property {import('@/types').Photo[]} filled fillByTime이 이 지점에 넣은 위치 없는 사진
  */
+
+/**
+ * @typedef {object} MergeSpan 이을 두 여행 사이를 덮는 시각 구간이에요. startAt < endAt
+ * @property {number} startAt 앞 여행 사진의 실제 시각(밀리초)
+ * @property {number} endAt 뒤 여행 사진의 실제 시각(밀리초)
+ * @property {string[]} [photoIds] 제외를 반영한 양쪽 기준 사진
+ */
+
+/**
+ * 끝점만 맞닿는 이웃 경계까지 합쳐지지 않게 양쪽을 엄격하게 비교해요.
+ * @param {{startAt: number, endAt: number}} span
+ * @param {number | null} left 앞 지점의 마지막 시각
+ * @param {number} right 뒤 지점의 첫 시각
+ * @returns {boolean}
+ */
+export function crossesMergeBoundary(span, left, right) {
+  return left !== null && span.startAt < right && left < span.endAt;
+}
 
 const roundCoord = (value) => Math.round(value * COORD_SCALE) / COORD_SCALE;
 const toTakenMs = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
@@ -252,34 +271,54 @@ function toGroupStop(raw, home, filledPhotos) {
 /**
  * @param {StopEntry[]} entries 시각 순
  * @param {number[]} splitAts 나누는 시각(밀리초)
+ * @param {MergeSpan[]} mergeSpans 이을 시각 구간
  * @returns {import('@/types').GroupTrip[]}
  */
-function buildTrips(entries, splitAts) {
-  return splitIntoRuns(entries, splitAts).map(toTrip);
+function buildTrips(entries, splitAts, mergeSpans) {
+  // 집이나 위치 미확인으로 바뀐 기준 사진도 다른 여행의 경계를 잇지 않게 해요.
+  if (!mergeSpans.length) return splitIntoRuns(entries, splitAts, []).map(toTrip);
+  const awayPhotoIds = new Set(
+    entries.filter((entry) => !entry.stop.isHome).flatMap((entry) => entry.stop.photoIds),
+  );
+  const activeSpans = mergeSpans.filter(
+    (span) => !span.photoIds || span.photoIds.every((id) => awayPhotoIds.has(id)),
+  );
+  return splitIntoRuns(entries, splitAts, activeSpans).map(toTrip);
 }
 
 /**
  * @param {StopEntry[]} entries
  * @param {number[]} splitAts 나누는 시각(밀리초)
- * @returns {StopEntry[][]} 집 지점이 끼거나, 지점 사이가 14일 넘게 비거나, 사이에 나누는 시각이 있으면 끊은 묶음
+ * @param {MergeSpan[]} mergeSpans 이을 시각 구간
+ * @returns {StopEntry[][]} 집 지점이 끼거나, 지점 사이가 14일 넘게 비거나, 사이에 나누는 시각이 있으면 끊은 묶음.
+ *   집이나 14일 공백으로 끊길 자리라도 잇는 구간이 걸치면 이어요. 이어도 집 지점은 묶음에 넣지 않아요.
+ *   나누는 시각이 있으면 잇는 구간보다 나누기가 이겨요
  */
-function splitIntoRuns(entries, splitAts) {
+function splitIntoRuns(entries, splitAts, mergeSpans) {
   const runs = [];
   let current = null;
-  let prevLastAt = null;
+  // 집 지점은 묶음에 넣지 않아서, 앞 여행이 끝난 시각은 집이 아닌 앞 지점의 마지막 시각으로 봐요.
+  let prevAwayLastAt = null;
+  let hasHomeBetween = false;
 
   for (const entry of entries) {
     if (entry.stop.isHome) {
-      current = null;
-    } else {
-      const isSplit = findSplitsBetween(splitAts, prevLastAt, entry.raw.firstAt).length > 0;
-      if (!current || entry.raw.firstAt - prevLastAt > MAX_TRIP_GAP_MS || isSplit) {
-        current = [];
-        runs.push(current);
-      }
-      current.push(entry);
+      hasHomeBetween = true;
+      continue;
     }
-    prevLastAt = entry.raw.lastAt;
+
+    const { firstAt, lastAt } = entry.raw;
+    const isSplit = findSplitsBetween(splitAts, prevAwayLastAt, firstAt).length > 0;
+    const isApart = hasHomeBetween || firstAt - prevAwayLastAt > MAX_TRIP_GAP_MS;
+    // 기준 사진이 위치 없는 사진이면 지점 시각과 조금 어긋나서, 사이에 들어 있는지 대신 겹치는지로 봐요.
+    const isMerged = mergeSpans.some((span) => crossesMergeBoundary(span, prevAwayLastAt, firstAt));
+    if (!current || isSplit || (isApart && !isMerged)) {
+      current = [];
+      runs.push(current);
+    }
+    current.push(entry);
+    prevAwayLastAt = lastAt;
+    hasHomeBetween = false;
   }
   return runs;
 }
@@ -320,9 +359,11 @@ function toLeg(from, to) {
  * @param {import('@/types').Photo[]} photos 순서는 상관없고, 이 배열은 바꾸지 않아요
  * @param {number[]} [splitAts] 여행을 나눌 시각(밀리초). 이 시각에 찍은 사진부터 새 여행이에요.
  *   split 보정의 사진을 빼도 나눈 자리가 남게, 사진 ID 대신 시각으로 받아요
+ * @param {MergeSpan[]} [mergeSpans] 이을 시각 구간. 이 구간에 걸친 여행 경계는 집을 거치거나 14일 넘게 비어도 끊지 않아요.
+ *   splitAts처럼 사진 ID 대신 시각으로 받아요
  * @returns {import('@/types').GroupResult}
  */
-export function group(photos, splitAts = []) {
+export function group(photos, splitAts = [], mergeSpans = []) {
   const located = /** @type {import('@/types').LocatedPhoto[]} */ (photos.filter(isLocated)).sort(
     byTakenMs,
   );
@@ -342,7 +383,7 @@ export function group(photos, splitAts = []) {
   return {
     home,
     stops: entries.map((entry) => entry.stop),
-    trips: buildTrips(entries, splitAts),
+    trips: buildTrips(entries, splitAts, mergeSpans),
     unlocated: photos
       .filter((photo) => !isLocated(photo) && !filled.has(photo))
       .map((photo) => photo.id),

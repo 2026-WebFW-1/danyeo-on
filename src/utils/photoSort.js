@@ -1,6 +1,7 @@
 import { SORT_THUMB_COUNT } from '@/constants/photoSort';
 import { formatDateRange } from '@/utils/formatDateRange';
 import { formatNo } from '@/utils/formatNo';
+import { collectMergeSpans } from '@/utils/journey/mergeSpans';
 import { toLocalDate } from '@/utils/localDate';
 
 /**
@@ -26,6 +27,9 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {import('@/types').PhotoRef[]} photos ⋯로 펼쳐 뺄 수 있는 사진. 경유 지점의 사진도 들어 있어요
  * @property {string | null} renameAnchorId 지금 이름을 정한 rename의 기준 사진. 자동 이름이면 null
  * @property {string[]} splitCorrectionIds 이 여행을 앞 여행에서 떼어 낸 split 보정. [나누기 취소]가 지워요
+ * @property {string | null} mergeWithPreviousId 지금 합칠 수 있는 바로 앞 여행 ID
+ * @property {string[]} mergeCorrectionIds 이 줄 안의 지점을 이어 놓은 보정 ID
+ * @property {boolean} isMergingWithPrevious 보정은 저장됐고 표에는 두 줄이 남아 있어요
  * @property {string[]} splittingPhotoIds 나누기를 저장했지만 다시 계산하기 전이라 아직 이 여행 안에 있는 사진
  */
 
@@ -69,11 +73,10 @@ export function selectExcludedIds(journey, corrections) {
  * split 보정마다 나누는 시각을 붙여요. buildJourney처럼 뺀 사진도 찾아서, 나눈 자리의 사진을 빼도 시각이 남아요.
  *
  * @param {import('@/types').Correction[]} corrections
- * @param {import('@/types').Photo[]} photos
+ * @param {Map<string, import('@/types').Photo>} photoById
  * @returns {{ id: string, photoId: string, at: number }[]} 사진을 못 찾았거나 시각이 없는 보정은 빠져요
  */
-function collectSplits(corrections, photos) {
-  const photoById = new Map(photos.map((photo) => [photo.id, photo]));
+function collectSplits(corrections, photoById) {
   return corrections.filter(isSplit).flatMap((correction) => {
     const photo = photoById.get(correction.beforePhotoId);
     if (!photo?.takenAt) return [];
@@ -100,11 +103,12 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
   if (!journey) return [];
 
   const stopById = new Map(journey.stops.map((stop) => [stop.id, stop]));
-  const fileKeyById = new Map(photos.map((photo) => [photo.id, photo.fileKey]));
+  const photoById = new Map(photos.map((photo) => [photo.id, photo]));
+  const merges = collectMergeSpans(corrections, photoById, excludedIds);
   const renames = corrections.filter((correction) => correction.type === 'rename');
-  const toRef = (id) => ({ id, fileKey: fileKeyById.get(id) ?? null });
+  const toRef = (id) => ({ id, fileKey: photoById.get(id)?.fileKey ?? null });
   const keptPhotoIds = (stop) => stop.photoIds.filter((id) => !excludedIds.has(id));
-  const splits = collectSplits(corrections, photos);
+  const splits = collectSplits(corrections, photoById);
   const splitPhotoIds = new Set(splits.map((item) => item.photoId));
 
   const trips = journey.trips.map((trip, index) => {
@@ -122,6 +126,18 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
           .map((item) => item.id)
       : [];
 
+    const isMergingWithPrevious =
+      Boolean(prevTrip) &&
+      splitCorrectionIds.length === 0 &&
+      merges.some(
+        ({ photoIds: [left, right] }) =>
+          tripPhotoIds.has(right) &&
+          prevTrip.stopIds.some((id) => stopById.get(id)?.photoIds.includes(left)),
+      );
+    // 나중에 올린 사진 때문에 두 기준 사진이 한 지점에 들어가도 취소할 수 있어요.
+    const mergeCorrectionIds = merges
+      .filter(({ photoIds }) => photoIds.every((id) => tripPhotoIds.has(id)))
+      .map((merge) => merge.id);
     return {
       id: trip.id,
       name: rename?.name ?? trip.name,
@@ -131,6 +147,8 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
       thumbs: cityPhotoIds.slice(0, SORT_THUMB_COUNT).map(toRef),
       photoCount: cityPhotoIds.length,
       photos: tripPhotos,
+      isMergingWithPrevious,
+      mergeCorrectionIds,
       splitCorrectionIds,
       // 첫 사진 앞에서는 나눌 수 없어서, 첫 사진은 빼고 봐요.
       splittingPhotoIds: tripPhotos
@@ -142,7 +160,19 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
 
   // 사진을 모두 뺀 여행은 다시 계산하면 사라져요. 번호도 그 여행을 빼고 다시 매겨요.
   return trips
-    .filter((trip) => trip.photos.length > 0)
+    .flatMap((trip, index) => {
+      if (trip.photos.length === 0) return [];
+      const previous = trips[index - 1];
+      const left = photoById.get(previous?.photos.at(-1)?.id);
+      const right = photoById.get(trip.photos[0].id);
+      const canMerge =
+        left?.takenAt &&
+        right?.takenAt &&
+        toTakenMs(left) < toTakenMs(right) &&
+        trip.splitCorrectionIds.length === 0 &&
+        !trip.isMergingWithPrevious;
+      return [{ ...trip, mergeWithPreviousId: canMerge ? previous.id : null }];
+    })
     .map((trip, index) => ({ ...trip, no: formatNo(index + 1) }));
 }
 
@@ -180,6 +210,16 @@ export function buildTripExcludeInputs(trip, photoId) {
 export function buildTripRenameInput(trip, name) {
   // 사진이 하나도 없는 여행은 표에 없어서(selectSortTrips) photos[0]은 늘 있어요.
   return { type: 'rename', anchorPhotoId: trip.photos[0].id, name };
+}
+
+/**
+ * @param {SortTripRow | undefined} previous 표에서 앞선 줄
+ * @param {SortTripRow | undefined} next 표에서 뒤따르는 줄
+ * @returns {import('@/types').CorrectionInput | null}
+ */
+export function buildTripMergeInput(previous, next) {
+  if (!previous || next?.mergeWithPreviousId !== previous.id) return null;
+  return { type: 'merge', photoIds: [previous.photos.at(-1).id, next.photos[0].id] };
 }
 
 /**

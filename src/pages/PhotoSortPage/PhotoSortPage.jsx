@@ -49,7 +49,7 @@ import UnlocatedTab from './UnlocatedTab';
  * 피그마 07: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/timeline?node-id=36-2
  */
 export default function PhotoSortPage() {
-  const { journey, status } = useJourney();
+  const { journey, status, isRefreshing } = useJourney();
   const { photos, status: photosStatus } = useMyPhotos();
   const {
     corrections,
@@ -57,6 +57,7 @@ export default function PhotoSortPage() {
     add,
     addMany,
     removeMany,
+    hasPending,
     journeyStatus,
     refreshJourney,
   } = useCorrections();
@@ -145,6 +146,15 @@ export default function PhotoSortPage() {
           onExclude={handleExclude}
           onSplit={handleSplit}
           onUndoSplit={handleUndoSplit}
+          canMerge={
+            isCorrectionsReady &&
+            !hasPending &&
+            !isRefreshing &&
+            journeyStatus !== 'building' &&
+            journeyStatus !== 'failed'
+          }
+          onMerge={add}
+          onUndoMerge={(trip) => removeMany(trip.mergeCorrectionIds)}
         />
       )}
       {tab === 'excluded' && (
