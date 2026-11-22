@@ -15,7 +15,11 @@ import { selectStopPhotoDetails, selectStopPhotos } from '@/utils/selectStopPhot
 import { selectPostsOfStop } from '@/utils/tripStops';
 
 // 글을 고치는 화면의 편집기(PostEditor)가 스토어로 저장해요. 서버로는 보내지 않아요.
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 const stop = findChapterBySlug(seojin, '밴쿠버-2025');
 const chapter = selectChapters(seojin).find((item) => item.stop.id === stop.id);

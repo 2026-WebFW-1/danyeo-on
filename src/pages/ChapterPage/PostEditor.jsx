@@ -25,6 +25,7 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  * 책임: 그날 글을 보여 주고, 제목·본문·태그와 붙일 그날 사진(#194)을 고쳐 저장합니다. 저장 중·저장됨은 오른쪽 위에,
  * 저장 실패는 편집기 안에 [다시 시도]와 함께 보여 줍니다(14b).
  * 쓴 글을 잃지 않게 임시 보관, 다시 열 때 불러오기, 탭 닫기·[취소] 경고도 맡습니다(14b).
+ * 저장된 글을 지우는 것도 맡습니다(#207).
  * 왼쪽의 큰 사진과 챕터 머리는 02의 배치라 여기에 없습니다. 너비도 02가 정합니다.
  *
  * 호출: 02 챕터의 글 고치는 화면(PostEditView, C). 글 카드를 누르거나 [+ 글 쓰기]로 날짜를 고르면 열립니다(#203).
@@ -39,6 +40,11 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *  - 다 불러오기 전에는 입력을 끕니다. 그때 쓴 내용이 불러온 글을 덮거나, 그날 글을 못 찾아 글이 늘 수 있어요(#110).
  *  - 태그 칸에 쓰고 Enter를 안 눌렀어도 저장 대상에 넣습니다. 쓴 태그가 말없이 사라지지 않게요.
  *  - 저장 중 [취소]는 끕니다. 이미 보낸 저장은 되돌릴 수 없어요.
+ *  - [글 지우기]는 저장된 글에만 둡니다(#207). 되돌릴 수 없어서 window.confirm으로 한 번 묻고, 지우면 임시본도 지우고 닫습니다.
+ *    피그마 14a에 자리가 없어서, 저장·취소보다 덜 눈에 띄게 버튼 줄 오른쪽 끝의 밑줄 글자로 둡니다.
+ *    저장 중에는 지울 수 없고, 지우는 중에는 입력과 버튼을 모두 막습니다. 실패하면 글을 그대로 두고 [다시 시도]를 띄웁니다.
+ *    "저장됨 · 방금"을 보여 주는 1초 동안도 끕니다. 그 사이 편집기가 닫혀 지우기 결과를 못 보게 돼요.
+ *    실패 안내의 [다시 시도]는 저장·지우기가 끝난 뒤에만 보입니다. 같은 글에 저장과 지우기가 겹쳐 가지 않게요.
  *  - 저장에 성공하면 "저장됨 · 방금"을 1초 보여 준 뒤 onClose를 부릅니다. 바로 닫으면 카드가 사라져 안내를 볼 수 없어요.
  *    그 사이에 다시 고치면 닫지 않습니다. 쓴 내용이 사라지지 않게요.
  *  - "저장 실패"는 스토어의 saveError로 보지 않습니다. saveError는 다음 저장까지 남아서, 취소하고 다시 열어도 보이게 돼요.
@@ -68,6 +74,8 @@ export default function PostEditor({
   const isSaving = usePostStore((state) => Boolean(state.saving[date]));
   const fetchPosts = usePostStore((state) => state.fetch);
   const savePost = usePostStore((state) => state.save);
+  const isDeleting = usePostStore((state) => Boolean(state.deleting[date]));
+  const removePost = usePostStore((state) => state.remove);
   const userId = useAuthStore((state) => state.user?.id);
 
   const [draft, setDraft] = useState(null);
@@ -75,6 +83,7 @@ export default function PostEditor({
   const [tagText, setTagText] = useState('');
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [hasSaveFailed, setHasSaveFailed] = useState(false);
+  const [hasDeleteFailed, setHasDeleteFailed] = useState(false);
   const [draftUserId, setDraftUserId] = useState(userId);
   const pendingDraftRef = useRef(null);
 
@@ -108,6 +117,7 @@ export default function PostEditor({
   const form = draft ?? saved;
   const current = { ...form, tags: normalizeTags([...form.tags, tagText]) };
   const isReady = status === 'ready';
+  const isBusy = isSaving || isDeleting;
   const isDirty = isPostDirty(saved, current);
   if (isJustSaved && isDirty) setIsJustSaved(false);
   const isOfferingDraft = isReady && storedDraft !== null && isDraftNewer(storedDraft, post);
@@ -184,6 +194,25 @@ export default function PostEditor({
     setStoredDraft(null);
   };
 
+  // [다시 시도]는 이미 한 번 확인을 받아서 다시 묻지 않아요.
+  const deletePost = async () => {
+    try {
+      await removePost(date);
+    } catch {
+      setHasDeleteFailed(true); // 글은 그대로 둬요.
+      return;
+    }
+    removeStoredDraft();
+    clearInput();
+    setHasDeleteFailed(false);
+    onClose?.();
+  };
+
+  const handleDelete = () => {
+    if (!window.confirm('이 글을 지울까요? 되돌릴 수 없어요.')) return;
+    deletePost();
+  };
+
   const handleCancel = () => {
     if (isDirty && !window.confirm('저장하지 않은 내용이 있어요. 닫을까요?')) return;
     removeStoredDraft();
@@ -202,6 +231,7 @@ export default function PostEditor({
         </p>
         <p role="status" className="shrink-0 text-dim">
           {isSaving && '저장 중…'}
+          {isDeleting && '지우는 중…'}
           {isJustSaved && '저장됨 · 방금'}
         </p>
       </div>
@@ -241,12 +271,25 @@ export default function PostEditor({
         </div>
       )}
 
-      {!isSaving && hasSaveFailed && (
+      {!isBusy && hasSaveFailed && (
         <div role="alert" className="flex items-center justify-between gap-2 text-sm text-accent">
           <span>저장하지 못했어요</span>
           <button
             type="button"
             onClick={handleSave}
+            className="shrink-0 border border-ink px-3 py-1 font-medium text-ink"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {!isBusy && hasDeleteFailed && (
+        <div role="alert" className="flex items-center justify-between gap-2 text-sm text-accent">
+          <span>지우지 못했어요</span>
+          <button
+            type="button"
+            onClick={deletePost}
             className="shrink-0 border border-ink px-3 py-1 font-medium text-ink"
           >
             다시 시도
@@ -260,7 +303,7 @@ export default function PostEditor({
           type="text"
           name="title"
           maxLength={MAX_POST_TITLE_LENGTH}
-          disabled={!isReady || isSaving}
+          disabled={!isReady || isBusy}
           value={form.title}
           onChange={(event) => setDraft({ ...form, title: event.target.value })}
           className={FIELD_CLASS}
@@ -272,7 +315,7 @@ export default function PostEditor({
         <textarea
           name="body"
           maxLength={MAX_POST_BODY_LENGTH}
-          disabled={!isReady || isSaving}
+          disabled={!isReady || isBusy}
           value={form.body}
           onChange={(event) => setDraft({ ...form, body: event.target.value })}
           className={cn(FIELD_CLASS, 'h-40 resize-none')}
@@ -284,7 +327,7 @@ export default function PostEditor({
         <PostTagField
           tags={form.tags}
           text={tagText}
-          isDisabled={!isReady || isSaving}
+          isDisabled={!isReady || isBusy}
           onTagsChange={(tags) => setDraft({ ...form, tags })}
           onTextChange={setTagText}
         />
@@ -296,16 +339,16 @@ export default function PostEditor({
           <PostPhotoPicker
             photos={dayPhotos}
             selectedIds={form.photoIds}
-            isDisabled={!isReady || isSaving}
+            isDisabled={!isReady || isBusy}
             onChange={(photoIds) => setDraft({ ...form, photoIds })}
           />
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={!isReady || !isDirty || isSaving}
+          disabled={!isReady || !isDirty || isBusy}
           onClick={handleSave}
           className="bg-nav px-5 py-3 text-md font-bold text-white disabled:opacity-60"
         >
@@ -313,12 +356,22 @@ export default function PostEditor({
         </button>
         <button
           type="button"
-          disabled={isSaving}
+          disabled={isBusy}
           onClick={handleCancel}
           className="border border-ink px-5 py-3 text-md font-bold text-ink disabled:opacity-60"
         >
           취소
         </button>
+        {post && (
+          <button
+            type="button"
+            disabled={!isReady || isBusy || isJustSaved}
+            onClick={handleDelete}
+            className="ml-auto text-sm text-accent underline underline-offset-4 disabled:opacity-60"
+          >
+            글 지우기
+          </button>
+        )}
       </div>
     </div>
   );

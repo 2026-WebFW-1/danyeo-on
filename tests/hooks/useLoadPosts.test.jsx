@@ -6,7 +6,11 @@ import { useLoadPosts } from '@/hooks/useLoadPosts';
 import { getPosts } from '@/services/postService';
 import { usePostStore } from '@/stores/postStore';
 
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 const LOAD_FAILED = { status: 0, code: 'LOAD_FAILED', message: 'x' };
 
