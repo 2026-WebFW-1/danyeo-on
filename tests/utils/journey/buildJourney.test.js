@@ -11,6 +11,11 @@ import emptySeed from '@/data/seed/empty.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import { calcDistanceKm } from '@/utils/distance';
 import { buildJourney } from '@/utils/journey/buildJourney';
+import { selectSortTrips } from '@/utils/photoSort';
+import { selectPassportCalendar } from '@/utils/passportCalendar';
+import { selectPassportStats } from '@/utils/passportStats';
+import { selectPassportStamps } from '@/utils/passportStamps';
+import { selectPassportRecords } from '@/utils/passportRecords';
 
 /**
  * personaId·generatedBy·about은 설명용이라 비교에서 빼요.
@@ -458,5 +463,105 @@ describe('buildJourney 규칙', () => {
       '2y': { from: '2022-07-13', to: '2024-07-13' },
       all: { from: '2024-07-11', to: '2024-07-13' },
     });
+  });
+});
+
+describe('합치기 뒤에 바뀐 여행 사진', () => {
+  const photo = (id, city, day) => makePhoto(id, city, `2025-03-${day}T12:00:00`);
+  const homes = ['01', '02', '08', '09', '19', '20'].map((day) =>
+    photo('home' + day, 'seoul', day),
+  );
+  const a = photo('a', 'tokyo', '03');
+  const b = photo('b', 'bangkok', '12');
+  const c = photo('c', 'danang', '22');
+  const merge = (left, right) => ({ id: 'merge', type: 'merge', photoIds: [left, right] });
+  const exclude = (id) => ({ id: 'exclude' + id, type: 'exclude', photoId: id });
+  const rows = (j, cs, photos) => selectSortTrips(j, cs, photos, new Set(j.excluded));
+
+  test.each([
+    ['b', 'a', 'c'],
+    ['c', 'a', 'b'],
+  ])(
+    '한쪽 여행의 유일한 사진 %s를 제외하면 다른 여행에 보정이 옮겨가지 않아요',
+    async (removed, first, last) => {
+      // given
+      const photos = [...homes, a, b, c, photo('d', 'tokyo', '30'), photo('h4', 'seoul', '27')];
+      const cs = [merge('b', 'c'), exclude(removed)];
+      // when
+      const j = await buildJourney(photos, cs, findCity);
+      // then
+      expect(j.trips.map((t) => t.stopIds)).toEqual([[first], [last], ['d']]);
+      expect(
+        rows(j, cs, photos).every((r) => !r.isMergingWithPrevious && !r.mergeCorrectionIds.length),
+      ).toBe(true);
+    },
+  );
+
+  test('두 기준 사진을 제외해도 양쪽 여행에 남은 사진으로 합치고 취소해요', async () => {
+    // given
+    const photos = [...homes, a, b, c, photo('b0', 'bangkok', '11'), photo('c2', 'danang', '23')];
+    const cs = [merge('b', 'c'), exclude('b'), exclude('c')];
+    // when
+    const j = await buildJourney(photos, cs, findCity);
+    // then
+    expect(j.trips.map((t) => t.stopIds)).toEqual([['a'], ['b0', 'c2']]);
+    expect(rows(j, cs, photos).map((r) => r.mergeCorrectionIds)).toEqual([[], ['merge']]);
+  });
+
+  test('중간 사진을 추가해 양쪽이 한 지점이 되어도 보정을 취소할 수 있어요', async () => {
+    // given
+    const photos = [
+      ...homes,
+      photo('first', 'tokyo', '04'),
+      makePhoto('last', 'tokyo', '2025-05-05T12:00:00'),
+    ];
+    // 두 방문 사이에 집을 거치지 않게 집 사진은 출발 전으로 옮겨요.
+    const original = photos.map((p) =>
+      p.id.startsWith('home') ? { ...p, takenAt: p.takenAt.replace('03-', '02-') } : p,
+    );
+    const cs = [merge('first', 'last')];
+    const added = [
+      makePhoto('middle1', 'tokyo', '2025-03-23T12:00:00'),
+      makePhoto('middle2', 'tokyo', '2025-04-10T12:00:00'),
+      makePhoto('middle3', 'tokyo', '2025-04-25T12:00:00'),
+    ];
+    // when
+    const before = await buildJourney(original, [], findCity);
+    const all = [...original, ...added];
+    const j = await buildJourney(all, cs, findCity);
+    // then
+    expect(before.trips).toHaveLength(2);
+    expect(j.stops).toHaveLength(1);
+    expect(rows(j, cs, all)[0].mergeCorrectionIds).toEqual(['merge']);
+    const undone = await buildJourney(
+      all,
+      added.map((p) => exclude(p.id)),
+      findCity,
+    );
+    expect(undone.trips).toHaveLength(2);
+  });
+
+  test('여권은 여행을 합친 뒤에도 외박·달력·첫 체류·방문 횟수를 유지해요', async () => {
+    // given
+    const photos = [
+      ...homes,
+      ...['03', '04', '12', '13'].map((day) => photo('th' + day, 'bangkok', day)),
+    ];
+    const merged = await buildJourney(photos, [merge('th04', 'th12')], findCity);
+    const before = await buildJourney(photos, [], findCity);
+    const legacy = structuredClone(merged);
+    delete legacy.trips[0].outingStartIds;
+    // when, then
+    expect(merged.trips).toHaveLength(1);
+    for (const j of [before, merged, legacy]) {
+      expect(selectPassportStats(j).nightsAway).toBe(2);
+      const calendar = selectPassportCalendar(j, '2025-03-31');
+      expect(calendar.tripDays).toBe(4);
+      expect(calendar.weeks.flatMap((w) => w.days).find((c) => c.date === '2025-03-08').kind).toBe(
+        'home',
+      );
+      expect(selectPassportStamps(j)[0].days).toBe(2);
+      expect(selectPassportRecords(j).mostVisited.visits).toBe(2);
+    }
   });
 });

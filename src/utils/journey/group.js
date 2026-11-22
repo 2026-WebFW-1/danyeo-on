@@ -1,6 +1,5 @@
 import { toUtcDay } from '@/utils/localDate';
 import { calcDistanceKm } from '@/utils/distance';
-import { crossesMergeBoundary } from '@/utils/journey/mergeSpans';
 import { legMode } from '@/utils/legMode';
 
 // 지점·여행 규칙은 my-journey의 mock/reference-group.mjs와 같아서, seed를 넣으면 fixtures의 *.group.json과 같아요.
@@ -41,7 +40,19 @@ const COORD_SCALE = 1e5;
  * @typedef {object} MergeSpan 이을 두 여행 사이를 덮는 시각 구간이에요. startAt < endAt
  * @property {number} startAt 앞 여행 사진의 실제 시각(밀리초)
  * @property {number} endAt 뒤 여행 사진의 실제 시각(밀리초)
+ * @property {string[]} [photoIds] 제외를 반영한 양쪽 기준 사진
  */
+
+/**
+ * 끝점만 맞닿는 이웃 경계까지 합쳐지지 않게 양쪽을 엄격하게 비교해요.
+ * @param {{startAt: number, endAt: number}} span
+ * @param {number | null} left 앞 지점의 마지막 시각
+ * @param {number} right 뒤 지점의 첫 시각
+ * @returns {boolean}
+ */
+export function crossesMergeBoundary(span, left, right) {
+  return left !== null && span.startAt < right && left < span.endAt;
+}
 
 const roundCoord = (value) => Math.round(value * COORD_SCALE) / COORD_SCALE;
 const toTakenMs = (photo) => Date.parse(`${photo.takenAt}${photo.offset ?? DEFAULT_OFFSET}`);
@@ -264,7 +275,15 @@ function toGroupStop(raw, home, filledPhotos) {
  * @returns {import('@/types').GroupTrip[]}
  */
 function buildTrips(entries, splitAts, mergeSpans) {
-  return splitIntoRuns(entries, splitAts, mergeSpans).map(toTrip);
+  // 집이나 위치 미확인으로 바뀐 기준 사진도 다른 여행의 경계를 잇지 않게 해요.
+  if (!mergeSpans.length) return splitIntoRuns(entries, splitAts, []).map(toTrip);
+  const awayPhotoIds = new Set(
+    entries.filter((entry) => !entry.stop.isHome).flatMap((entry) => entry.stop.photoIds),
+  );
+  const activeSpans = mergeSpans.filter(
+    (span) => !span.photoIds || span.photoIds.every((id) => awayPhotoIds.has(id)),
+  );
+  return splitIntoRuns(entries, splitAts, activeSpans).map(toTrip);
 }
 
 /**

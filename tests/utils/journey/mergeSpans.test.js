@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { collectMergeSpans, crossesMergeBoundary } from '@/utils/journey/mergeSpans';
+import { crossesMergeBoundary } from '@/utils/journey/group';
+import { collectMergeSpans } from '@/utils/journey/mergeSpans';
 
 describe('합칠 구간의 두 시각', () => {
   const photo = (id, takenAt, offset) => Object.freeze({ id, takenAt, offset });
@@ -13,6 +14,7 @@ describe('합칠 구간의 두 시각', () => {
   const byId = new Map(photos.map((p) => [p.id, p]));
   const span = Object.freeze({
     id: 'm',
+    photoIds: ['a', 'b'],
     startAt: Date.UTC(2026, 0, 1, 1),
     endAt: Date.UTC(2026, 0, 1, 2),
   });

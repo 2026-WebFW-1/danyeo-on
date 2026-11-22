@@ -1,3 +1,4 @@
+import { selectPassportTrips } from '@/utils/passportTrips';
 import { DEFAULT_HOME_COUNTRY_CC } from '@/constants/passport';
 import { getCountryName } from '@/utils/countryName';
 import { calcDaysBetween, toLocalDate } from '@/utils/localDate';
@@ -29,7 +30,7 @@ export function groupOutings(journey) {
   );
   const outings = [];
 
-  for (const trip of journey.trips) {
+  for (const trip of selectPassportTrips(journey)) {
     const stops = trip.stopIds
       .map((id) => stopsById.get(id))
       .filter((stop) => stop && !stop.transit && stop.cc)

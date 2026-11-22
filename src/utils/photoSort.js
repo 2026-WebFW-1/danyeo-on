@@ -1,7 +1,7 @@
 import { SORT_THUMB_COUNT } from '@/constants/photoSort';
 import { formatDateRange } from '@/utils/formatDateRange';
 import { formatNo } from '@/utils/formatNo';
-import { collectMergeSpans, crossesMergeBoundary } from '@/utils/journey/mergeSpans';
+import { collectMergeSpans } from '@/utils/journey/mergeSpans';
 import { toLocalDate } from '@/utils/localDate';
 
 /**
@@ -104,7 +104,7 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
 
   const stopById = new Map(journey.stops.map((stop) => [stop.id, stop]));
   const photoById = new Map(photos.map((photo) => [photo.id, photo]));
-  const merges = collectMergeSpans(corrections, photoById);
+  const merges = collectMergeSpans(corrections, photoById, excludedIds);
   const renames = corrections.filter((correction) => correction.type === 'rename');
   const toRef = (id) => ({ id, fileKey: photoById.get(id)?.fileKey ?? null });
   const keptPhotoIds = (stop) => stop.photoIds.filter((id) => !excludedIds.has(id));
@@ -129,19 +129,15 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
     const isMergingWithPrevious =
       Boolean(prevTrip) &&
       splitCorrectionIds.length === 0 &&
-      merges.some((span) =>
-        crossesMergeBoundary(span, Date.parse(prevTrip.to), Date.parse(trip.from)),
+      merges.some(
+        ({ photoIds: [left, right] }) =>
+          tripPhotoIds.has(right) &&
+          prevTrip.stopIds.some((id) => stopById.get(id)?.photoIds.includes(left)),
       );
-    // 기준 사진을 제외해도 합쳐진 두 지점 사이에 걸친 보정은 취소할 수 있어요.
+    // 나중에 올린 사진 때문에 두 기준 사진이 한 지점에 들어가도 취소할 수 있어요.
     const mergeCorrectionIds = merges
-      .filter((span) =>
-        tripStops.some(
-          (stop, i) =>
-            i > 0 &&
-            crossesMergeBoundary(span, Date.parse(tripStops[i - 1].to), Date.parse(stop.from)),
-        ),
-      )
-      .map((span) => span.id);
+      .filter(({ photoIds }) => photoIds.every((id) => tripPhotoIds.has(id)))
+      .map((merge) => merge.id);
     return {
       id: trip.id,
       name: rename?.name ?? trip.name,
