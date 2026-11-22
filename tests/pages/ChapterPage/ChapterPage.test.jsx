@@ -400,3 +400,81 @@ describe('ChapterPage 글 고치기', () => {
     expect(editor()).not.toBeNull();
   });
 });
+
+describe('ChapterPage [+ 글 쓰기] (#203)', () => {
+  const writeButton = () => container.querySelector('button[aria-haspopup="menu"]');
+  const menuItems = () => [...container.querySelectorAll('[role="menuitem"]')];
+  const itemOf = (date) =>
+    menuItems().find((item) => item.textContent.startsWith(formatPostDate(date)));
+  const findButton = (text) =>
+    [...container.querySelectorAll('button')].find((button) => button.textContent === text);
+
+  /** 사람이 입력한 것처럼 값을 바꿔요. React가 알아채도록 원래 setter로 넣어요. */
+  const type = async (element, value) => {
+    const { set } = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value');
+    await act(async () => {
+      set.call(element, value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('글이 하나도 없는 챕터에서 [+ 글 쓰기]로 새 글을 저장하면 콜라주에 카드로 보여요', async () => {
+    vi.mocked(getPosts).mockResolvedValue([]);
+    await render();
+    // 글이 하나도 없으면 글 카드도, 카드의 [글 고치기]도 없어서 [+ 글 쓰기]가 편집기를 여는 유일한 길이에요.
+    expect(titles()).toEqual([]);
+    expect(container.querySelectorAll('button[aria-label$=" 글 고치기"]')).toHaveLength(0);
+
+    await act(async () => writeButton().click());
+    await act(async () => itemOf('2025-07-03').click());
+    expect(container.querySelector('section[aria-label="글 쓰기"]')).not.toBeNull();
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await type(container.querySelector('input[name="title"]'), '비 오는 목요일');
+    await act(async () => findButton('저장').click());
+    await act(async () => vi.advanceTimersByTime(1000));
+
+    expect(savePost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2025-07-03',
+        title: '비 오는 목요일',
+        id: expect.any(String),
+      }),
+    );
+    expect(container.querySelector('section[aria-label="글 쓰기"]')).toBeNull();
+    expect(titles()).toEqual(['비 오는 목요일']);
+
+    // 다시 열면 그날에 "글 있음"이 붙어요.
+    vi.useRealTimers();
+    await act(async () => writeButton().click());
+    expect(itemOf('2025-07-03').textContent).toContain('글 있음');
+  });
+
+  test('앞 지점과 겹치는 첫날(이동한 날)은 날짜 목록에 없어요', async () => {
+    // 밴쿠버 바로 앞 지점이 06.28까지 머문 것으로 고쳐요. 그날 글은 앞 지점의 글이 돼요.
+    const index = seojin.stops.findIndex((stop) => stop.id === vancouver.id);
+    const previous = seojin.stops[index - 1];
+    const sharesFirstDay = {
+      ...seojin,
+      stops: seojin.stops.map((stop) =>
+        stop.id === previous.id ? { ...stop, to: '2025-06-28T09:00:00+09:00' } : stop,
+      ),
+    };
+    vi.mocked(useJourney).mockReturnValue({
+      journey: sharesFirstDay,
+      status: 'ready',
+      error: null,
+    });
+    await render();
+
+    await act(async () => writeButton().click());
+
+    expect(menuItems()).toHaveLength(56);
+    expect(itemOf('2025-06-28')).toBeUndefined();
+    expect(menuItems()[0].textContent).toBe('2025.06.29 (일)Day 2');
+  });
+});

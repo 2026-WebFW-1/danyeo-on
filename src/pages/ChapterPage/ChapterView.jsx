@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import Lightbox from '@/components/common/Lightbox';
 import { selectChapterCollage } from '@/utils/chapterCollage';
+import { getDayNumber } from '@/utils/chapterEdit';
 import { layoutCollage } from '@/utils/layoutCollage';
 import { createSeed } from '@/utils/seededPick';
 import { getContinueTarget } from '@/utils/stopPath';
@@ -10,14 +11,15 @@ import ChapterHeader from './ChapterHeader';
 import Collage from './Collage';
 import PostEditView from './PostEditView';
 
-// 지점의 사진을 못 받았을 때 쓰는 빈 값이에요. 같은 배열을 써야 렌더링마다 다른 값으로 보이지 않아요.
+// 지점의 사진이나 글 쓸 날짜를 못 받았을 때 쓰는 빈 값이에요. 같은 배열을 써야 렌더링마다 다른 값으로 보이지 않아요.
 const NO_STOP_PHOTOS = [];
+const NO_DATES = [];
 
 /**
  * 02 챕터 화면을 그려요. 받은 값만 그리고 데이터는 읽지 않아요(읽는 건 ChapterPage예요).
  *
  * 호출: ChapterPage가 값을 다 읽은 뒤에 그려요. 챕터가 바뀌면 key를 바꿔서 새로 그려 주세요.
- * <ChapterView key={stop.id} stop={stop} chapter={chapter} posts={posts} photos={photos} stopPhotos={stopPhotos} notes={notes} nextStop={nextStop} />
+ * <ChapterView key={stop.id} stop={stop} chapter={chapter} posts={posts} photos={photos} stopPhotos={stopPhotos} notes={notes} dates={dates} nextStop={nextStop} />
  *
  * 의도:
  *  - 콜라주 칸은 피그마 02의 한 장면으로 정해져 있어서, 글이 많아도 화면이 늘어나지 않아요. 글·사진이 칸보다 많으면
@@ -30,6 +32,8 @@ const NO_STOP_PHOTOS = [];
  *  - 글 카드를 누르면 같은 주소 안에서 콜라주 대신 글을 고치는 화면(PostEditView, 피그마 14a)이 열려요. 어느 날짜를 고치는지
  *    (editingDate)도 콜라주·Lightbox와 같은 부모인 여기가 들고 있어요. 콜라주를 가려도 seed와 크게 보는 사진 번호는 그대로라서,
  *    저장하거나 취소해 돌아오면 같은 모양이에요. 고치는 동안에는 콜라주 안에 있는 [계속 여행하기]도 같이 가려져요.
+ *  - 글이 없는 날은 누를 카드가 없어서, 맨 아래 [+ 글 쓰기]에서 날짜를 골라 같은 편집 화면을 열어요(#203).
+ *    고를 수 있는 날(dates)은 ChapterPage가 정하고, 여기서는 Day N과 글이 있는지만 붙여요.
  *
  * @param {object} props
  * @param {import('@/types').Stop} props.stop 챕터 지점
@@ -38,6 +42,7 @@ const NO_STOP_PHOTOS = [];
  * @param {import('@/types').PhotoRef[]} props.photos 지점의 사진(시간 순서)
  * @param {import('@/types').Photo[]} [props.stopPhotos] 같은 사진을 파일 이름·촬영 시각까지 담은 것. 글 고치는 화면의 그날 사진에 써요
  * @param {Record<string, string>} props.notes 사진 id → 사진별 글 본문
+ * @param {string[]} [props.dates] [+ 글 쓰기]에서 고를 수 있는 날(YYYY-MM-DD, 시간 순서). 없으면 [+ 글 쓰기]를 그리지 않아요
  * @param {import('@/types').Stop | null} props.nextStop 같은 여행의 다음 지점. 없으면 null
  * @param {number} [props.seed] 무작위로 고르는 기준. 없으면 새로 만들어요(테스트에서 모양을 고정할 때만 넘겨요)
  */
@@ -48,6 +53,7 @@ export default function ChapterView({
   photos,
   stopPhotos = NO_STOP_PHOTOS,
   notes,
+  dates = NO_DATES,
   nextStop,
   seed: fixedSeed,
 }) {
@@ -61,6 +67,14 @@ export default function ChapterView({
     [stop, posts, photos, notes, seed],
   );
   const target = useMemo(() => getContinueTarget(stop, nextStop), [stop, nextStop]);
+  const writeDays = useMemo(() => {
+    const postDates = new Set(posts.map((post) => post.date));
+    return dates.map((date) => ({
+      date,
+      dayNumber: getDayNumber(stop, date),
+      hasPost: postDates.has(date),
+    }));
+  }, [stop, posts, dates]);
 
   const handleOpenPhoto = (photo) => {
     const index = photos.findIndex((candidate) => candidate.id === photo.id);
@@ -77,7 +91,13 @@ export default function ChapterView({
     <main className="relative flex-1 overflow-x-clip bg-canvas">
       <ChapterHeader stop={stop} chapter={chapter} />
       {editingDate === null ? (
-        <Collage items={items} target={target} onOpenPhoto={handleOpenPhoto} onEdit={handleEdit} />
+        <Collage
+          items={items}
+          target={target}
+          writeDays={writeDays}
+          onOpenPhoto={handleOpenPhoto}
+          onEdit={handleEdit}
+        />
       ) : (
         <PostEditView
           stop={stop}

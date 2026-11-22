@@ -8,7 +8,7 @@ import { usePhotoNotes } from '@/hooks/usePhotoNotes';
 import { usePostStore } from '@/stores/postStore';
 import { findChapterBySlug, getNextStop, selectChapters } from '@/utils/chapters';
 import { selectStopPhotoDetails, selectStopPhotos } from '@/utils/selectStopPhotos';
-import { selectPostsOfStop } from '@/utils/tripStops';
+import { selectPostsOfStop, selectStopDates } from '@/utils/tripStops';
 
 import ChapterNotice from './ChapterNotice';
 import ChapterView from './ChapterView';
@@ -19,6 +19,7 @@ const PLACES_PATH = '/places';
 const NO_PHOTOS = [];
 const NO_POSTS = [];
 const NO_PHOTO_IDS = [];
+const NO_DATES = [];
 
 /**
  * 02 챕터 페이지
@@ -36,6 +37,7 @@ const NO_PHOTO_IDS = [];
  *    ChapterView가 무작위로 골라서, 읽기 전에는 알 수 없어요. 글을 받는 것과 동시에 읽어요. 다른 화면과 나눠 쓰지 않아서 스토어를 쓰지 않아요.
  *  - 다른 챕터로 넘어가면(주소만 바뀌어요) 맨 위부터 보여요. [계속 여행하기]는 맨 아래에 있어서 그대로면 아래에 머물러요.
  *  - 글을 고치는 화면(14a)은 ChapterView 안에서 열려요. 글은 usePostStore에서 받아 넘기고, 고치기·저장은 PostEditor가 스토어로 해요.
+ *  - [+ 글 쓰기]에서 고를 날짜(selectStopDates)도 여기서 정해요. 앞 지점과 겹치는 날을 빼려면 지점 전체(journey)가 필요해서요.
  *    저장해도 스토어의 status는 그대로 'ready'라서 이 페이지가 안내 화면으로 되돌아가지 않아요.
  *
  * @see ChapterView
@@ -77,6 +79,10 @@ export default function ChapterPage() {
     [journey, stopId],
   );
   const nextStop = useMemo(() => (stopId ? getNextStop(journey, stopId) : null), [journey, stopId]);
+  const dates = useMemo(
+    () => (stopId ? selectStopDates(journey, stopId) : NO_DATES),
+    [journey, stopId],
+  );
 
   // 다른 챕터로 바뀌면 맨 위부터 보여요. 아래의 [계속 여행하기]를 눌렀을 때 그대로 아래에 머물지 않게요.
   useEffect(() => {
@@ -103,6 +109,7 @@ export default function ChapterPage() {
       photos={photos}
       stopPhotos={stopPhotos}
       notes={notes}
+      dates={dates}
       nextStop={nextStop}
     />
   );
