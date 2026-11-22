@@ -76,6 +76,7 @@ function mockCorrections(overrides = {}) {
     remove: vi.fn(),
     addMany: vi.fn().mockResolvedValue([]),
     removeMany: vi.fn().mockResolvedValue(),
+    moveAnchors: vi.fn().mockResolvedValue(),
     journeyStatus: 'idle',
     refreshJourney: vi.fn(),
     ...overrides,
@@ -481,6 +482,49 @@ describe('PhotoSortPage 제외한 사진', () => {
 
     expect(deletePhotos).toHaveBeenCalledExactlyOnceWith([second]);
     expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_3', 'c_2']);
+  });
+
+  test('지우기 전에 그 사진에 건 split 기준을 다음 사진으로 옮기고, 옮긴 뒤에 사진을 지워요', async () => {
+    const [, second, third] = bangkokPhotoIds;
+    const calls = [];
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(deletePhotos).mockImplementation(async (ids) => {
+      calls.push('deletePhotos');
+      return ids;
+    });
+    mockCorrections({
+      corrections: [
+        { id: 'c_split', type: 'split', beforePhotoId: second },
+        { id: 'c_1', type: 'exclude', photoId: second },
+      ],
+      moveAnchors: vi.fn(async () => calls.push('moveAnchors')),
+    });
+    await render('/edit/photos?tab=excluded');
+
+    await click(buttonByText('영구 삭제'));
+
+    expect(corrections.moveAnchors).toHaveBeenCalledExactlyOnceWith([
+      { correctionId: 'c_split', fromPhotoId: second, toPhotoId: third },
+    ]);
+    expect(calls).toEqual(['moveAnchors', 'deletePhotos']);
+  });
+
+  test('기준 옮기기가 실패하면 사진을 지우지 않고 그 사진 칸에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
+      moveAnchors: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }),
+    });
+    await render('/edit/photos?tab=excluded');
+
+    await click(buttonByText('영구 삭제'));
+
+    expect(deletePhotos).not.toHaveBeenCalled();
+    expect(corrections.removeMany).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]').textContent).toBe(
+      '사진을 지우지 못했어요. 다시 눌러 주세요',
+    );
   });
 
   test('지우는 동안 그 사진의 [복구] · [영구 삭제]를 막아요', async () => {

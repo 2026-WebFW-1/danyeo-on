@@ -9,7 +9,8 @@ import SortPhotoCard from './SortPhotoCard';
  * 제외한 사진 탭이에요. 뺀 사진을 최근에 뺀 순서로 보여 주고, 사진마다 [복구] · [영구 삭제]가 있어요.
  *
  * 호출: PhotoSortPage가 ?tab=excluded일 때 그려요.
- * <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} onDeleted={handleRestore} />
+ * <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore}
+ *   onBeforeDelete={handleMoveAnchors} onDeleted={handleRestore} />
  *
  * 의도:
  *  - [복구]는 그 사진의 exclude 보정을 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
@@ -17,6 +18,8 @@ import SortPhotoCard from './SortPhotoCard';
  *  - 피그마에 이 탭의 디자인이 없어서 07b의 사진 칸(128px)과 같은 크기로 그려요.
  *  - 목록은 보정에서 만들어서, 보정을 다 불러오기 전에는 그리지 않아요.
  *  - [영구 삭제]는 되돌릴 수 없어서 window.confirm으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
+ *    지우기 전에 onBeforeDelete로 그 사진에 건 split · merge 기준을 옮겨요. 사진과 함께 연결이 지워지면 나눈 여행이
+ *    다시 붙거나 합친 여행이 다시 갈라져서예요. 옮기기가 실패하면 사진을 지우지 않아요.
  *    사진을 지워도 exclude 보정은 사진 없이 남아서, 지운 뒤 onDeleted로 그 exclude를 지우고 Journey를 다시 계산해요.
  *    exclude 지우기가 실패하면 다시 눌러요. 이미 지운 사진은 deletePhotos가 오류 없이 건너뛰어 exclude만 다시 지워요.
  *    deletePhotos가 0행을 지워도 exclude를 지워요. photos의 RLS는 읽기·지우기가 같은 "본인 사진" 조건이고
@@ -26,11 +29,14 @@ import SortPhotoCard from './SortPhotoCard';
  * @param {import('@/utils/photoSort').ExcludedPhoto[]} props.photos
  * @param {'idle' | 'loading' | 'ready' | 'error'} props.status 보정 불러오기 상태
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onRestore 실패하면 던져요
+ * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onBeforeDelete 지우기 전에 split · merge 기준을 옮겨요. 실패하면 던져요
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onDeleted 사진을 지운 뒤 그 exclude를 지워요. 실패하면 던져요
  */
-export default function ExcludedTab({ photos, status, onRestore, onDeleted }) {
+export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete, onDeleted }) {
   const handleDelete = async (photo) => {
-    if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.')) return;
+    if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.'))
+      return;
+    await onBeforeDelete(photo);
     await deletePhotos([photo.id]);
     await onDeleted(photo);
   };
