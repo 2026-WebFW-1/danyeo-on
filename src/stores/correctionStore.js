@@ -473,15 +473,18 @@ export const useCorrectionStore = create((set, get) => ({
    * 옮겨도 여행은 그대로라 Journey 계산은 시작하지 않아요. 뒤이어 exclude를 지울 때(removeMany) 계산해요.
    * 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
    *
-   * @param {import('@/utils/photoSort').AnchorMove[]} moves
-   * @returns {Promise<void>}
+   * 무엇을 옮길지는 차례가 온 뒤의 보정 목록으로 정해요(saveOne과 같은 이유). 누를 때 정하면, 앞서 다른 사진을 지우며
+   * 옮긴 기준을 모르고 그 사진으로 옮겼다가 같이 지워질 수 있어요.
+   *
+   * @param {(corrections: import('@/types').Correction[]) => import('@/utils/photoSort').AnchorMove[]} buildMoves
+   * @returns {Promise<import('@/utils/photoSort').AnchorMove[]>} 옮긴 것
    */
-  moveAnchors: async (moves) => {
-    if (moves.length === 0) return;
-
+  moveAnchors: async (buildMoves) => {
     const requested = generation;
     const ownerId = useAuthStore.getState().user?.id;
-    await enqueue(ownerId, async () => {
+    return enqueue(ownerId, async () => {
+      assertSameAccount(requested);
+      const moves = buildMoves(get().corrections);
       for (const move of moves) {
         assertSameAccount(requested);
         await writeCorrection(ownerId, () =>
@@ -494,6 +497,7 @@ export const useCorrectionStore = create((set, get) => ({
           ),
         }));
       }
+      return moves;
     });
   },
 

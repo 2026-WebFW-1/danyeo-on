@@ -573,7 +573,7 @@ describe('moveAnchors', () => {
     vi.mocked(moveCorrectionPhoto).mockResolvedValue(true);
 
     // when
-    await getState().moveAnchors([
+    const moved = await getState().moveAnchors(() => [
       { correctionId: 'c_split', fromPhotoId: 'p_b', toPhotoId: 'p_c' },
       { correctionId: 'c_merge', fromPhotoId: 'p_b', toPhotoId: 'p_a' },
     ]);
@@ -588,7 +588,30 @@ describe('moveAnchors', () => {
       { ...split, beforePhotoId: 'p_c' },
       { ...merge, photoIds: ['p_a', 'p_d'] },
     ]);
+    expect(moved).toHaveLength(2);
     expect(refreshJourney).not.toHaveBeenCalled();
+  });
+
+  test('옮길 것은 앞선 요청이 끝난 뒤의 보정 목록으로 정해요', async () => {
+    // given: 앞 요청이 split을 p_b → p_c로 옮기는 중
+    await fetchWithAnchors();
+    const first = deferred();
+    vi.mocked(moveCorrectionPhoto).mockReturnValueOnce(first.promise).mockResolvedValue(true);
+    const seen = [];
+    const firstMoving = getState().moveAnchors(() => [
+      { correctionId: 'c_split', fromPhotoId: 'p_b', toPhotoId: 'p_c' },
+    ]);
+    const secondMoving = getState().moveAnchors((corrections) => {
+      seen.push(corrections.find((correction) => correction.id === 'c_split').beforePhotoId);
+      return [];
+    });
+
+    // when
+    first.resolve(true);
+    await Promise.all([firstMoving, secondMoving]);
+
+    // then
+    expect(seen).toEqual(['p_c']);
   });
 
   test('중간에 실패하면 던지고, 앞서 바꾼 보정만 목록에 반영돼요', async () => {
@@ -597,7 +620,7 @@ describe('moveAnchors', () => {
     vi.mocked(moveCorrectionPhoto).mockResolvedValueOnce(true).mockRejectedValueOnce(SAVE_FAILED);
 
     // when
-    const moving = getState().moveAnchors([
+    const moving = getState().moveAnchors(() => [
       { correctionId: 'c_split', fromPhotoId: 'p_b', toPhotoId: 'p_c' },
       { correctionId: 'c_merge', fromPhotoId: 'p_b', toPhotoId: 'p_a' },
     ]);
@@ -609,7 +632,7 @@ describe('moveAnchors', () => {
 
   test('옮길 게 없으면 보내지 않아요', async () => {
     // when
-    await getState().moveAnchors([]);
+    await getState().moveAnchors(() => []);
 
     // then
     expect(moveCorrectionPhoto).not.toHaveBeenCalled();

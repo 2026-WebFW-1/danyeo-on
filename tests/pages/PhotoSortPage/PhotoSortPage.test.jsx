@@ -76,7 +76,8 @@ function mockCorrections(overrides = {}) {
     remove: vi.fn(),
     addMany: vi.fn().mockResolvedValue([]),
     removeMany: vi.fn().mockResolvedValue(),
-    moveAnchors: vi.fn().mockResolvedValue(),
+    // 스토어처럼 지금 보정 목록으로 옮길 것을 정하고, 정한 것을 돌려줘요.
+    moveAnchors: vi.fn(async (buildMoves) => buildMoves(corrections.corrections)),
     journeyStatus: 'idle',
     refreshJourney: vi.fn(),
     ...overrides,
@@ -497,13 +498,16 @@ describe('PhotoSortPage 제외한 사진', () => {
         { id: 'c_split', type: 'split', beforePhotoId: second },
         { id: 'c_1', type: 'exclude', photoId: second },
       ],
-      moveAnchors: vi.fn(async () => calls.push('moveAnchors')),
+      moveAnchors: vi.fn(async (buildMoves) => {
+        calls.push('moveAnchors');
+        return buildMoves(corrections.corrections);
+      }),
     });
     await render('/edit/photos?tab=excluded');
 
     await click(buttonByText('영구 삭제'));
 
-    expect(corrections.moveAnchors).toHaveBeenCalledExactlyOnceWith([
+    await expect(corrections.moveAnchors.mock.results[0].value).resolves.toEqual([
       { correctionId: 'c_split', fromPhotoId: second, toPhotoId: third },
     ]);
     expect(calls).toEqual(['moveAnchors', 'deletePhotos']);
