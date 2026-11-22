@@ -334,6 +334,18 @@ export function buildAnchorMoves(photoId, corrections, photos, excludedIds) {
 }
 
 /**
+ * 옮긴 것을 되돌리는 move예요. 사진을 지우지 못했을 때 기준을 원래 사진으로 돌려놓을 때 써요.
+ *
+ * @param {AnchorMove} move
+ * @returns {AnchorMove}
+ */
+export const invertAnchorMove = ({ correctionId, fromPhotoId, toPhotoId }) => ({
+  correctionId,
+  fromPhotoId: toPhotoId,
+  toPhotoId: fromPhotoId,
+});
+
+/**
  * 그 사진 다음에 찍은 사진이에요. 같은 시각이면 어느 것이든 나누는 자리가 같아요.
  *
  * @param {import('@/types').Photo | undefined} photo

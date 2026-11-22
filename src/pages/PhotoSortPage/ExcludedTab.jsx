@@ -20,6 +20,7 @@ import SortPhotoCard from './SortPhotoCard';
  *  - [영구 삭제]는 되돌릴 수 없어서 window.confirm으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
  *    지우기 전에 onBeforeDelete로 그 사진에 건 split · merge 기준을 옮겨요. 사진과 함께 연결이 지워지면 나눈 여행이
  *    다시 붙거나 합친 여행이 다시 갈라져서예요. 옮기기가 실패하면 사진을 지우지 않아요.
+ *    사진을 지우지 못하면 옮긴 기준을 되돌려요. 옮긴 채 [복구]하면 나눈 자리가 옮긴 사진으로 바뀌어 있어서예요.
  *    사진을 지워도 exclude 보정은 사진 없이 남아서, 지운 뒤 onDeleted로 그 exclude를 지우고 Journey를 다시 계산해요.
  *    exclude 지우기가 실패하면 다시 눌러요. 이미 지운 사진은 deletePhotos가 오류 없이 건너뛰어 exclude만 다시 지워요.
  *    deletePhotos가 0행을 지워도 exclude를 지워요. photos의 RLS는 읽기·지우기가 같은 "본인 사진" 조건이고
@@ -29,15 +30,22 @@ import SortPhotoCard from './SortPhotoCard';
  * @param {import('@/utils/photoSort').ExcludedPhoto[]} props.photos
  * @param {'idle' | 'loading' | 'ready' | 'error'} props.status 보정 불러오기 상태
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onRestore 실패하면 던져요
- * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onBeforeDelete 지우기 전에 split · merge 기준을 옮겨요. 실패하면 던져요
+ * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<() => Promise<unknown>>} props.onBeforeDelete
+ *   지우기 전에 split · merge 기준을 옮기고, 옮긴 것을 되돌리는 함수를 돌려줘요. 실패하면 던져요
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onDeleted 사진을 지운 뒤 그 exclude를 지워요. 실패하면 던져요
  */
 export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete, onDeleted }) {
   const handleDelete = async (photo) => {
     if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.'))
       return;
-    await onBeforeDelete(photo);
-    await deletePhotos([photo.id]);
+    const undoMoves = await onBeforeDelete(photo);
+    try {
+      await deletePhotos([photo.id]);
+    } catch (error) {
+      // 되돌리기가 실패해도 안내는 사진을 지우지 못한 것으로 해요. 다시 누르면 지금 보정으로 다시 옮겨요.
+      await undoMoves().catch((undoError) => console.error(undoError));
+      throw error;
+    }
     await onDeleted(photo);
   };
 

@@ -10,6 +10,7 @@ import {
   buildAnchorMoves,
   buildTripExcludeInputs,
   buildTripRenameInput,
+  invertAnchorMove,
   selectExcludedIds,
   selectExcludedPhotos,
   selectPhotoSummary,
@@ -128,11 +129,13 @@ export default function PhotoSortPage() {
   // 같은 사진의 exclude를 모두 지우고 Journey 계산은 한 번만 해요. 실패하면 던져, 다시 누르면 남은 것만 지워요.
   const handleRestore = (photo) => removeMany(photo.correctionIds);
   // 영구 삭제할 사진에 건 split · merge를 남은 사진으로 옮겨, 지운 뒤에도 여행이 그대로이게 해요.
-  // 옮길 사진은 차례가 온 뒤의 보정으로 정해요(useCorrectionStore.moveAnchors).
-  const handleMoveAnchors = (photo) =>
-    moveAnchors((current) =>
+  // 옮길 사진은 차례가 온 뒤의 보정으로 정해요(useCorrectionStore.moveAnchors). 사진을 못 지우면 돌려준 함수로 되돌려요.
+  const handleMoveAnchors = async (photo) => {
+    const moved = await moveAnchors((current) =>
       buildAnchorMoves(photo.id, current, photos, selectExcludedIds(journey, current)),
     );
+    return () => moveAnchors(() => moved.map(invertAnchorMove));
+  };
 
   return (
     <main className="flex-1 bg-canvas pb-30">

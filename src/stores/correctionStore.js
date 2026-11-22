@@ -8,6 +8,7 @@ import {
 } from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
+import { invertAnchorMove } from '@/utils/photoSort';
 
 const INITIAL_STATE = {
   corrections: [],
@@ -469,7 +470,7 @@ export const useCorrectionStore = create((set, get) => ({
 
   /**
    * 보정이 가리키는 사진을 차례로 바꿔요. 사진을 영구 삭제하기 전에 split · merge의 기준을 옮길 때 써요.
-   * 앞서 부른 저장·삭제가 끝난 뒤에 보내요. 실패하면 거기서 멈추고 던지지만, 앞서 바꾼 보정은 목록에도 반영돼요.
+   * 앞서 부른 저장·삭제가 끝난 뒤에 보내요. 중간에 실패하면 앞서 옮긴 것을 되돌려 놓고 던져요.
    * 옮겨도 여행은 그대로라 Journey 계산은 시작하지 않아요. 뒤이어 exclude를 지울 때(removeMany) 계산해요.
    * 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
    *
@@ -485,7 +486,7 @@ export const useCorrectionStore = create((set, get) => ({
     return enqueue(ownerId, async () => {
       assertSameAccount(requested);
       const moves = buildMoves(get().corrections);
-      for (const move of moves) {
+      const moveOne = async (move) => {
         assertSameAccount(requested);
         await writeCorrection(ownerId, () =>
           moveCorrectionPhoto(move.correctionId, move.fromPhotoId, move.toPhotoId),
@@ -496,6 +497,20 @@ export const useCorrectionStore = create((set, get) => ({
             correction.id === move.correctionId ? applyAnchorMove(correction, move) : correction,
           ),
         }));
+      };
+
+      const moved = [];
+      try {
+        for (const move of moves) {
+          await moveOne(move);
+          moved.push(move);
+        }
+      } catch (error) {
+        // 일부만 옮긴 채 사진을 지우지 않으면, [복구]했을 때 나눈 자리가 옮긴 사진으로 바뀌어 있어요. 되돌려 놓아요.
+        for (const move of moved.toReversed()) {
+          await moveOne(invertAnchorMove(move)).catch((undoError) => console.error(undoError));
+        }
+        throw error;
       }
       return moves;
     });

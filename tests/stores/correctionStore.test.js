@@ -614,10 +614,13 @@ describe('moveAnchors', () => {
     expect(seen).toEqual(['p_c']);
   });
 
-  test('중간에 실패하면 던지고, 앞서 바꾼 보정만 목록에 반영돼요', async () => {
+  test('중간에 실패하면 앞서 옮긴 것을 되돌려 놓고 던져요', async () => {
     // given
     await fetchWithAnchors();
-    vi.mocked(moveCorrectionPhoto).mockResolvedValueOnce(true).mockRejectedValueOnce(SAVE_FAILED);
+    vi.mocked(moveCorrectionPhoto)
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(SAVE_FAILED)
+      .mockResolvedValueOnce(true);
 
     // when
     const moving = getState().moveAnchors(() => [
@@ -627,7 +630,8 @@ describe('moveAnchors', () => {
 
     // then
     await expect(moving).rejects.toEqual(SAVE_FAILED);
-    expect(getState().corrections).toEqual([exclude, { ...split, beforePhotoId: 'p_c' }, merge]);
+    expect(vi.mocked(moveCorrectionPhoto).mock.calls.at(-1)).toEqual(['c_split', 'p_c', 'p_b']);
+    expect(getState().corrections).toEqual([exclude, split, merge]);
   });
 
   test('옮길 게 없으면 보내지 않아요', async () => {
