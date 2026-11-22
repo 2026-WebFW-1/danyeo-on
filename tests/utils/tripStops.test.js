@@ -8,6 +8,7 @@ import {
   getDaysBetweenTrips,
   getOneLiner,
   selectPostsOfStop,
+  selectStopDates,
   selectTripStops,
 } from '@/utils/tripStops';
 
@@ -177,6 +178,51 @@ describe('selectPostsOfStop', () => {
     expect(selectPostsOfStop(seojin, seojinSeed.posts, 'p_none')).toEqual([]);
     expect(selectPostsOfStop(seojin, null, findStop(seojin, '밴쿠버').id)).toEqual([]);
     expect(selectPostsOfStop(null, seojinSeed.posts, 'p_none')).toEqual([]);
+  });
+});
+
+describe('selectStopDates', () => {
+  test('머문 첫날부터 마지막 날까지 하루씩 현지 날짜로 줘요(밴쿠버 57일)', () => {
+    // 밴쿠버 첫 사진은 현지 06-28 저녁 6시 반이에요. UTC로는 06-29지만 현지 날짜로 세요.
+    const dates = selectStopDates(seojin, findStop(seojin, '밴쿠버').id);
+
+    expect(dates).toHaveLength(57);
+    expect(dates.slice(0, 3)).toEqual(['2025-06-28', '2025-06-29', '2025-06-30']);
+    expect(dates.at(-1)).toBe('2025-08-23');
+  });
+
+  test('앞 지점과 겹치는 날(이동한 날)은 앞 지점 것이라 빼고, 뒤 지점과 겹치는 마지막 날은 이 지점 것이에요', () => {
+    // 부산은 2/28~3/1, 경주는 3/1~3/2예요.
+    expect(selectStopDates(seojin, findStop(seojin, '부산').id)).toEqual([
+      '2025-02-28',
+      '2025-03-01',
+    ]);
+    expect(selectStopDates(seojin, findStop(seojin, '경주').id)).toEqual(['2025-03-02']);
+  });
+
+  test('글이 붙는 지점과 같은 규칙이라, 날짜 목록의 날에 쓴 글은 그 지점의 글이 돼요', () => {
+    const stops = seojin.stops.filter((stop) => !stop.transit);
+
+    stops.forEach((stop) => {
+      const dates = selectStopDates(seojin, stop.id);
+      const posts = dates.map((date) => makePost(date, date));
+
+      expect(selectPostsOfStop(seojin, posts, stop.id).map((post) => post.date)).toEqual(dates);
+    });
+  });
+
+  test('경유 지점은 날짜가 없고, 그날은 같은 날 시작한 다음 지점 것이에요', () => {
+    // 도하(경유)와 이스탄불은 둘 다 2025-04-10에 시작해요.
+    const doha = edge.stops.find((stop) => stop.transit);
+
+    expect(selectStopDates(edge, doha.id)).toEqual([]);
+    expect(selectStopDates(edge, findStop(edge, '이스탄불').id)[0]).toBe('2025-04-10');
+  });
+
+  test('없는 지점이나 journey가 없으면 빈 배열이에요', () => {
+    expect(selectStopDates(seojin, 'p_none')).toEqual([]);
+    expect(selectStopDates(null, 'p_none')).toEqual([]);
+    expect(selectStopDates(empty, 'p_none')).toEqual([]);
   });
 });
 
