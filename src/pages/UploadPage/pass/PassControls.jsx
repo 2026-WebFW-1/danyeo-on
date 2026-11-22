@@ -60,7 +60,8 @@ export default function PassControls({ takenAt, isPaused, isFirst, isLast, onPau
           되돌리기
         </button>
       </div>
-      <p className="text-xs text-dim sm:text-right">멈추면 사진을 끌어서 옮길 수 있어요</p>
+      {/* 끌어서 옮기기는 기능 동결(11/29) 전에 만들기엔 커서 빼고, 있는 동작만 알려요(#204) */}
+      <p className="text-xs text-dim sm:text-right">되돌리면 멈춘 채로 앞 사진을 볼 수 있어요</p>
     </div>
   );
 }
