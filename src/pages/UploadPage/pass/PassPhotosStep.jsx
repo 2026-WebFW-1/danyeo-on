@@ -136,6 +136,7 @@ export default function PassPhotosStep() {
           {/* 끝난 뒤에는 멈추거나 되돌릴 흐름이 없어서 버튼 줄을 그리지 않아요 */}
           {!isPassed && (
             <PassControls
+              takenAt={photos[currentIndex]?.takenAt}
               isPaused={isPaused}
               isFirst={currentIndex === 0}
               isLast={isLast}
