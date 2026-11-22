@@ -243,7 +243,8 @@ async function savePicked(ownerId, { photos, passAnswers }, isCancelled) {
 
   // 이번 파일로 이미지를 만들 수 있는 사진만 이어 올릴 수 있어요.
   const skippedRows = rows.filter((row) => !savedIds.has(row.photo.id) && row.photo.fileKey);
-  const resumeTargets = skippedRows.length > 0 ? await findUnfinished(ownerId, skippedRows) : [];
+  const resumeTargets =
+    skippedRows.length > 0 ? await findResumableImageUploads(ownerId, skippedRows) : [];
   if (isCancelled()) return null;
 
   return {
@@ -264,7 +265,7 @@ async function savePicked(ownerId, { photos, passAnswers }, isCancelled) {
  * @param {{ order: number, dedupeKey: string }[]} skippedRows 저장 때 건너뛴 사진
  * @returns {Promise<{ order: number, fileKey: string }[]>}
  */
-async function findUnfinished(ownerId, skippedRows) {
+async function findResumableImageUploads(ownerId, skippedRows) {
   const [{ photos: savedPhotos }, uploadedPaths] = await Promise.all([
     getMyData(),
     getUploadedImagePaths(ownerId),
