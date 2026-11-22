@@ -518,4 +518,100 @@ describe('group', () => {
       expect(result).toEqual(group(photos));
     });
   });
+
+  describe('잇는 구간(merge)으로 여행 합치기', () => {
+    /** 사진의 실제 시각(밀리초)이에요. buildJourney가 merge 보정의 두 사진으로 이 값을 넘겨요. */
+    const toMs = (takenAt) => Date.parse(`${takenAt}+09:00`);
+    const spanOf = (startTakenAt, endTakenAt) => ({
+      startAt: toMs(startTakenAt),
+      endAt: toMs(endTakenAt),
+    });
+    /** 집(제주)에서 찍은 사진이에요. 사진이 가장 많은 지역이 집이라 여러 장 넣어요. */
+    const makeJejuPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: 33.5,
+      lng: 126.5,
+    });
+    const makeBusanPhoto = (id, takenAt) => ({
+      id,
+      takenAt,
+      offset: '+09:00',
+      lat: 35.1,
+      lng: 129,
+    });
+    const jejuPhotos = ['h1', 'h2', 'h3'].map((id) => makeJejuPhoto(id, '2024-12-20T10:00:00'));
+    /** 집을 떠나 서울 01-01 → 부산 01-20(19일 뒤)이라, 집을 거치지 않아도 두 여행으로 끊겨요. */
+    const longGapPhotos = [
+      ...jejuPhotos,
+      makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+      makeBusanPhoto('busan', '2025-01-20T10:00:00'),
+    ];
+
+    test('집을 거쳐 끊긴 두 여행에 걸치면 한 여행이 되고, 집 지점은 집으로 남아요', () => {
+      // given: 서울 01-01 → 집 01-05 → 부산 01-10 → 집 01-15 → 서울 01-20, 앞의 서울과 부산을 잇기
+      const photos = [
+        ...jejuPhotos,
+        makePhoto('seoul', '2025-01-01T10:00:00', '+09:00'),
+        makeJejuPhoto('h4', '2025-01-05T10:00:00'),
+        makeBusanPhoto('busan', '2025-01-10T10:00:00'),
+        makeJejuPhoto('h5', '2025-01-15T10:00:00'),
+        makePhoto('seoul2', '2025-01-20T10:00:00', '+09:00'),
+      ];
+      const mergeSpans = [spanOf('2025-01-01T10:00:00', '2025-01-10T10:00:00')];
+
+      // when
+      const result = group(photos, [], mergeSpans);
+
+      // then
+      expect(result.stops).toEqual(group(photos).stops);
+      expect(result.trips.map((trip) => [trip.stopIds, trip.days])).toEqual([
+        [['seoul', 'busan'], 10],
+        [['seoul2'], 1],
+      ]);
+    });
+
+    test('집 없이 14일 넘게 비어 끊긴 두 여행에 걸쳐도 한 여행이 돼요', () => {
+      // given
+      const mergeSpans = [spanOf('2025-01-01T10:00:00', '2025-01-20T10:00:00')];
+
+      // when
+      const result = group(longGapPhotos, [], mergeSpans);
+
+      // then
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['seoul', 'busan']]);
+    });
+
+    test('정확히 14일은 이어지고, 1초 더 비면 합치기 구간이 있어야 이어져요', () => {
+      // given
+      const start = '2025-01-01T10:00:00';
+      const boundary = (end) => [
+        ...jejuPhotos,
+        makePhoto('a', start, '+09:00'),
+        makeBusanPhoto('b', end),
+      ];
+      const exact = boundary('2025-01-15T10:00:00');
+      const late = boundary('2025-01-15T10:00:01');
+      const spans = Object.freeze([Object.freeze(spanOf(start, '2025-01-15T10:00:01'))]);
+      const before = structuredClone(late);
+      // when, then
+      expect(group(exact).trips.map((t) => t.stopIds)).toEqual([['a', 'b']]);
+      expect(group(late).trips.map((t) => t.stopIds)).toEqual([['a'], ['b']]);
+      expect(group(late, [], spans).trips.map((t) => t.stopIds)).toEqual([['a', 'b']]);
+      expect(late).toEqual(before);
+    });
+
+    test('같은 자리에 나누는 시각도 있으면 나누기가 이겨요', () => {
+      // given: 서울과 부산을 잇고, 부산 사진 앞에서도 나누기
+      const splitAts = [toMs('2025-01-20T10:00:00')];
+      const mergeSpans = [spanOf('2025-01-01T10:00:00', '2025-01-20T10:00:00')];
+
+      // when
+      const result = group(longGapPhotos, splitAts, mergeSpans);
+
+      // then
+      expect(result.trips.map((trip) => trip.stopIds)).toEqual([['seoul'], ['busan']]);
+    });
+  });
 });

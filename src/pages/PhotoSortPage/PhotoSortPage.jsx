@@ -145,6 +145,11 @@ export default function PhotoSortPage() {
           onExclude={handleExclude}
           onSplit={handleSplit}
           onUndoSplit={handleUndoSplit}
+          canMerge={
+            isCorrectionsReady && journeyStatus !== 'building' && journeyStatus !== 'failed'
+          }
+          onMerge={add}
+          onUndoMerge={(trip) => removeMany(trip.mergeCorrectionIds)}
         />
       )}
       {tab === 'excluded' && (

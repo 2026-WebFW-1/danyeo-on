@@ -8,8 +8,12 @@ import seojinSeed from '@/data/seed/seojin.json';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
+import MapPage from '@/pages/MapPage/MapPage';
+import PlacesPage from '@/pages/PlacesPage/PlacesPage';
+import { buildJourney } from '@/utils/journey/buildJourney';
 import PhotoSortPage from '@/pages/PhotoSortPage/PhotoSortPage';
 
+vi.mock('@/hooks/useLoadPosts', () => ({ useLoadPosts: () => 'ready' }));
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
 vi.mock('@/hooks/useCorrections', () => ({ useCorrections: vi.fn() }));
@@ -636,5 +640,129 @@ describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
     await act(async () => finish({}));
 
     expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
+  });
+});
+
+describe('07a에서 여행 합치기', () => {
+  const checkboxes = () => [...container.querySelectorAll('input[type="checkbox"]')];
+
+  test('이웃하지 않은 선택을 막고, 저장이 실패하면 두 줄을 유지해 다시 보낼 수 있어요', async () => {
+    // given
+    corrections.add.mockRejectedValueOnce(new Error('저장 실패'));
+    await render('/edit/photos');
+    const [a, b, c] = checkboxes();
+    // when
+    await click(a);
+    expect(c.disabled).toBe(true);
+    await click(b);
+    await click(buttonByText('합치기'));
+    // then
+    expect(container.querySelector('[role="alert"]').textContent).toContain(
+      '여행을 합치지 못했어요',
+    );
+    expect([a.checked, b.checked]).toEqual([true, true]);
+    await click(buttonByText('합치기'));
+    expect(corrections.add).toHaveBeenCalledTimes(2);
+    expect([a.checked, b.checked]).toEqual([false, false]);
+  });
+
+  test.each(['building', 'failed'])(
+    '계산 상태가 %s이면 합치기를 보낼 수 없어요',
+    async (journeyStatus) => {
+      // given
+      mockCorrections({ journeyStatus });
+      // when
+      await render('/edit/photos');
+      // then
+      expect(checkboxes().every((box) => box.disabled)).toBe(true);
+      expect(buttonByText('합치기').disabled).toBe(true);
+    },
+  );
+
+  test('아래 줄부터 선택해 합친 뒤 01·03을 보고, 취소하면 두 여행이 돌아와요', async () => {
+    // given: 서울 집 → 방콕 → 서울 집 → 다낭
+    const photo = (id, day, lat, lng) => ({
+      id,
+      takenAt: `2025-03-${day}T12:00:00`,
+      offset: '+09:00',
+      lat,
+      lng,
+      fileKey: null,
+    });
+    const photos = [
+      photo('h1', '01', 37.5, 127),
+      photo('h2', '02', 37.5, 127),
+      photo('b1', '03', 13.7, 100.5),
+      photo('b2', '04', 13.7, 100.5),
+      photo('h3', '08', 37.5, 127),
+      photo('h4', '09', 37.5, 127),
+      photo('d1', '12', 16, 108),
+    ];
+    const findPlace = (lat) => ({
+      city: lat < 15 ? '방콕' : lat < 20 ? '다낭' : '서울',
+      country: '',
+      cc: '',
+    });
+    const refresh = async () => {
+      const journey = await buildJourney(photos, corrections.corrections, findPlace);
+      vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready' });
+    };
+    const open = async (entry, page) => {
+      await act(async () =>
+        root.render(
+          <MemoryRouter key={entry} initialEntries={[entry]}>
+            {page}
+          </MemoryRouter>,
+        ),
+      );
+    };
+    const checkViews = async (mapId, mapName, names) => {
+      await open('/places', <PlacesPage />);
+      const tabs = [...container.querySelectorAll('nav[aria-label="여행 고르기"] button')];
+      expect(tabs).toHaveLength(names.length);
+      names.forEach((name, i) => expect(tabs[i].textContent).toContain(name));
+      await open('/map?trip=' + mapId, <MapPage />);
+      expect(container.querySelector('header p').textContent).toBe(mapName);
+    };
+    corrections.add.mockImplementation(async (input) => {
+      corrections.corrections = [{ id: 'saved', ...input }];
+      await refresh();
+    });
+    corrections.removeMany
+      .mockRejectedValueOnce(new Error('삭제 실패'))
+      .mockImplementation(async (ids) => {
+        corrections.corrections = corrections.corrections.filter((c) => !ids.includes(c.id));
+        await refresh();
+      });
+    vi.mocked(useMyPhotos).mockReturnValue({ photos, status: 'ready' });
+    await refresh();
+    // when: 뒤쪽 여행부터 골라 저장
+    await open('/edit/photos', <PhotoSortPage />);
+    await click(checkboxes()[1]);
+    await click(checkboxes()[0]);
+    await click(buttonByText('합치기'));
+    // then: 07, 03, 01에 같은 여행
+    expect(corrections.add).toHaveBeenCalledExactlyOnceWith({
+      type: 'merge',
+      photoIds: ['b2', 'd1'],
+    });
+    await open('/edit/photos', <PhotoSortPage />);
+    expect(tripNames()).toEqual(['방콕 · 다낭']);
+    await checkViews('b1', '방콕 · 다낭', ['방콕 · 다낭']);
+
+    // when: 첫 삭제는 실패하고 재시도에 성공
+    await open('/edit/photos', <PhotoSortPage />);
+    await click(buttonByText('합치기 취소'));
+    expect(container.querySelector('[role="alert"]').textContent).toContain(
+      '합치기를 취소하지 못했어요',
+    );
+    await click(buttonByText('합치기 취소'));
+    // then
+    expect(corrections.removeMany.mock.calls).toEqual([[['saved']], [['saved']]]);
+    await open('/edit/photos', <PhotoSortPage />);
+    expect(tripNames()).toEqual(['방콕', '다낭']);
+    await checkViews('d1', '다낭', ['방콕', '다낭']);
+    await open('/map?trip=b1', <MapPage />);
+    expect(container.querySelector('header p').textContent).toBe('방콕');
   });
 });

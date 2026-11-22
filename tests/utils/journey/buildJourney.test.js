@@ -399,6 +399,54 @@ describe('buildJourney 규칙', () => {
     expect(journey.trips.map((trip) => trip.stopIds)).toEqual([['p_b1'], ['p_b3']]);
   });
 
+  describe('여행 합치기 보정', () => {
+    const photos = [...BANGKOK_TRIP, makePhoto('p_d1', 'danang', '2024-08-01T09:00:00')];
+    const merge = { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] };
+
+    test('집에 돌아왔다 다시 떠난 구간을 합친 여행에 남겨요', async () => {
+      // when
+      const journey = await buildJourney(photos, [merge], findCity);
+      // then
+      expect(journey.trips.map((trip) => trip.stopIds)).toEqual([['p_b1', 'p_d1']]);
+      expect(journey.legs.map(({ kind, tripId }) => [kind, tripId])).toEqual([
+        ['outbound', 'p_b1'],
+        ['return', 'p_b1'],
+        ['outbound', 'p_b1'],
+      ]);
+    });
+
+    test('양쪽 여행의 마지막 이름과 출발 사진에 걸린 이동 수단을 유지해요', async () => {
+      // given
+      const corrections = [
+        { id: 'r1', type: 'rename', anchorPhotoId: 'p_b1', name: '첫 여행' },
+        { id: 'mode', type: 'mode', fromPhotoId: 'p_b1', mode: 'train' },
+        { id: 'r2', type: 'rename', anchorPhotoId: 'p_d1', name: '두 번째 여행' },
+        merge,
+      ];
+      const before = structuredClone({ photos, corrections });
+      // when
+      const journey = await buildJourney(photos, corrections, findCity);
+      // then
+      expect(journey.trips.map((t) => t.name)).toEqual(['두 번째 여행']);
+      expect(journey.legs.find((leg) => leg.from === 'p_b1')).toMatchObject({
+        mode: 'train',
+        tripId: 'p_b1',
+      });
+      expect({ photos, corrections }).toEqual(before);
+    });
+
+    test('기준 사진을 제외해도 합치기가 유지되고, 보정을 지우면 두 여행으로 돌아가요', async () => {
+      // given
+      const exclude = { id: 'x', type: 'exclude', photoId: 'p_b2' };
+      // when
+      const merged = await buildJourney(photos, [merge, exclude], findCity);
+      const undone = await buildJourney(photos, [exclude], findCity);
+      // then
+      expect(merged.trips.map((t) => t.stopIds)).toEqual([['p_b1', 'p_d1']]);
+      expect(undone.trips.map((t) => t.stopIds)).toEqual([['p_b1'], ['p_d1']]);
+    });
+  });
+
   test('기간 필터 기준일은 오늘이 아니라 마지막 여행이 끝난 날이에요', async () => {
     // when
     const journey = await buildJourney(BANGKOK_TRIP, [], findCity);
