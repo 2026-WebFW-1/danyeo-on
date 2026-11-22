@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, onTestFinished, test, vi } from 'vitest';
 
+import edgeGroup from '@/data/fixtures/edge.group.json';
+import edge from '@/data/fixtures/edge.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
+import edgeSeed from '@/data/seed/edge.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
@@ -31,6 +34,9 @@ vi.mock('@/hooks/useLoadPosts', () => ({ useLoadPosts: () => 'ready' }));
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
 vi.mock('@/hooks/useCorrections', () => ({ useCorrections: vi.fn() }));
+// 공항 목록은 따로 받아 오는 파일이라, 도하 하마드 공항 하나만 든 목록으로 바꿔요.
+const AIRPORTS = vi.hoisted(() => [{ lat: 25.273, lng: 51.608 }]);
+vi.mock('@/hooks/useAirports', () => ({ useAirports: () => AIRPORTS }));
 
 const bangkok = seojin.trips.find((trip) => trip.name === '방콕 · 다낭');
 
@@ -654,6 +660,124 @@ describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
     await act(async () => finish({}));
 
     expect(buttonsByText('빼기').every((button) => !button.disabled)).toBe(true);
+  });
+});
+
+describe('07a 경유 지점', () => {
+  const doha = edge.stops.find((stop) => stop.transit);
+  const transit = { id: 'c_edge_1', type: 'transit', photoIds: doha.photoIds };
+  const markButton = () => container.querySelector('button[aria-label="도하 경유로 처리"]');
+  const notice = () => container.querySelector('section[aria-label="경유 감지 안내"]');
+  const dohaChip = () =>
+    [...container.querySelectorAll('ul[aria-label="도시"] li')].find((li) =>
+      li.textContent.startsWith('도하'),
+    );
+
+  /** 경유 보정이 없는 edge예요. 도하가 비행기로 오가며 공항에 잠깐 머문 도시로 잡혀요. */
+  async function mockEdgeWithoutTransit() {
+    const findPlace = (lat, lng) =>
+      edgeGroup.stops.reduce((nearest, stop) =>
+        Math.hypot(stop.lat - lat, stop.lng - lng) <
+        Math.hypot(nearest.lat - lat, nearest.lng - lng)
+          ? stop
+          : nearest,
+      ).place;
+    const journey = await buildJourney(edgeSeed.photos, [], findPlace);
+    vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', error: null });
+    vi.mocked(useMyPhotos).mockReturnValue({ photos: edgeSeed.photos, status: 'ready' });
+  }
+
+  test('경유 후보를 물어보고, [경유로 처리]는 그 지점의 사진을 모두 transit 보정에 넣어요', async () => {
+    await mockEdgeWithoutTransit();
+    await render('/edit/photos');
+
+    expect(notice().querySelectorAll('li')).toHaveLength(1);
+    expect(notice().textContent).toContain('도하에서 찍은 사진 1장이 도시로 잡혔어요');
+    expect(notice().textContent).toContain('2025.04.10 · 잠깐 머묾');
+    expect(dohaChip().textContent).toBe('도하1일');
+
+    await click(markButton());
+
+    expect(corrections.add).toHaveBeenCalledExactlyOnceWith({
+      type: 'transit',
+      photoIds: doha.photoIds,
+    });
+  });
+
+  test('저장한 경유는 Journey를 다시 계산하기 전에도 흐린 칩이 되고 안내에서 빠져요', async () => {
+    await mockEdgeWithoutTransit();
+    mockCorrections({ corrections: [transit] });
+    await render('/edit/photos');
+
+    expect(notice()).toBeNull();
+    expect(dohaChip().textContent).toBe('도하경유');
+  });
+
+  test('경유로 처리하지 못하면 그 상자에 안내하고 다시 누를 수 있어요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await mockEdgeWithoutTransit();
+    mockCorrections({ add: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
+    await render('/edit/photos');
+
+    await click(markButton());
+
+    expect(notice().querySelector('[role="alert"]').textContent).toBe(
+      '경유로 처리하지 못했어요. 다시 시도해 주세요.',
+    );
+    expect(markButton().disabled).toBe(false);
+  });
+
+  test('보정을 다 불러오기 전에는 경유로 처리할 수 없어요', async () => {
+    await mockEdgeWithoutTransit();
+    mockCorrections({ status: 'loading' });
+    await render('/edit/photos');
+
+    expect(markButton().disabled).toBe(true);
+  });
+
+  test('[도시로 둘게요]는 보정 없이 안내를 닫고, 다시 들어와도 닫혀 있어요', async () => {
+    onTestFinished(() => localStorage.clear());
+    await mockEdgeWithoutTransit();
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="도하 도시로 둘게요"]'));
+
+    expect(notice()).toBeNull();
+    expect(corrections.add).not.toHaveBeenCalled();
+    expect(dohaChip().textContent).toBe('도하1일');
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render('/edit/photos');
+
+    expect(notice()).toBeNull();
+  });
+
+  test('[도하 경유 취소]는 그 지점의 transit 보정을 모두 지워요', async () => {
+    vi.mocked(useJourney).mockReturnValue({ journey: edge, status: 'ready', error: null });
+    mockCorrections({ corrections: [transit, { ...transit, id: 'c_again' }] });
+    await render('/edit/photos');
+
+    expect(notice()).toBeNull();
+    await click(buttonByText('도하 경유 취소'));
+
+    expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_edge_1', 'c_again']);
+  });
+
+  test('경유 취소가 실패하면 버튼 옆에 안내해요', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(useJourney).mockReturnValue({ journey: edge, status: 'ready', error: null });
+    mockCorrections({
+      corrections: [transit],
+      removeMany: vi.fn().mockRejectedValue({ code: 'REMOVE_FAILED' }),
+    });
+    await render('/edit/photos');
+
+    await click(buttonByText('도하 경유 취소'));
+
+    expect(container.querySelector('[role="alert"]').textContent).toBe(
+      '도하 경유를 취소하지 못했어요',
+    );
   });
 });
 

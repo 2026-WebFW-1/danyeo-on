@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { DEFAULT_SORT_TAB, SORT_TAB_PARAM, SORT_TABS } from '@/constants/photoSort';
+import { useAirports } from '@/hooks/useAirports';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
@@ -14,8 +15,10 @@ import {
   selectPhotoSummary,
   selectSortCounts,
   selectSortTrips,
+  selectTransitPhotoIds,
   selectUnlocatedGroups,
 } from '@/utils/photoSort';
+import { selectTransitCandidateIds } from '@/utils/transitCandidates';
 
 import ExcludedTab from './ExcludedTab';
 import JourneyStatusNotice from './JourneyStatusNotice';
@@ -23,6 +26,7 @@ import { SECTION_CLASS } from './sectionClass';
 import SortHeader from './SortHeader';
 import SortSummary from './SortSummary';
 import SortTabs from './SortTabs';
+import TransitNotice from './TransitNotice';
 import TripTable from './TripTable';
 import UnlocatedTab from './UnlocatedTab';
 
@@ -41,6 +45,8 @@ import UnlocatedTab from './UnlocatedTab';
  *    buildJourney가 같은 여행을 찾아요. 그 사진을 빼면 남은 사진으로 이름을 옮겨 걸어요(buildTripExcludeInputs).
  *  - 한 여행의 이름 바꾸기 · 빼기는 하나씩 보내요(TripRow). 둘 다 지금 보정으로 입력을 만들어서, 앞 요청이 끝나기 전에
  *    보내면 이름을 옮긴 걸 모르고 빼서 이름이 사라질 수 있어요.
+ *  - 경유(C107)는 공항에 잠깐 머문 지점을 CHECK 배너로 물어봐요. [경유로 처리]는 그 지점에 남은 사진을 모두 transit 보정에
+ *    넣어요. 지점 ID는 첫 사진 ID라, 한 장만 넣으면 그 사진을 뺐을 때 경유가 풀려요. 되돌리기는 그 보정을 모두 지워요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
@@ -61,6 +67,7 @@ export default function PhotoSortPage() {
     journeyStatus,
     refreshJourney,
   } = useCorrections();
+  const airports = useAirports();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get(SORT_TAB_PARAM);
   const tab = SORT_TABS.some((item) => item.key === requestedTab) ? requestedTab : DEFAULT_SORT_TAB;
@@ -71,9 +78,21 @@ export default function PhotoSortPage() {
     () => selectExcludedIds(journey, isCorrectionsReady ? corrections : null),
     [journey, corrections, isCorrectionsReady],
   );
+  const transitPhotoIds = useMemo(
+    () => selectTransitPhotoIds(journey, isCorrectionsReady ? corrections : null),
+    [journey, corrections, isCorrectionsReady],
+  );
   const trips = useMemo(
-    () => selectSortTrips(journey, corrections, photos, excludedIds),
-    [journey, corrections, photos, excludedIds],
+    () =>
+      selectSortTrips(
+        journey,
+        corrections,
+        photos,
+        excludedIds,
+        transitPhotoIds,
+        selectTransitCandidateIds(journey, airports),
+      ),
+    [journey, corrections, photos, excludedIds, transitPhotoIds, airports],
   );
   const counts = useMemo(
     () => selectSortCounts(journey, trips, excludedIds),
@@ -119,6 +138,9 @@ export default function PhotoSortPage() {
   const handleSplit = (photoId) => add({ type: 'split', beforePhotoId: photoId });
   // 같은 자리를 두 번 나눴을 수 있어서, 그 줄을 떼어 낸 split을 모두 지우고 Journey 계산은 한 번만 해요.
   const handleUndoSplit = (trip) => removeMany(trip.splitCorrectionIds);
+  const handleMarkTransit = (city) =>
+    add({ type: 'transit', photoIds: city.photos.map((photo) => photo.id) });
+  const handleUndoTransit = (city) => removeMany(city.transitCorrectionIds);
   // 묶음의 사진을 차례로 빼고 Journey 계산은 끝에 한 번만 해요(사진마다 add하면 사진 수만큼 계산해요).
   // 실패하면 던지고, 그 전까지 뺀 사진은 이미 묶음에서 빠져 있어서 다시 누르면 남은 사진만 빼요.
   const handleExcludeMany = (photoIds) =>
@@ -139,23 +161,27 @@ export default function PhotoSortPage() {
       )}
 
       {tab === 'trips' && (
-        <TripTable
-          trips={trips}
-          canEdit={isCorrectionsReady}
-          onRename={handleRename}
-          onExclude={handleExclude}
-          onSplit={handleSplit}
-          onUndoSplit={handleUndoSplit}
-          canMerge={
-            isCorrectionsReady &&
-            !hasPending &&
-            !isRefreshing &&
-            journeyStatus !== 'building' &&
-            journeyStatus !== 'failed'
-          }
-          onMerge={add}
-          onUndoMerge={(trip) => removeMany(trip.mergeCorrectionIds)}
-        />
+        <>
+          <TransitNotice trips={trips} canEdit={isCorrectionsReady} onMark={handleMarkTransit} />
+          <TripTable
+            trips={trips}
+            canEdit={isCorrectionsReady}
+            onRename={handleRename}
+            onExclude={handleExclude}
+            onSplit={handleSplit}
+            onUndoSplit={handleUndoSplit}
+            onUndoTransit={handleUndoTransit}
+            canMerge={
+              isCorrectionsReady &&
+              !hasPending &&
+              !isRefreshing &&
+              journeyStatus !== 'building' &&
+              journeyStatus !== 'failed'
+            }
+            onMerge={add}
+            onUndoMerge={(trip) => removeMany(trip.mergeCorrectionIds)}
+          />
+        </>
       )}
       {tab === 'excluded' && (
         <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} />

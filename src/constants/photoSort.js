@@ -27,3 +27,8 @@ export const SORT_PHOTO_PAGE_SIZE = 48;
 // 07b 날짜 묶음마다 미리 보여 줄 사진 수예요. 1200px 폭에서 날짜 칸(260px)을 빼고 128px 칸이 한 줄에 들어가는 만큼이에요.
 // 나머지는 +N으로 적어요(피그마 07b).
 export const SORT_GROUP_PREVIEW_COUNT = 6;
+
+// 경유 후보로 보는 기준이에요(기능 명세 C107). 머문 시간이 이보다 짧고, 대형 · 중형 공항에서 이 거리 안인 지점이에요.
+// 지점 좌표는 그 지점 사진들의 가운데라, 공항 안에서만 찍은 사진이면 이 거리 안에 들어와요.
+export const TRANSIT_MAX_STAY_HOURS = 6;
+export const TRANSIT_AIRPORT_KM = 3;

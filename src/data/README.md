@@ -7,8 +7,12 @@
 src/data/
 ├─ seed/       서버 DB에 들어갈 원본 (인물 하나 = 파일 하나)
 ├─ fixtures/   사진을 묶어 계산한 결과 예시 (화면이 최종적으로 받을 모양)
-└─ personas/   데이터를 만든 재료 (보통은 안 봐도 됨)
+├─ personas/   데이터를 만든 재료 (보통은 안 봐도 됨)
+└─ airports.json   대형 · 중형 공항 좌표 (목 데이터가 아니라 앱이 쓰는 참고 자료)
 ```
+
+`airports.json`만 앱이 실제로 읽어요. 07 사진 정리가 경유 후보를 찾을 때 `services/airportService.js`로 받아요.
+[OurAirports](https://ourairports.com/data/)(퍼블릭 도메인)의 대형 · 중형 공항을 `[위도, 경도, 위도, 경도, …]`로 이어 적은 파일이고, `node scripts/buildAirports.mjs`로 다시 만들어요.
 
 ## 인물
 

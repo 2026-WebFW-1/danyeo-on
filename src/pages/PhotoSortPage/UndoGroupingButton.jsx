@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-/** 여행을 나누거나 합친 보정을 지워요. 실패하면 같은 자리에서 다시 시도할 수 있어요. */
+/** 여행을 나누거나 합친 보정, 지점을 경유로 표시한 보정을 지워요. 실패하면 같은 자리에서 다시 시도할 수 있어요. */
 export default function UndoGroupingButton({ action, canUndo, onUndo }) {
   const [isWorking, setIsWorking] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);

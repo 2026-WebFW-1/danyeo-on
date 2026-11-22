@@ -11,6 +11,12 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {string} id 지점 ID
  * @property {string} city 예: '방콕'
  * @property {number} days 머문 날 수
+ * @property {boolean} isTransit 경유로 표시한 지점. 흐리게 그리고 되돌릴 수 있어요
+ * @property {boolean} isTransitCandidate 경유로 보이는 지점(공항 근처에 잠깐 머묾). 경유로 표시할지 물어봐요
+ * @property {string} from 이 지점 첫 사진의 시각(시간대 포함). 경유 감지 안내가 날짜와 머문 시간을 적어요
+ * @property {string} to 이 지점 마지막 사진의 시각
+ * @property {import('@/types').PhotoRef[]} photos 이 지점에 남아 있는 사진. 경유로 처리할 때 모두 transit 보정에 넣어요
+ * @property {string[]} transitCorrectionIds 이 지점을 경유로 만든 transit 보정. 되돌리기가 지워요
  */
 
 /**
@@ -21,7 +27,7 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {string} no 예: '02'
  * @property {string} name 마지막 이름 보정이 있으면 그 이름, 없으면 Journey의 이름
  * @property {string} dateRange 예: '2024.11.08 — 11.16'
- * @property {SortCityChip[]} cities 경유 지점과 사진을 모두 뺀 지점은 빼요
+ * @property {SortCityChip[]} cities 사진을 모두 뺀 지점은 빼요. 경유 지점은 isTransit으로 들어 있어요
  * @property {import('@/types').PhotoRef[]} thumbs 앞에서부터 SORT_THUMB_COUNT장
  * @property {number} photoCount 경유 지점의 사진은 빼요(selectTripStats와 같은 기준)
  * @property {import('@/types').PhotoRef[]} photos ⋯로 펼쳐 뺄 수 있는 사진. 경유 지점의 사진도 들어 있어요
@@ -45,6 +51,7 @@ import { toLocalDate } from '@/utils/localDate';
 
 const isExclude = (correction) => correction.type === 'exclude';
 const isSplit = (correction) => correction.type === 'split';
+const isTransit = (correction) => correction.type === 'transit';
 
 // group · buildJourney와 같게, 시간대가 없는 사진은 +09:00으로 봐요.
 const DEFAULT_OFFSET = '+09:00';
@@ -70,6 +77,25 @@ export function selectExcludedIds(journey, corrections) {
 }
 
 /**
+ * 지금 경유로 표시된 사진 ID예요. 이 사진이 하나라도 든 지점이 경유 지점이에요(buildJourney와 같은 규칙).
+ *
+ * selectExcludedIds와 같은 이유로, 보정을 다 불러왔으면 보정 목록이 기준이에요. 경유로 표시하거나 되돌리면 바로 바뀌어요.
+ * 불러오기 전(null)에는 Journey의 경유 지점을 써요.
+ *
+ * @param {import('@/types').Journey | null | undefined} journey
+ * @param {import('@/types').Correction[] | null} corrections 다 불러오기 전이면 null
+ * @returns {Set<string>}
+ */
+export function selectTransitPhotoIds(journey, corrections) {
+  if (!corrections) {
+    const transitStops = journey?.stops.filter((stop) => stop.transit) ?? [];
+    return new Set(transitStops.flatMap((stop) => stop.photoIds));
+  }
+  // 사진이 지워진 보정은 photoIds가 비어 있을 수 있어요.
+  return new Set(corrections.filter(isTransit).flatMap((correction) => correction.photoIds ?? []));
+}
+
+/**
  * split 보정마다 나누는 시각을 붙여요. buildJourney처럼 뺀 사진도 찾아서, 나눈 자리의 사진을 빼도 시각이 남아요.
  *
  * @param {import('@/types').Correction[]} corrections
@@ -92,14 +118,25 @@ function collectSplits(corrections, photoById) {
  * 복구한 사진은 어느 지점에 들어갈지 계산해야 알 수 있어서, 계산이 끝난 뒤에 돌아와요.
  * 나누기도 계산이 끝나야 줄이 둘이 돼요. 그 전에는 나눌 사진을 splittingPhotoIds로 알려요.
  * 나눠진 뒤에는 나누는 시각이 앞 여행이 끝난 뒤 ~ 이 여행 첫 사진 사이인 split을 이 여행의 splitCorrectionIds로 봐요.
+ * 경유도 보정 목록으로 덮어요(transitPhotoIds). 경유 지점은 도시 칩에 흐리게 남겨 되돌릴 수 있게 하고, 썸네일과 장수에서는 빼요.
+ * 경유 후보는 그 여행에 다른 도시가 남을 때만 알려요. 하나뿐인 도시를 경유로 바꾸면 도시 없는 여행이 돼요.
  *
  * @param {import('@/types').Journey | null | undefined} journey
  * @param {import('@/types').Correction[]} corrections
  * @param {import('@/types').Photo[]} photos 썸네일의 fileKey를 찾을 사진 전부. 못 받았으면 빈 배열(회색 칸)
  * @param {Set<string>} excludedIds selectExcludedIds의 값
+ * @param {Set<string>} [transitPhotoIds] selectTransitPhotoIds의 값. 안 주면 Journey의 경유 지점이에요
+ * @param {Set<string>} [transitCandidateIds] selectTransitCandidateIds의 값. 안 주면 후보가 없어요
  * @returns {SortTripRow[]}
  */
-export function selectSortTrips(journey, corrections, photos, excludedIds) {
+export function selectSortTrips(
+  journey,
+  corrections,
+  photos,
+  excludedIds,
+  transitPhotoIds = selectTransitPhotoIds(journey, null),
+  transitCandidateIds = new Set(),
+) {
   if (!journey) return [];
 
   const stopById = new Map(journey.stops.map((stop) => [stop.id, stop]));
@@ -110,14 +147,35 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
   const keptPhotoIds = (stop) => stop.photoIds.filter((id) => !excludedIds.has(id));
   const splits = collectSplits(corrections, photoById);
   const splitPhotoIds = new Set(splits.map((item) => item.photoId));
+  const transits = corrections.filter(isTransit);
+  const isTransitStop = (stop) => keptPhotoIds(stop).some((id) => transitPhotoIds.has(id));
 
   const trips = journey.trips.map((trip, index) => {
     const tripStops = trip.stopIds.map((id) => stopById.get(id)).filter(Boolean);
     // buildJourney의 nameTrip처럼 경유 지점의 사진도 이 여행의 사진으로 봐요.
     const tripPhotoIds = new Set(tripStops.flatMap((stop) => stop.photoIds));
     const rename = renames.findLast((correction) => tripPhotoIds.has(correction.anchorPhotoId));
-    const cityStops = tripStops.filter((stop) => !stop.transit && keptPhotoIds(stop).length > 0);
+    const shownStops = tripStops.filter((stop) => keptPhotoIds(stop).length > 0);
+    const cityStops = shownStops.filter((stop) => !isTransitStop(stop));
     const cityPhotoIds = cityStops.flatMap(keptPhotoIds);
+    const cities = shownStops.map((stop) => {
+      const photoIds = keptPhotoIds(stop);
+      const isTransitNow = isTransitStop(stop);
+      return {
+        id: stop.id,
+        city: stop.city,
+        days: stop.days,
+        isTransit: isTransitNow,
+        isTransitCandidate:
+          !isTransitNow && cityStops.length > 1 && transitCandidateIds.has(stop.id),
+        from: stop.from,
+        to: stop.to,
+        photos: photoIds.map(toRef),
+        transitCorrectionIds: transits
+          .filter((correction) => correction.photoIds?.some((id) => photoIds.includes(id)))
+          .map((correction) => correction.id),
+      };
+    });
     const tripPhotos = tripStops.flatMap(keptPhotoIds).map(toRef);
     const prevTrip = journey.trips[index - 1];
     const splitCorrectionIds = prevTrip
@@ -143,7 +201,7 @@ export function selectSortTrips(journey, corrections, photos, excludedIds) {
       name: rename?.name ?? trip.name,
       renameAnchorId: rename?.anchorPhotoId ?? null,
       dateRange: formatDateRange(trip.from, trip.to),
-      cities: cityStops.map((stop) => ({ id: stop.id, city: stop.city, days: stop.days })),
+      cities,
       thumbs: cityPhotoIds.slice(0, SORT_THUMB_COUNT).map(toRef),
       photoCount: cityPhotoIds.length,
       photos: tripPhotos,
