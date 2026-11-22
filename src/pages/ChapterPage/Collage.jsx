@@ -5,12 +5,13 @@ import { cn } from '@/utils/cn';
 import CollageItem from './CollageItem';
 import ContinueRow from './ContinueRow';
 import { FRAME_CLASS } from './frameClass';
+import WriteRow from './WriteRow';
 
 /**
- * 챕터의 글·사진·스티커를 흩어 놓은 콜라주와, 맨 아래 [계속 여행하기 →] 줄이에요.
+ * 챕터의 글·사진·스티커를 흩어 놓은 콜라주와, 맨 아래 줄([+ 글 쓰기] · [계속 여행하기 →])이에요.
  *
  * 호출: ChapterView가 머리 아래에 그려요.
- * <Collage items={items} target={target} onOpenPhoto={handleOpenPhoto} onEdit={handleEdit} />
+ * <Collage items={items} target={target} writeDays={writeDays} onOpenPhoto={handleOpenPhoto} onEdit={handleEdit} />
  *
  * 의도:
  *  - 조각들은 좌표(px)로 놓여서 폭이 좁으면 잘리거나 겹쳐요. 그래서 기준 폭(1440px)대로 그린 뒤 화면 폭에 맞춰 줄여 보여요
@@ -24,9 +25,11 @@ import { FRAME_CLASS } from './frameClass';
  * @param {import('@/utils/layoutCollage').CollageItem[]} props.items layoutCollage가 정한 조각들
  * @param {{ path: string, label: string, nextName: string | null }} props.target getContinueTarget의 결과
  * @param {(photo: import('@/types').PhotoRef) => void} props.onOpenPhoto
- * @param {(date: string) => void} [props.onEdit] 글 카드를 눌렀을 때. 그 글의 날짜를 넘겨요
+ * @param {(date: string) => void} [props.onEdit] 글 카드를 누르거나 [+ 글 쓰기]에서 날짜를 골랐을 때. 그 날짜를 넘겨요
+ * @param {{ date: string, dayNumber: number | null, hasPost: boolean }[]} [props.writeDays] [+ 글 쓰기]에서 고를 수 있는 날.
+ *   비어 있거나 onEdit이 없으면 [+ 글 쓰기]를 그리지 않아요
  */
-export default function Collage({ items, target, onOpenPhoto, onEdit }) {
+export default function Collage({ items, target, writeDays = [], onOpenPhoto, onEdit }) {
   const { ref, scale } = useFitScale(COLLAGE_DESIGN_WIDTH);
 
   return (
@@ -46,6 +49,7 @@ export default function Collage({ items, target, onOpenPhoto, onEdit }) {
         {items.map((item) => (
           <CollageItem key={item.key} item={item} onOpenPhoto={onOpenPhoto} onEdit={onEdit} />
         ))}
+        {onEdit && writeDays.length > 0 && <WriteRow days={writeDays} onPick={onEdit} />}
         <ContinueRow target={target} />
       </div>
     </div>

@@ -12,7 +12,7 @@ import { selectChapterCollage } from '@/utils/chapterCollage';
 import { findChapterBySlug, getNextStop, selectChapters } from '@/utils/chapters';
 import { formatPostDate } from '@/utils/postForm';
 import { selectStopPhotoDetails, selectStopPhotos } from '@/utils/selectStopPhotos';
-import { selectPostsOfStop } from '@/utils/tripStops';
+import { selectPostsOfStop, selectStopDates } from '@/utils/tripStops';
 
 // 글을 고치는 화면의 편집기(PostEditor)가 스토어로 저장해요. 서버로는 보내지 않아요.
 vi.mock('@/services/postService', () => ({
@@ -508,5 +508,170 @@ describe('ChapterView 글 고치기', () => {
 
       expect(container.querySelector('input[name="title"]').value).toBe(post0712.title);
     });
+  });
+});
+
+describe('ChapterView [+ 글 쓰기] (#203)', () => {
+  // 밴쿠버에 머문 57일이에요. 글은 06.28 · 06.30 · 07.05 · 07.12 · 07.26 · 08.09 · 08.23에 있어요.
+  const dates = selectStopDates(seojin, stop.id);
+  const FIRST_EMPTY = '2025-06-29';
+
+  const writeButton = () => container.querySelector('button[aria-haspopup="menu"]');
+  const menu = () => container.querySelector('[role="menu"]');
+  const menuItems = () => [...container.querySelectorAll('[role="menuitem"]')];
+  const itemOf = (date) =>
+    menuItems().find((item) => item.textContent.startsWith(formatPostDate(date)));
+  const writer = () => container.querySelector('section[aria-label="글 쓰기"]');
+  const editor = () => container.querySelector('section[aria-label="글 고치기"]');
+  const press = (key) =>
+    act(async () => {
+      document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    });
+  const openMenu = async (props) => {
+    await render({ dates, ...props });
+    await act(async () => writeButton().click());
+  };
+
+  beforeEach(() => {
+    usePostStore.getState().reset();
+    usePostStore.setState({
+      status: 'ready',
+      byDate: Object.fromEntries(posts.map((post) => [post.date, post])),
+    });
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    usePostStore.getState().reset();
+    vi.restoreAllMocks();
+  });
+
+  describe('날짜 목록', () => {
+    test('누르면 머문 날마다 한 줄씩 열리고, 글이 있는 날에는 "글 있음"이 붙어요', async () => {
+      await openMenu();
+
+      expect(writeButton().getAttribute('aria-expanded')).toBe('true');
+      expect(menuItems()).toHaveLength(57);
+      expect(itemOf('2025-06-28').textContent).toBe('2025.06.28 (토)Day 1글 있음');
+      expect(itemOf(FIRST_EMPTY).textContent).toBe('2025.06.29 (일)Day 2');
+      expect(menuItems().filter((item) => item.textContent.endsWith('글 있음'))).toHaveLength(
+        posts.length,
+      );
+    });
+
+    test('열면 글이 없는 첫날에 포커스가 가요', async () => {
+      await openMenu();
+
+      expect(document.activeElement).toBe(itemOf(FIRST_EMPTY));
+    });
+
+    test('모든 날에 글이 있으면 첫날에 포커스가 가요', async () => {
+      await openMenu({ dates: ['2025-06-28', '2025-06-30'] });
+
+      expect(document.activeElement).toBe(itemOf('2025-06-28'));
+    });
+
+    test('↓ ↑ Home End로 날짜를 옮겨요(끝에서는 반대쪽 끝으로 돌아가요)', async () => {
+      await openMenu();
+
+      await press('ArrowDown');
+      expect(document.activeElement).toBe(itemOf('2025-06-30'));
+      await press('End');
+      expect(document.activeElement).toBe(itemOf('2025-08-23'));
+      await press('ArrowDown');
+      expect(document.activeElement).toBe(itemOf('2025-06-28'));
+      await press('ArrowUp');
+      expect(document.activeElement).toBe(itemOf('2025-08-23'));
+      await press('Home');
+      expect(document.activeElement).toBe(itemOf('2025-06-28'));
+    });
+  });
+
+  describe('닫기', () => {
+    test('Esc를 누르면 닫히고 [+ 글 쓰기]로 포커스가 돌아와요', async () => {
+      await openMenu();
+
+      await press('Escape');
+
+      expect(menu()).toBeNull();
+      expect(writeButton().getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(writeButton());
+    });
+
+    test('목록 밖을 누르면 닫혀요', async () => {
+      await openMenu();
+
+      await act(async () => {
+        document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      });
+
+      expect(menu()).toBeNull();
+    });
+
+    test('목록 안을 눌러도 닫히지 않아요', async () => {
+      await openMenu();
+
+      await act(async () => {
+        itemOf(FIRST_EMPTY).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      });
+
+      expect(menu()).not.toBeNull();
+    });
+
+    test('버튼을 다시 누르면 닫혀요', async () => {
+      await openMenu();
+
+      await act(async () => writeButton().click());
+
+      expect(menu()).toBeNull();
+    });
+  });
+
+  describe('날짜 고르기', () => {
+    test('글이 없는 날을 고르면 그 날짜의 빈 편집 화면("글 쓰기")이 콜라주 대신 열려요', async () => {
+      await openMenu();
+
+      await act(async () => itemOf(FIRST_EMPTY).click());
+
+      expect(writer()).not.toBeNull();
+      expect(writer().textContent).toContain('2025.06.29 (일) · Day 2');
+      expect(container.querySelector('input[name="title"]').value).toBe('');
+      expect(container.querySelector('textarea[name="body"]').value).toBe('');
+      expect(container.querySelectorAll('article')).toHaveLength(0);
+      expect(menu()).toBeNull();
+    });
+
+    test('글이 있는 날을 고르면 그 글을 고치는 화면("글 고치기")이에요. 콜라주에 안 뽑힌 글도 열려요', async () => {
+      const { hero, cards } = selectChapterCollage({ stop, posts, photos, notes: {}, seed: SEED });
+      const shownIds = new Set([hero.post.id, ...cards.map((card) => card.id)]);
+      const hidden = posts.find((post) => !shownIds.has(post.id));
+      await openMenu();
+
+      await act(async () => itemOf(hidden.date).click());
+
+      expect(editor()).not.toBeNull();
+      expect(container.querySelector('input[name="title"]').value).toBe(hidden.title);
+    });
+
+    test('편집하는 동안에는 [+ 글 쓰기]가 없고, 취소하면 다시 보여요', async () => {
+      await openMenu();
+      await act(async () => itemOf(FIRST_EMPTY).click());
+
+      expect(writeButton()).toBeNull();
+
+      const cancel = [...container.querySelectorAll('button')].find(
+        (button) => button.textContent === '취소',
+      );
+      await act(async () => cancel.click());
+
+      expect(writeButton()).not.toBeNull();
+      expect(writeButton().getAttribute('aria-expanded')).toBe('false');
+    });
+  });
+
+  test('고를 날짜가 없으면 [+ 글 쓰기]를 그리지 않아요', async () => {
+    await render();
+
+    expect(writeButton()).toBeNull();
   });
 });
