@@ -84,7 +84,7 @@ pnpm dev
 데모 사진의 저작자 · 라이선스 · 원본 주소는 아래 파일에 있고, `/credits`가 로그인한 데모 계정이 쓰는 사진만 골라 보여 줘요.
 
 - 추가 확보한 사진: Supabase Storage `demo-assets`의 `<uuid>/<인물>/coverage-credits.json`
-- 처음부터 있던 사진: `public/photos/credits.json`. 109장 가운데 83장은 저작자 · 라이선스가 적혀 있지 않아서 `/credits`에 나오지 않아요. 출처를 확인해 채워야 해요.
+- 처음부터 있던 사진: `public/photos/credits.json`. 109장 가운데 12장은 원본을 찾지 못해 저작자 · 라이선스가 비어 있고 `/credits`에 나오지 않아요. 지금 쓰는 사진은 그중 3장(`sokcho-4`, `istanbul-4`, `sydney-2`)이에요. 나머지 9장은 사진 파일이 없는 항목이에요.
 
 CC BY · CC BY-SA 사진은 저작자 표시가 있어야 쓸 수 있어요. 사진을 바꾸거나 다른 곳에 다시 올릴 때는 이 파일들도 같이 맞춰 주세요.
 

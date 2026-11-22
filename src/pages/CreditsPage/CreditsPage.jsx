@@ -76,8 +76,8 @@ export default function CreditsPage() {
               데모 사진 <span className="text-lg font-medium text-muted">{credits.length}장</span>
             </h2>
             <p className={BODY_CLASS}>
-              아래 사진은 위키미디어 공용에서 받았어요. 크기를 줄여 WebP로 바꿨고, 촬영 시각 ·
-              위치는 시연용으로 만든 값이에요. 제목을 누르면 원본으로 가요.
+              아래 사진은 위키미디어 공용에서 받았어요. 크기를 줄이거나 가장자리를 잘라 WebP로
+              바꿨고, 촬영 시각 · 위치는 시연용으로 만든 값이에요. 제목을 누르면 원본으로 가요.
             </p>
             <PhotoCreditList credits={credits} />
           </section>
