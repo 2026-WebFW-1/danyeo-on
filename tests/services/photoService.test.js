@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getSupabase } from '@/services/getSupabase';
-import { getPhotoImageUrl, getUploadedImagePaths } from '@/services/photoService';
+import { deletePhotos, getPhotoImageUrl, getUploadedImagePaths } from '@/services/photoService';
 
 vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
 
@@ -77,5 +77,75 @@ describe('getUploadedImagePaths', () => {
 
     // when, then
     await expect(getUploadedImagePaths('u1')).rejects.toThrow('권한 없음');
+  });
+});
+
+describe('deletePhotos', () => {
+  /** from('photos').delete().in().select()가 rows를 돌려주는 supabase를 만들어요. */
+  function mockDelete(result) {
+    const query = { delete: vi.fn(), in: vi.fn(), select: vi.fn().mockResolvedValue(result) };
+    query.delete.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    const storageBucket = { remove: vi.fn().mockResolvedValue({ error: null }) };
+    vi.mocked(getSupabase).mockResolvedValue({
+      from: vi.fn(() => query),
+      storage: { from: vi.fn(() => storageBucket) },
+    });
+    return { query, storageBucket };
+  }
+
+  test('넘긴 사진 행을 지우고, 직접 올린 사진은 보기용 · 썸네일 이미지도 지워요', async () => {
+    // given
+    const { query, storageBucket } = mockDelete({
+      data: [
+        { id: 'p_a', file_key: 'photos:u1/p_a' },
+        { id: 'p_demo', file_key: 'demo:x/seojin/a.webp' },
+      ],
+      error: null,
+    });
+
+    // when
+    const deleted = await deletePhotos(['p_a', 'p_demo']);
+
+    // then
+    expect(deleted).toEqual(['p_a', 'p_demo']);
+    expect(query.in).toHaveBeenCalledWith('id', ['p_a', 'p_demo']);
+    expect(storageBucket.remove).toHaveBeenCalledExactlyOnceWith([
+      'u1/full/p_a.webp',
+      'u1/thumb/p_a.webp',
+    ]);
+  });
+
+  test('이미 지워졌거나 남의 사진이라 지운 행이 없으면 빈 배열을 주고 이미지는 건드리지 않아요', async () => {
+    // given
+    const { storageBucket } = mockDelete({ data: [], error: null });
+
+    // when
+    const deleted = await deletePhotos(['p_gone']);
+
+    // then
+    expect(deleted).toEqual([]);
+    expect(storageBucket.remove).not.toHaveBeenCalled();
+  });
+
+  test('행을 지우지 못하면 오류를 던지고 이미지는 건드리지 않아요', async () => {
+    // given
+    const { storageBucket } = mockDelete({ data: null, error: new Error('권한 없음') });
+
+    // when
+    const deleting = deletePhotos(['p_a']);
+
+    // then
+    await expect(deleting).rejects.toThrow('권한 없음');
+    expect(storageBucket.remove).not.toHaveBeenCalled();
+  });
+
+  test('빈 목록이면 요청하지 않아요', async () => {
+    // when
+    const deleted = await deletePhotos([]);
+
+    // then
+    expect(deleted).toEqual([]);
+    expect(getSupabase).not.toHaveBeenCalled();
   });
 });
