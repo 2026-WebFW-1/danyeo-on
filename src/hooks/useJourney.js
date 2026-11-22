@@ -23,6 +23,7 @@ const LOADING = { journey: null, status: 'loading', error: null };
  * 저장이 끝나면 열린 화면도 다시 읽어요. 그 사이에는 앞 Journey를 그대로 줘요(#148).
  *
  * @returns {{
+ *   isRefreshing?: boolean,
  *   journey: import('@/types').Journey | null,
  *   status: 'loading' | 'ready' | 'error',
  *   error: { status: number, code: string, message: string } | null,
@@ -41,7 +42,7 @@ export function useJourney() {
     if (!userId) return undefined;
     let isCurrent = true;
     getJourney(userId).then(
-      (journey) => isCurrent && setResult({ userId, journey, error: null }),
+      (journey) => isCurrent && setResult({ userId, version, journey, error: null }),
       (error) => isCurrent && setResult({ userId, journey: null, error }),
     );
     return () => {
@@ -51,5 +52,10 @@ export function useJourney() {
 
   if (!userId || result.userId !== userId) return LOADING;
   if (result.error) return { journey: null, status: 'error', error: result.error };
-  return { journey: result.journey, status: 'ready', error: null };
+  return {
+    journey: result.journey,
+    status: 'ready',
+    error: null,
+    isRefreshing: result.version !== version,
+  };
 }

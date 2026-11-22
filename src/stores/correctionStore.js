@@ -213,10 +213,9 @@ async function startRefresh(set, ownerId) {
 async function saveOne(get, set, input, ownerId, requested) {
   assertSameAccount(requested);
 
-  if (input.type === 'exclude') {
-    const existing = get().corrections.find(
-      (correction) => correction.type === 'exclude' && correction.photoId === input.photoId,
-    );
+  const key = getSaveKey(input);
+  if (key) {
+    const existing = get().corrections.find((correction) => getSaveKey(correction) === key);
     if (existing) return { correction: existing, isWritten: false };
   }
 
@@ -265,6 +264,17 @@ function omit(map, key) {
  */
 export function getExcludeKey(photoId) {
   return `exclude:${photoId}`;
+}
+
+/**
+ * 같은 사진 제외나 같은 여행 쌍은 한 번만 저장해요. 삭제 후 다시 요청하면 새 보정이 돼요.
+ * @param {import('@/types').CorrectionInput} input
+ * @returns {string | null}
+ */
+function getSaveKey(input) {
+  if (input.type === 'exclude') return getExcludeKey(input.photoId);
+  if (input.type === 'merge') return `merge:${JSON.stringify(input.photoIds)}`;
+  return null;
 }
 
 /**
@@ -328,8 +338,8 @@ export const useCorrectionStore = create((set, get) => ({
     const requested = generation;
     // 끝난 뒤에 읽으면 그사이 바뀐 계정의 id가 붙을 수 있어서, 부를 때의 주인을 들고 있어요.
     const ownerId = useAuthStore.getState().user?.id;
-    const excludeKey = input.type === 'exclude' ? getExcludeKey(input.photoId) : null;
-    if (excludeKey) startPending(set, excludeKey);
+    const key = getSaveKey(input);
+    if (key) startPending(set, key);
 
     try {
       return await enqueue(ownerId, async () => {
@@ -338,7 +348,7 @@ export const useCorrectionStore = create((set, get) => ({
         return correction;
       });
     } finally {
-      if (excludeKey) endPending(set, excludeKey, requested);
+      if (key) endPending(set, key, requested);
     }
   },
 
@@ -356,10 +366,8 @@ export const useCorrectionStore = create((set, get) => ({
 
     const requested = generation;
     const ownerId = useAuthStore.getState().user?.id;
-    const excludeKeys = inputs
-      .filter((input) => input.type === 'exclude')
-      .map((input) => getExcludeKey(input.photoId));
-    excludeKeys.forEach((key) => startPending(set, key));
+    const keys = inputs.map(getSaveKey).filter(Boolean);
+    keys.forEach((key) => startPending(set, key));
 
     try {
       return await enqueue(ownerId, async () => {
@@ -379,7 +387,7 @@ export const useCorrectionStore = create((set, get) => ({
         }
       });
     } finally {
-      excludeKeys.forEach((key) => endPending(set, key, requested));
+      keys.forEach((key) => endPending(set, key, requested));
     }
   },
 

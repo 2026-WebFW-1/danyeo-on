@@ -1,7 +1,7 @@
 import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, useLocation } from 'react-router';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, onTestFinished, test, vi } from 'vitest';
 
 import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
@@ -13,6 +13,20 @@ import PlacesPage from '@/pages/PlacesPage/PlacesPage';
 import { buildJourney } from '@/utils/journey/buildJourney';
 import PhotoSortPage from '@/pages/PhotoSortPage/PhotoSortPage';
 
+import { addCorrection, removeCorrection } from '@/services/correctionService';
+import { refreshJourney } from '@/services/journeyService';
+import { useAuthStore } from '@/stores/authStore';
+import { useCorrectionStore } from '@/stores/correctionStore';
+
+vi.mock('@/services/correctionService', () => ({
+  addCorrection: vi.fn(),
+  removeCorrection: vi.fn(),
+  getCorrections: vi.fn(),
+}));
+vi.mock('@/services/journeyService', async (original) => ({
+  ...(await original()),
+  refreshJourney: vi.fn(),
+}));
 vi.mock('@/hooks/useLoadPosts', () => ({ useLoadPosts: () => 'ready' }));
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
@@ -764,5 +778,81 @@ describe('07a에서 여행 합치기', () => {
     await checkViews('d1', '다낭', ['방콕', '다낭']);
     await open('/map?trip=b1', <MapPage />);
     expect(container.querySelector('header p').textContent).toBe('방콕');
+  });
+});
+
+describe('07a 여행 보정 요청이 겹칠 때', () => {
+  const boxes = () => [...container.querySelectorAll('input[type="checkbox"]')];
+  const photoIds = (trip) =>
+    trip.stopIds.flatMap((id) => seojin.stops.find((s) => s.id === id).photoIds);
+  beforeEach(async () => {
+    // 실제 스토어와 훅을 연결하고 서버 응답 시점만 테스트에서 정해요.
+    const actual = await vi.importActual('@/hooks/useCorrections');
+    vi.mocked(useCorrections).mockImplementation(actual.useCorrections);
+    useAuthStore.setState({ user: { id: 'merge-test' } });
+    useCorrectionStore.setState({ status: 'ready', corrections: [] });
+    onTestFinished(() => {
+      useCorrectionStore.getState().reset();
+      useAuthStore.setState({ user: null });
+      localStorage.removeItem('danyeo-on:journey-stale:merge-test');
+    });
+  });
+
+  test('저장 응답 전에 탭을 왕복해도 같은 두 여행을 다시 보낼 수 없어요', async () => {
+    // given
+    const saving = Promise.withResolvers();
+    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    await render('/edit/photos');
+    await click(boxes()[0]);
+    await click(boxes()[1]);
+    await click(buttonByText('합치기'));
+    // when
+    await click(tabs().find((t) => t.textContent.includes('위치 확인 필요')));
+    await click(tabs().find((t) => t.textContent.includes('여행 묶음')));
+    // then
+    expect(boxes().every((box) => box.disabled)).toBe(true);
+    await click(boxes()[0]);
+    await click(boxes()[1]);
+    await click(buttonByText('합치기'));
+    expect(addCorrection).toHaveBeenCalledTimes(1);
+    await act(async () => saving.resolve());
+  });
+
+  test('A+B 취소 중에는 이전 줄에서 B+C를 저장할 수 없고 최신 여행을 읽은 뒤에만 다시 선택해요', async () => {
+    // given
+    const [a, b] = seojin.trips;
+    const joined = { ...a, to: b.to, stopIds: [...a.stopIds, ...b.stopIds] };
+    const journey = { ...seojin, trips: [joined, ...seojin.trips.slice(2)] };
+    vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready' });
+    useCorrectionStore.setState({
+      corrections: [{ id: 'm', type: 'merge', photoIds: [photoIds(a).at(-1), photoIds(b)[0]] }],
+    });
+    const removing = Promise.withResolvers();
+    const rebuilding = Promise.withResolvers();
+    vi.mocked(removeCorrection).mockReturnValue(removing.promise);
+    vi.mocked(refreshJourney).mockReturnValue(rebuilding.promise);
+    await render('/edit/photos');
+    await click(boxes()[0]);
+    await click(boxes()[1]);
+    expect(buttonByText('합치기').disabled).toBe(false);
+    // when
+    await click(buttonByText('합치기 취소'));
+    // then
+    expect(buttonByText('합치기').disabled).toBe(true);
+    await click(buttonByText('합치기'));
+    expect(addCorrection).not.toHaveBeenCalled();
+    await act(async () => removing.resolve(true));
+    expect(boxes().every((box) => box.disabled)).toBe(true);
+    vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', isRefreshing: true });
+    await act(async () => rebuilding.resolve());
+    expect(boxes().every((box) => box.disabled)).toBe(true);
+    vi.mocked(useJourney).mockReturnValue({
+      journey: seojin,
+      status: 'ready',
+      isRefreshing: false,
+    });
+    await render('/edit/photos');
+    expect(buttonByText('합치기').disabled).toBe(true);
+    expect(boxes()[0].disabled).toBe(false);
   });
 });

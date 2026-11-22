@@ -71,7 +71,12 @@ describe('useJourney', () => {
 
     await mount();
 
-    expect(latest).toEqual({ journey: journeyA, status: 'ready', error: null });
+    expect(latest).toEqual({
+      journey: journeyA,
+      status: 'ready',
+      error: null,
+      isRefreshing: false,
+    });
     expect(getJourney).toHaveBeenCalledWith('u1');
   });
 
@@ -120,9 +125,10 @@ describe('useJourney', () => {
     await act(async () => journeyChanged.notify());
 
     expect(getJourney).toHaveBeenCalledTimes(2);
-    expect(latest).toEqual({ journey: journeyA, status: 'ready', error: null });
+    expect(latest).toEqual({ journey: journeyA, status: 'ready', error: null, isRefreshing: true });
 
     await act(async () => saved.resolve(journeyB));
+    expect(latest.isRefreshing).toBe(false);
 
     expect(latest.journey).toBe(journeyB);
   });
