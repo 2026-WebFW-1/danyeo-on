@@ -12,14 +12,28 @@ export function getTripPath(tripId) {
 
 /**
  * 지점을 눌렀을 때 가는 곳이에요. 챕터 지점이면 02 챕터, 아니면 03 전체 기록의 그 여행 탭이에요(기능 명세 R106).
- * 02의 [계속 여행하기]와 01 지도의 지점 클릭이 같은 규칙이라 한 곳에서 정해요.
+ * 02의 [계속 여행하기]와 01 지도의 도착 카드가 같은 규칙이라 한 곳에서 정해요.
  *
  * @param {Pick<import('@/types').Stop, 'chapter' | 'slug' | 'transit' | 'tripId'>} stop
  * @returns {string} 예: '/chapter/밴쿠버-2025', '/places?trip=p_356b49'
  */
 export function getStopPath(stop) {
-  if (stop.chapter && stop.slug && !stop.transit) return `/chapter/${stop.slug}`;
-  return getTripPath(stop.tripId);
+  return getStopLink(stop).path;
+}
+
+/**
+ * 지점으로 가는 링크의 주소와 글자예요. 01 도착 카드가 써요(#206).
+ * 글자는 03의 [챕터 열기], 02의 [전체 기록 보기]와 같아요.
+ *
+ * @param {Pick<import('@/types').Stop, 'chapter' | 'slug' | 'transit' | 'tripId'>} stop
+ * @returns {{ path: string, label: string }}
+ *   예: { path: '/chapter/밴쿠버-2025', label: '챕터 열기' }, { path: '/places?trip=p_356b49', label: '전체 기록 보기' }
+ */
+export function getStopLink(stop) {
+  if (stop.chapter && stop.slug && !stop.transit) {
+    return { path: `/chapter/${stop.slug}`, label: '챕터 열기' };
+  }
+  return { path: getTripPath(stop.tripId), label: '전체 기록 보기' };
 }
 
 /**

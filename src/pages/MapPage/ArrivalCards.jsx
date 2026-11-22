@@ -30,6 +30,9 @@ const CARD_POSES = ['', '-translate-y-6 -rotate-3', '-translate-x-6 -translate-y
  *    펼칠 때 고른 사진과 자리를 함께 상태로 찍어 두어서(openFan), 펼친 동안 사진 목록이 늦게 도착해
  *    장수가 바뀌어도 보이던 사진이 다른 자리로 튀지 않아요. 새 목록은 다음에 펼칠 때 보여요.
  *  - 사진은 처음 펼칠 때 받아요(ArrivalFanPhoto). 펼칠 사진이 없는 여행이면 펼치지도, 멈추지도 않아요.
+ *  - 맨 앞 카드는 그 지점의 02 챕터나 03 기록으로 가는 링크예요(ArrivalCard, #206). 뒤 카드는 거의 가려져서 두지 않아요.
+ *    카드는 펼친 사진보다 위에 그려져서 펼친 채로도 누를 수 있어요. 포커스가 상자에서 안의 링크로 옮겨 갈 때는
+ *    접지 않아요. 접으면 링크에 닿는 순간 다시 펼치면서 사진이 다른 자리로 튀어요.
  *
  * @param {object} props
  * @param {import('@/types').Stop[]} props.arrivalStops 0번이 맨 앞(selectArrivalStops)
@@ -91,6 +94,10 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
     setIsFocused(true);
   };
 
+  const handleBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) setIsFocused(false);
+  };
+
   return (
     <section
       aria-label="도착한 지점"
@@ -99,7 +106,7 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}
-      onBlur={() => setIsFocused(false)}
+      onBlur={handleBlur}
       className="pointer-events-none absolute right-8 bottom-8 size-75 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
     >
       {hasFan && (
@@ -123,10 +130,15 @@ export default function ArrivalCards({ arrivalStops, stops, trip }) {
       )}
 
       {arrivalStops
-        .map((stop, index) => ({ stop, pose: CARD_POSES[index] }))
+        .map((stop, index) => ({ stop, pose: CARD_POSES[index], isFront: index === 0 }))
         .reverse()
-        .map(({ stop, pose }) => (
-          <ArrivalCard key={stop.id} stop={stop} className={cn('pointer-events-auto', pose)} />
+        .map(({ stop, pose, isFront }) => (
+          <ArrivalCard
+            key={stop.id}
+            stop={stop}
+            hasLink={isFront}
+            className={cn('pointer-events-auto', pose)}
+          />
         ))}
 
       {isOpen && (
