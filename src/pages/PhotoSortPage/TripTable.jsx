@@ -28,6 +28,7 @@ const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-
  * @param {(trip: import('@/utils/photoSort').SortTripRow, photoId: string) => Promise<unknown>} props.onExclude
  * @param {(photoId: string) => Promise<unknown>} props.onSplit 이 사진부터 새 여행으로 나눠요
  * @param {(trip: import('@/utils/photoSort').SortTripRow) => Promise<unknown>} props.onUndoSplit
+ * @param {(city: import('@/utils/photoSort').SortCityChip) => Promise<unknown>} props.onUndoTransit 경유 표시를 되돌려요
  */
 export default function TripTable({
   trips,
@@ -39,6 +40,7 @@ export default function TripTable({
   onExclude,
   onSplit,
   onUndoSplit,
+  onUndoTransit,
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -125,6 +127,7 @@ export default function TripTable({
             onExclude={(photoId) => onExclude(trip, photoId)}
             onSplit={onSplit}
             onUndoSplit={() => onUndoSplit(trip)}
+            onUndoTransit={onUndoTransit}
           />
         ))}
       </ul>

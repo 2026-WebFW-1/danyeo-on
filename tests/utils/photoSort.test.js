@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 
+import edge from '@/data/fixtures/edge.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
+import edgeSeed from '@/data/seed/edge.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import {
   buildTripExcludeInputs,
@@ -11,6 +13,7 @@ import {
   selectPhotoSummary,
   selectSortCounts,
   selectSortTrips,
+  selectTransitPhotoIds,
   selectUnlocatedGroups,
 } from '@/utils/photoSort';
 import { selectTripStats } from '@/utils/trips';
@@ -42,7 +45,7 @@ describe('selectSortTrips', () => {
     expect(row.photoCount).toBe(selectTripStats(seojin, trip.id).photos);
   });
 
-  test('경유 지점은 도시 칩과 장수에서 빼요', () => {
+  test('경유 지점은 도시 칩에 경유로 남기고, 썸네일과 장수에서 빼요', () => {
     const trip = tripByName('방콕 · 다낭');
     const [first, second] = trip.stopIds;
     const journey = {
@@ -52,7 +55,11 @@ describe('selectSortTrips', () => {
 
     const row = selectSortTrips(journey, [], [], NONE).find((item) => item.id === trip.id);
 
-    expect(row.cities.map((city) => city.id)).toEqual([first]);
+    expect(row.cities.map((city) => [city.id, city.isTransit])).toEqual([
+      [first, false],
+      [second, true],
+    ]);
+    expect(row.thumbs.every((photo) => stopOf(first).photoIds.includes(photo.id))).toBe(true);
     expect(row.photoCount).toBe(stopOf(first).photoCount);
   });
 
@@ -407,5 +414,92 @@ describe('buildTripRenameInput', () => {
 
     expect(row.id).toBe(first);
     expect(buildTripRenameInput(row, '졸업 전 여행').anchorPhotoId).toBe(second);
+  });
+});
+
+describe('경유 지점', () => {
+  const doha = edge.stops.find((stop) => stop.transit);
+  const dohaTrip = edge.trips.find((trip) => trip.stopIds.includes(doha.id));
+  const transit = (photoIds, id = 'c_transit') => ({ id, type: 'transit', photoIds });
+  const excludedIds = selectExcludedIds(edge, edgeSeed.corrections);
+  const rowsOf = (corrections) =>
+    selectSortTrips(
+      edge,
+      corrections,
+      edgeSeed.photos,
+      excludedIds,
+      selectTransitPhotoIds(edge, corrections),
+    );
+  const chipOf = (rows, stopId) =>
+    rows.flatMap((row) => row.cities).find((city) => city.id === stopId);
+
+  test('보정을 불러오기 전에는 Journey의 경유 지점을, 불러온 뒤에는 보정 목록을 봐요', () => {
+    expect([...selectTransitPhotoIds(edge, null)]).toEqual(doha.photoIds);
+    expect([...selectTransitPhotoIds(edge, [])]).toEqual([]);
+    expect([...selectTransitPhotoIds(edge, [transit(['p_a', 'p_b']), transit([])])]).toEqual([
+      'p_a',
+      'p_b',
+    ]);
+    expect([...selectTransitPhotoIds(null, null)]).toEqual([]);
+  });
+
+  test('경유 칩은 그 지점의 사진이 든 transit 보정을 모두 알려 줘서 되돌릴 수 있어요', () => {
+    const corrections = [...edgeSeed.corrections, transit(doha.photoIds, 'c_again')];
+    const chip = chipOf(rowsOf(corrections), doha.id);
+
+    expect(chip).toMatchObject({ isTransit: true, isTransitCandidate: false });
+    expect(chip.transitCorrectionIds).toEqual(['c_edge_1', 'c_again']);
+  });
+
+  test('transit 보정을 지우면 다시 계산하기 전에도 도시로 돌아오고 장수에 들어가요', () => {
+    const withTransit = rowsOf(edgeSeed.corrections).find((row) => row.id === dohaTrip.id);
+    const reverted = rowsOf(edgeSeed.corrections.filter((item) => item.type !== 'transit')).find(
+      (row) => row.id === dohaTrip.id,
+    );
+
+    expect(chipOf([reverted], doha.id)).toMatchObject({
+      isTransit: false,
+      photoIds: doha.photoIds,
+    });
+    expect(reverted.photoCount).toBe(withTransit.photoCount + doha.photoCount);
+  });
+
+  test('경유 후보(selectTransitCandidateIds)는 아직 경유가 아닌 지점에만 알려요', () => {
+    const candidateIds = new Set([doha.id]);
+    const noTransit = edgeSeed.corrections.filter((item) => item.type !== 'transit');
+    const rowsWith = (corrections) =>
+      selectSortTrips(
+        edge,
+        corrections,
+        edgeSeed.photos,
+        excludedIds,
+        selectTransitPhotoIds(edge, corrections),
+        candidateIds,
+      );
+
+    expect(chipOf(rowsWith(noTransit), doha.id).isTransitCandidate).toBe(true);
+    expect(chipOf(rowsWith(edgeSeed.corrections), doha.id).isTransitCandidate).toBe(false);
+    expect(
+      rowsWith(noTransit)
+        .flatMap((row) => row.cities)
+        .filter((city) => city.isTransitCandidate),
+    ).toHaveLength(1);
+  });
+
+  test('하나뿐인 도시는 경유 후보로 알리지 않아요', () => {
+    const others = dohaTrip.stopIds.filter((id) => id !== doha.id);
+    const otherPhotoIds = edge.stops
+      .filter((stop) => others.includes(stop.id))
+      .flatMap((stop) => stop.photoIds);
+    const rows = selectSortTrips(
+      edge,
+      [],
+      edgeSeed.photos,
+      new Set(otherPhotoIds),
+      new Set(),
+      new Set([doha.id]),
+    );
+
+    expect(chipOf(rows, doha.id)).toMatchObject({ isTransit: false, isTransitCandidate: false });
   });
 });

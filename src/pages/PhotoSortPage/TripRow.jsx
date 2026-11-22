@@ -1,10 +1,11 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 
 import PhotoGridCell from '@/components/common/PhotoGridCell';
 import { useInView } from '@/hooks/useInView';
 import { cn } from '@/utils/cn';
 
 import { TRIP_ROW_GRID_CLASS } from './sectionClass';
+import TripCities from './TripCities';
 import TripName from './TripName';
 import TripPhotos from './TripPhotos';
 import UndoGroupingButton from './UndoGroupingButton';
@@ -17,7 +18,7 @@ import UndoGroupingButton from './UndoGroupingButton';
  *   onUndoSplit={() => handleUndoSplit(trip)} />
  *
  * 의도:
- *  - 도시 칩은 03 도시 블록처럼 경유 지점을 빼고 지점마다 하나씩, 사이를 짧은 선으로 이어요. 도시가 많으면 다음 줄로 넘어가요.
+ *  - 경유로 표시한 지점마다 기간 아래 [도하 경유 취소]가 있어요. 그 지점의 transit 보정을 지워요(#197).
  *  - 썸네일은 줄이 화면 가까이 왔을 때 그려요(useInView). 그 전에는 같은 크기의 회색 칸이에요.
  *  - ⋯를 누르면 줄 아래에 그 여행의 사진을 펼쳐, 사진마다 [빼기]로 빼거나 [여기서 나누기]로 나눌 수 있어요.
  *    펼침은 이 줄에서만 쓰는 값이라 여기 둬요.
@@ -39,6 +40,7 @@ import UndoGroupingButton from './UndoGroupingButton';
  * @param {(photoId: string) => Promise<unknown>} props.onExclude
  * @param {(photoId: string) => Promise<unknown>} props.onSplit
  * @param {() => Promise<unknown>} props.onUndoSplit
+ * @param {(city: import('@/utils/photoSort').SortCityChip) => Promise<unknown>} props.onUndoTransit
  */
 export default function TripRow({
   trip,
@@ -52,6 +54,7 @@ export default function TripRow({
   onExclude,
   onSplit,
   onUndoSplit,
+  onUndoTransit,
 }) {
   const { ref: thumbsRef, isInView } = useInView();
   const [isOpen, setIsOpen] = useState(false);
@@ -104,20 +107,20 @@ export default function TripRow({
               onUndo={() => sendOne(onUndoMerge)}
             />
           )}
+          {trip.cities
+            .filter((city) => city.isTransit)
+            .map((city) => (
+              <UndoGroupingButton
+                key={city.id}
+                action={`${city.city} 경유`}
+                canUndo={canEditNow}
+                onUndo={() => sendOne(() => onUndoTransit(city))}
+              />
+            ))}
           {trip.isMergingWithPrevious && <p className="text-xs text-muted">앞 여행과 합치는 중…</p>}
         </div>
 
-        <ul aria-label="도시" className="flex flex-wrap items-center gap-y-2">
-          {trip.cities.map((city, index) => (
-            <Fragment key={city.id}>
-              {index > 0 && <li aria-hidden="true" className="h-px w-4.5 bg-ink/40" />}
-              <li className="flex items-baseline gap-1 border border-line bg-white px-3 py-2 whitespace-nowrap">
-                <span className="text-sm font-medium text-ink">{city.city}</span>
-                <span className="text-2xs text-muted">{city.days}일</span>
-              </li>
-            </Fragment>
-          ))}
-        </ul>
+        <TripCities cities={trip.cities} />
 
         <div className="flex items-center justify-between">
           <div ref={thumbsRef} className="flex items-center gap-1">
