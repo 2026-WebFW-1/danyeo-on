@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 import Lightbox from '@/components/common/Lightbox';
 import { selectChapterCollage } from '@/utils/chapterCollage';
-import { getDayNumber } from '@/utils/chapterEdit';
+import { buildWriteDays } from '@/utils/chapterEdit';
 import { layoutCollage } from '@/utils/layoutCollage';
 import { createSeed } from '@/utils/seededPick';
 import { getContinueTarget } from '@/utils/stopPath';
@@ -67,14 +67,7 @@ export default function ChapterView({
     [stop, posts, photos, notes, seed],
   );
   const target = useMemo(() => getContinueTarget(stop, nextStop), [stop, nextStop]);
-  const writeDays = useMemo(() => {
-    const postDates = new Set(posts.map((post) => post.date));
-    return dates.map((date) => ({
-      date,
-      dayNumber: getDayNumber(stop, date),
-      hasPost: postDates.has(date),
-    }));
-  }, [stop, posts, dates]);
+  const writeDays = useMemo(() => buildWriteDays(stop, dates, posts), [stop, dates, posts]);
 
   const handleOpenPhoto = (photo) => {
     const index = photos.findIndex((candidate) => candidate.id === photo.id);

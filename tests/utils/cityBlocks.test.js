@@ -44,6 +44,28 @@ describe('selectCityBlocks', () => {
     expect(blocks[0].photos[blocks[0].coverIndex].fileKey).toBe(blocks[0].stop.coverFileKey);
   });
 
+  test('[+ 글 쓰기] 날짜: 챕터 지점(밴쿠버)은 02에서 써서 비어 있고, 밴프는 머문 날마다 글이 있는지를 붙여요', () => {
+    expect(blocks[0].writeDays).toEqual([]);
+    expect(blocks[1].writeDays).toEqual([
+      { date: '2025-08-25', dayNumber: 1, hasPost: false },
+      { date: '2025-08-26', dayNumber: 2, hasPost: true },
+    ]);
+  });
+
+  test('글을 쓸 때 고를 사진은 파일 이름 · 촬영 시각이 있는 사진이에요. 챕터 지점은 비어 있어요', () => {
+    expect(blocks[0].photoDetails).toEqual([]);
+    expect(blocks[1].photoDetails.map((photo) => photo.id)).toEqual(blocks[1].stop.photoIds);
+    expect(blocks[1].photoDetails.every((photo) => photo.takenAt && photo.fileName)).toBe(true);
+  });
+
+  test('이동한 날: 경주는 부산과 나눠 가진 첫날(3/1)을 빼요. 그날 글은 먼저 온 부산의 글이라서요', () => {
+    const tripId = seojin.trips.find((trip) => trip.name === '부산 · 경주').id;
+    const [busan, gyeongju] = selectCityBlocks(seojin, tripId, [], []);
+
+    expect(busan.writeDays.map((day) => day.date)).toEqual(['2025-02-28', '2025-03-01']);
+    expect(gyeongju.writeDays.map((day) => [day.date, day.dayNumber])).toEqual([['2025-03-02', 2]]);
+  });
+
   test('글과 사진을 아직 못 받았어도 만들어져요(글 없음, 대표 사진 한 장)', () => {
     const early = selectCityBlocks(seojin, seojinTripId, [], []);
 

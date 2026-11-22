@@ -2,7 +2,7 @@ import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import PostEditor from '@/pages/ChapterPage/PostEditor';
+import PostEditor from '@/components/post/PostEditor';
 import { getPosts, removePost, savePost } from '@/services/postService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';

@@ -23,7 +23,7 @@ export function selectPhotosOfDate(photos, date) {
 }
 
 /**
- * 챕터 지점의 첫날을 Day 1로 센 날짜 번호예요. 지점이 시작하기 전 날짜면 null이에요.
+ * 지점의 첫날을 Day 1로 센 날짜 번호예요. 지점이 시작하기 전 날짜면 null이에요.
  * 지점의 from은 현지 시간대가 붙은 시각이라, 날짜 부분을 잘라서 현지 날짜끼리 세요.
  *
  * @param {Pick<import('@/types').Stop, 'from'>} stop
@@ -33,6 +33,24 @@ export function selectPhotosOfDate(photos, date) {
 export function getDayNumber(stop, date) {
   const dayNumber = calcDaysBetween(stop.from, date) + 1;
   return dayNumber >= 1 ? dayNumber : null;
+}
+
+/**
+ * [+ 글 쓰기] 날짜 목록의 줄들이에요. 고를 수 있는 날마다 Day N과 그날 글이 있는지를 붙여요.
+ * 02 챕터(#203)와 03 도시 블록(#216)이 같은 목록을 써요.
+ *
+ * @param {Pick<import('@/types').Stop, 'from'>} stop
+ * @param {string[]} dates 고를 수 있는 날(selectStopDates의 결과, 시간 순서)
+ * @param {Pick<import('@/types').Post, 'date'>[]} posts 그 지점의 글
+ * @returns {{ date: string, dayNumber: number | null, hasPost: boolean }[]}
+ */
+export function buildWriteDays(stop, dates, posts) {
+  const postDates = new Set(posts.map((post) => post.date));
+  return dates.map((date) => ({
+    date,
+    dayNumber: getDayNumber(stop, date),
+    hasPost: postDates.has(date),
+  }));
 }
 
 /**

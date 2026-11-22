@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
-import { CONTINUE_ROW_TOP } from '@/constants/collage';
 import { cn } from '@/utils/cn';
 import { formatPostDate } from '@/utils/postForm';
+
+import { ARROW_LINK_CLASS } from './arrowLinkClass';
 
 // 날짜 목록의 그림자예요. 피그마 effect 스타일 shadow/md 값이고, Foundations에 그림자 토큰이 없어서 값을 그대로 적어요.
 const MENU_SHADOW = 'shadow-[0px_12px_32px_0px_rgba(0,0,0,0.1)]';
@@ -10,27 +11,38 @@ const MENU_ITEM = '[role="menuitem"]';
 // 열 때 포커스를 줄 날이에요. 글 없는 첫날이고, 모든 날에 글이 있으면 첫날이에요.
 const EMPTY_ITEM = '[role="menuitem"][data-has-post="false"]';
 const MOVE_KEYS = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+// 02는 [계속 여행하기]와 같은 줄의 큰 버튼이고, 03은 [글 보기 →]와 같은 글자 링크예요(피그마 02 · 03).
+const VARIANT_CLASS = {
+  button:
+    'flex items-center gap-1.5 rounded-pill border border-ink px-6 py-3.75 text-lg font-bold whitespace-nowrap text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+  link: cn(ARROW_LINK_CLASS, 'gap-1.5 whitespace-nowrap'),
+};
+const PLACEMENT_CLASS = {
+  up: 'bottom-full mb-2',
+  down: 'top-full mt-2',
+};
 
 /**
- * 챕터 맨 아래 왼쪽의 [+ 글 쓰기]와, 누르면 위로 펼치는 날짜 목록이에요(#203).
- * 날짜를 고르면 글 카드를 눌렀을 때와 같은 편집 화면(14a)이 그 날짜로 열려요.
+ * [+ 글 쓰기]와, 누르면 펼치는 날짜 목록이에요(#203 · #216). 날짜를 고르면 그 날짜의 글 편집기(14a)를 열어요.
  *
- * 호출: Collage 캔버스 안에서 그려요. 자리는 캔버스 좌표라서 캔버스와 함께 줄어요.
- * <WriteRow days={[{ date: '2025-06-28', dayNumber: 1, hasPost: true }]} onPick={handleEdit} />
+ * 호출: 02 콜라주 맨 아래 줄(Collage)과 03 도시 블록(CityBlock)에서 써요. 자리는 부르는 쪽이 정해요.
+ * <WriteDateMenu days={[{ date: '2025-06-28', dayNumber: 1, hasPost: true }]} onPick={handleEdit} />
+ * <WriteDateMenu days={days} onPick={handlePick} variant="link" placement="down" />
  *
  * 의도:
- *  - [계속 여행하기]와 같은 줄의 반대편이에요. 콜라주 칸은 정해져 있어서 이 자리는 어느 배치에서도 조각과 겹치지 않아요.
- *  - 주 버튼인 [계속 여행하기](검정)보다 한 단계 약하게 흰 바탕에 테두리예요. 높이는 같은 55px이에요(테두리 1px를 빼서 맞춰요).
- *  - 목록은 버튼 위로 열어요. 캔버스 아래 끝에 가까워서 아래로 열면 화면 밖으로 나가요. 길면 목록 안에서 스크롤돼요.
  *  - 글이 없는 날에 쓰러 오는 일이 많아서, 열면 글 없는 첫날에 포커스를 줘요. ↑ ↓ Home End로 옮겨요.
  *  - 고르면 닫고 onPick을 불러요. Esc는 닫고 버튼으로 포커스를 돌려줘요. 바깥을 누르면 닫기만 해요(01 LegModeMenu와 같아요).
- *  - 피그마: 02 챕터 페이지의 "02 챕터 — [+ 글 쓰기] 날짜 목록 열림 (#203)" 프레임이에요.
+ *  - 목록은 380px까지 늘고 그보다 길면 안에서 스크롤돼요. 02 챕터는 늘 14일 이상이라 380px이고, 03은 머문 날만큼이에요.
+ *  - 02는 화면 아래 끝이라 위로(placement="up"), 03은 아래로 긴 페이지라 아래로(placement="down") 열어요.
+ *  - 피그마: 02 "02 챕터 — [+ 글 쓰기] 날짜 목록 열림 (#203)", 03 "03 전체 기록 — [+ 글 쓰기] 날짜 목록 열림 (#216)".
  *
  * @param {object} props
  * @param {{ date: string, dayNumber: number | null, hasPost: boolean }[]} props.days 고를 수 있는 날(시간 순서)
  * @param {(date: string) => void} props.onPick 고른 날짜(YYYY-MM-DD)
+ * @param {'button' | 'link'} [props.variant] 버튼 모양. 기본은 02의 큰 버튼
+ * @param {'up' | 'down'} [props.placement] 목록을 여는 방향. 기본은 위
  */
-export default function WriteRow({ days, onPick }) {
+export default function WriteDateMenu({ days, onPick, variant = 'button', placement = 'up' }) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
@@ -81,12 +93,8 @@ export default function WriteRow({ days, onPick }) {
 
   return (
     // 키는 안쪽의 버튼과 목록에서 올라온 것만 받아요. 이 상자에 포커스가 오지는 않아요.
-    <div
-      ref={rootRef}
-      onKeyDown={handleKeyDown}
-      className="absolute left-15"
-      style={{ top: CONTINUE_ROW_TOP }}
-    >
+    // flex로 감싸요. 글자 링크(inline-flex)를 그냥 상자에 두면 줄 높이만큼 내려가서 옆 [글 보기 →]와 줄이 어긋나요.
+    <div ref={rootRef} onKeyDown={handleKeyDown} className="relative flex w-fit">
       {isOpen && (
         <div
           ref={menuRef}
@@ -94,14 +102,15 @@ export default function WriteRow({ days, onPick }) {
           role="menu"
           aria-label="글 쓸 날짜"
           className={cn(
-            'absolute bottom-full left-0 mb-2 flex h-95 w-75 flex-col border border-ink bg-white',
+            'absolute left-0 z-10 flex max-h-95 w-75 flex-col border border-ink bg-white',
+            PLACEMENT_CLASS[placement],
             MENU_SHADOW,
           )}
         >
           <p className="border-b border-line px-4 pt-3 pb-2 text-xs text-muted">
             글 쓸 날짜를 골라요
           </p>
-          <ul role="none" className="flex-1 overflow-y-auto">
+          <ul role="none" className="min-h-0 overflow-y-auto">
             {days.map(({ date, dayNumber, hasPost }) => (
               <li key={date} role="none">
                 <button
@@ -130,11 +139,12 @@ export default function WriteRow({ days, onPick }) {
         aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen((open) => !open)}
         className={cn(
-          'flex items-center gap-1.5 rounded-pill border border-ink px-6 py-3.75 text-lg font-bold whitespace-nowrap text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-          isOpen ? 'bg-paper' : 'bg-white hover:bg-paper',
+          VARIANT_CLASS[variant],
+          variant === 'button' && (isOpen ? 'bg-paper' : 'bg-white hover:bg-paper'),
         )}
       >
-        <span aria-hidden="true">+</span>글 쓰기
+        <span aria-hidden="true">+</span>
+        <span>글 쓰기</span>
       </button>
     </div>
   );
