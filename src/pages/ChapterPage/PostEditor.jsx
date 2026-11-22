@@ -50,12 +50,19 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *  - 사진은 dayPhotos(그날 사진)에서만 고릅니다. 처음에는 글의 photoIds 중 그날 사진인 것을, 없으면 그날 사진 전부를
  *    골라 두고(utils/postPhotos), 그 상태를 저장된 값으로 칩니다. 그날 사진이 아닌 ID는 저장할 때 빠져요.
  *    dayPhotos가 비면 사진 칸을 숨기고 photoIds를 글 그대로 둡니다. 사진 목록이 없다고 붙은 사진을 지우지 않게요.
+ *    고르는 중인 사진은 onPhotoIdsChange로 알려요. 02가 왼쪽 큰 사진을 저장 전에도 바꿔 보여 줘요.
  *  - 앱 안 이동은 막지 않습니다. useBlocker는 createBrowserRouter에서만 동작해서, 대신 임시본으로 글을 지킵니다.
  *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 window.confirm으로 묻습니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=195-158
  */
-export default function PostEditor({ date, dayNumber, dayPhotos = NO_PHOTOS, onClose }) {
+export default function PostEditor({
+  date,
+  dayNumber,
+  dayPhotos = NO_PHOTOS,
+  onPhotoIdsChange,
+  onClose,
+}) {
   const post = usePostStore((state) => state.byDate[date]);
   const status = usePostStore((state) => state.status);
   const isSaving = usePostStore((state) => Boolean(state.saving[date]));
@@ -123,6 +130,12 @@ export default function PostEditor({ date, dayNumber, dayPhotos = NO_PHOTOS, onC
 
   // 0.5초가 지나기 전에 앱 안 링크로 떠나도 마지막 입력이 남게, 사라질 때 못 쓴 임시본을 바로 써요.
   useEffect(() => () => pendingDraftRef.current?.(), []);
+
+  // 고르는 중인 사진을 부모에게 알려요. 02가 저장 전에도 왼쪽 큰 사진을 고른 첫 장으로 보여 줘요.
+  const photoIdsJson = JSON.stringify(form.photoIds);
+  useEffect(() => {
+    onPhotoIdsChange?.(JSON.parse(photoIdsJson));
+  }, [photoIdsJson, onPhotoIdsChange]);
 
   useEffect(() => {
     if (!isDirty) return undefined;

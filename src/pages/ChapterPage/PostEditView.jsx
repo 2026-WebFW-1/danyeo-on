@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/utils/cn';
 import {
@@ -22,6 +22,7 @@ import PostEditor from './PostEditor';
  *  - 자리는 피그마 14a의 값이에요. 사진 600×600, 편집기 560, 둘 사이 40, 양옆 120이에요(1440px 기준).
  *    화면이 좁아지면 사진 칸이 먼저 줄어요. 머리(ChapterHeader)는 02의 것을 그대로 두고 그 아래에 놓아요.
  *  - 왼쪽 사진은 글에 붙은 사진 중 이 지점의 첫 장이고, 없으면 그날 찍은 사진의 첫 장이에요. 없으면 회색 칸이에요.
+ *    편집기에서 사진을 고르는 동안에는 고른 첫 장을 따라가요(저장 전에도, #217 리뷰).
  *    붙일 사진은 편집기 안에서 그날 사진 중에 골라요(#194). 고른 첫 장이 이 사진이 돼요.
  *  - Day N은 챕터 첫날이 Day 1이에요. 지점이 시작하기 전 날짜면 번호 없이 날짜만 보여요.
  *  - 편집기를 key={date}로 그려서 다른 날짜를 열면 쓰던 내용이 넘어가지 않아요.
@@ -38,7 +39,13 @@ import PostEditor from './PostEditor';
  */
 export default function PostEditView({ stop, date, post, stopPhotos, onOpenPhoto, onClose }) {
   const ref = useRef(null);
-  const photo = pickEditPhoto(post, stopPhotos, date);
+  // 편집기에서 고르는 중인 사진이에요. 아직 안 알려 왔으면 저장된 글을 봐요.
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState(null);
+  const photo = pickEditPhoto(
+    selectedPhotoIds ? { photoIds: selectedPhotoIds } : post,
+    stopPhotos,
+    date,
+  );
   const dayNumber = getDayNumber(stop, date);
 
   useEffect(() => {
@@ -73,6 +80,7 @@ export default function PostEditView({ stop, date, post, stopPhotos, onOpenPhoto
         date={date}
         dayNumber={dayNumber ?? undefined}
         dayPhotos={selectPhotosOfDate(stopPhotos, date)}
+        onPhotoIdsChange={setSelectedPhotoIds}
         onClose={onClose}
       />
     </section>

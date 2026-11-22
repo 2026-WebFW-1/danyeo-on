@@ -395,6 +395,28 @@ describe('ChapterView 글 고치기', () => {
       expect(pickerNames.toSorted()).toEqual(dayFileNames.toSorted());
     });
 
+    test('사진을 고르는 동안 왼쪽 큰 사진이 고른 첫 장을 따라가요(저장 전에도)', async () => {
+      // given: 07.12에 사진을 한 장 더 둬요
+      const extra = {
+        ...stopPhotos.find((photo) => photo.takenAt?.startsWith('2025-07-12')),
+        id: 'p_extra',
+        fileName: 'IMG_EXTRA.JPG',
+        fileKey: null,
+        takenAt: '2025-07-12T09:00:00',
+      };
+      await open(post0712, { stopPhotos: [...stopPhotos, extra] });
+      expect(editor().querySelector('figcaption').textContent).toMatch(/^IMG_0188\.JPG/);
+
+      // when
+      await act(async () =>
+        editor().querySelector('[aria-label="사진 IMG_EXTRA.JPG 넣기"]').click(),
+      );
+      await act(async () => editor().querySelector('[aria-label="IMG_EXTRA.JPG 앞으로"]').click());
+
+      // then
+      expect(editor().querySelector('figcaption').textContent).toMatch(/^IMG_EXTRA\.JPG/);
+    });
+
     test('그날 찍은 사진이 없으면 사진 고르기 칸이 없어요', async () => {
       await open(post0630);
 
