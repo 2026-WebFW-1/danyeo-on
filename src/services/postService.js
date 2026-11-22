@@ -36,3 +36,23 @@ export async function savePost(post) {
   }
   if (response.error) throw toPostError(response.error, 'SAVE_FAILED', response.status);
 }
+
+/**
+ * 글 하나를 지워요. 붙은 사진·태그 연결은 DB가 같이 지워요(cascade).
+ * 실패하면 { status, code, message }로 던져요. 서버에 닿지 못하면 status는 0이에요.
+ *
+ * @param {string} id
+ * @returns {Promise<boolean>} 지운 행이 있으면 true. 이미 지워졌거나 내 것이 아니면 false예요
+ */
+export async function removePost(id) {
+  let response;
+  try {
+    const supabase = await getSupabase();
+    // RLS에 막히면 오류 대신 0행이 지워져서, select로 지운 행을 돌려받아 확인합니다.
+    response = await supabase.from('posts').delete().eq('id', id).select('id');
+  } catch (error) {
+    throw toPostError(error, 'REMOVE_FAILED');
+  }
+  if (response.error) throw toPostError(response.error, 'REMOVE_FAILED', response.status);
+  return response.data.length > 0;
+}
