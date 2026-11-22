@@ -26,6 +26,7 @@ import PlacesView from './PlacesView';
  *    journey가 ready가 된 뒤에만 여행을 골라요.
  *  - 글은 D의 usePostStore, 사진은 useMyPhotos예요. 둘 다 아직 못 받았거나 실패해도 도시 블록은 그려요.
  *    글 자리는 비고 사진 칸은 대표 사진만(없으면 회색)이에요.
+ *  - [+ 글 쓰기](#216)는 사진 목록을 다 받은 뒤에만 보여요. 그 전에 새 글을 쓰기 시작하면 그날 사진 없이 저장돼서요.
  *  - 글은 화면에 들어올 때 불러요(error로 남아 있으면 한 번 더 불러요. useLoadPosts).
  *  - 탭을 누르면 주소가 바뀌고(뒤로 가기로 앞 탭에 돌아와요), 아래 이전·다음 여행을 눌러도 맨 위로 올라가요.
  *
@@ -33,7 +34,7 @@ import PlacesView from './PlacesView';
  */
 export default function PlacesPage() {
   const { journey, status } = useJourney();
-  const { photos } = useMyPhotos();
+  const { photos, status: photoStatus } = useMyPhotos();
   const postsByDate = usePostStore((state) => state.byDate);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTripId = searchParams.get(TRIP_PARAM);
@@ -52,9 +53,10 @@ export default function PlacesPage() {
     () => (currentId ? selectTripStats(journey, currentId) : null),
     [journey, currentId],
   );
+  const photosReady = photoStatus === 'ready';
   const blocks = useMemo(
-    () => (currentId ? selectCityBlocks(journey, currentId, posts, photos) : []),
-    [journey, currentId, posts, photos],
+    () => (currentId ? selectCityBlocks(journey, currentId, posts, photos, { photosReady }) : []),
+    [journey, currentId, posts, photos, photosReady],
   );
   const daysUntilNext = useMemo(
     () => (currentId ? getDaysBetweenTrips(journey, currentId) : null),

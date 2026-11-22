@@ -1,11 +1,13 @@
 import { useId, useState } from 'react';
 
 import ArrowLink from '@/components/common/ArrowLink';
+import WriteDateMenu from '@/components/common/WriteDateMenu';
 import { LINE_DOT_TOP_PX, LINE_INTRO_PX } from '@/constants/places';
 import { useReveal } from '@/hooks/useReveal';
 import { cn } from '@/utils/cn';
 
 import CityPhoto from './CityPhoto';
+import StopPostEditor from './StopPostEditor';
 import StopPosts from './StopPosts';
 
 /**
@@ -21,6 +23,12 @@ import StopPosts from './StopPosts';
  *    구간마다 굵기가 달라서, 점을 기준으로 앞 구간은 이 블록이, 뒤 구간은 다음 블록의 굵기(outWidth)를 써요.
  *  - 스크롤해서 블록이 보이면 한 번 떠올라요(useReveal). 선과 점은 안 움직여요.
  *  - [글 보기 →]는 그 자리에서 글을 펼쳐요. 챕터 지점은 [챕터 열기 →]로 02 화면에 가요.
+ *  - 챕터가 아닌 지점은 [+ 글 쓰기]로 그 지점의 날짜를 골라, 이 글 칸 안에 편집기를 펼쳐요(#216). 챕터 지점은 02에서 써요.
+ *    글이 있으면 [글 보기 →] 옆에, 없으면 [+ 글 쓰기]만 있어요. 날짜 목록은 아래로 열어요(피그마 03 #216 프레임).
+ *  - 글 목록과 편집기는 한 번에 하나만 열어요. 날짜를 고르면 목록을 닫고, 편집 중에 [글 보기]를 누르면 편집기를 닫아요.
+ *    쓰던 글은 PostEditor가 임시본으로 남겨서, 같은 날을 다시 열면 [불러오기]로 이어 쓸 수 있어요.
+ *  - 두 칸은 위에 붙여 둬요(items-start). 글 목록이나 편집기를 펼쳐 글 칸이 길어져도 옆 사진이 세로로 늘어나지 않게요
+ *    (피그마 03의 사진은 500×360 그대로예요).
  *
  * @param {object} props
  * @param {import('@/utils/cityBlocks').CityBlock} props.block
@@ -34,7 +42,27 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
   const isPhotoLeft = index % 2 === 0;
   const { ref, isRevealed } = useReveal();
   const [isPostOpen, setIsPostOpen] = useState(false);
+  // 편집기를 펼친 날짜예요. 없으면 닫힌 상태예요.
+  const [editingDate, setEditingDate] = useState(null);
   const postsId = useId();
+  const hasPosts = !stop.chapter && posts.length > 0;
+  const canWrite = block.writeDays.length > 0;
+
+  const handleTogglePosts = () => {
+    setEditingDate(null);
+    setIsPostOpen((isOpen) => !isOpen);
+  };
+
+  const handlePickDate = (date) => {
+    setIsPostOpen(false);
+    setEditingDate(date);
+  };
+
+  // 편집기는 자기 날짜가 아직 열려 있을 때만 닫아요. 지우기는 서버에 다녀오는 동안에도 [+ 글 쓰기]로 다른 날짜를
+  // 열 수 있어서, 늦게 끝난 지우기가 새로 연 편집기를 닫으면 안 돼요.
+  const handleCloseEditor = (date) => {
+    setEditingDate((current) => (current === date ? null : current));
+  };
 
   const photoCell = (
     <CityPhoto
@@ -63,17 +91,39 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
         <span>사진 {stop.photoCount}장</span>
       </p>
       {stop.chapter && stop.slug && <ArrowLink to={`/chapter/${stop.slug}`}>챕터 열기</ArrowLink>}
-      {!stop.chapter && posts.length > 0 && (
-        <ArrowLink
-          onClick={() => setIsPostOpen((isOpen) => !isOpen)}
-          arrow={isPostOpen ? '↑' : '→'}
-          aria-expanded={isPostOpen}
-          aria-controls={postsId}
-        >
-          {isPostOpen ? '글 접기' : '글 보기'}
-        </ArrowLink>
+      {(hasPosts || canWrite) && (
+        <div className="flex items-start gap-6">
+          {hasPosts && (
+            <ArrowLink
+              onClick={handleTogglePosts}
+              arrow={isPostOpen ? '↑' : '→'}
+              aria-expanded={isPostOpen}
+              aria-controls={postsId}
+            >
+              {isPostOpen ? '글 접기' : '글 보기'}
+            </ArrowLink>
+          )}
+          {canWrite && (
+            <WriteDateMenu
+              days={block.writeDays}
+              onPick={handlePickDate}
+              variant="link"
+              placement="down"
+            />
+          )}
+        </div>
       )}
       {isPostOpen && <StopPosts id={postsId} posts={posts} />}
+      {editingDate !== null && (
+        <StopPostEditor
+          key={editingDate}
+          stop={stop}
+          date={editingDate}
+          hasPost={posts.some((post) => post.date === editingDate)}
+          photoDetails={block.photoDetails}
+          onClose={() => handleCloseEditor(editingDate)}
+        />
+      )}
     </div>
   );
 
@@ -120,8 +170,12 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
           !isRevealed && 'translate-y-6 opacity-0',
         )}
       >
-        <div className="flex justify-end pr-15">{isPhotoLeft ? photoCell : textCell}</div>
-        <div className="flex justify-start pl-15">{isPhotoLeft ? textCell : photoCell}</div>
+        <div className="flex items-start justify-end pr-15">
+          {isPhotoLeft ? photoCell : textCell}
+        </div>
+        <div className="flex items-start justify-start pl-15">
+          {isPhotoLeft ? textCell : photoCell}
+        </div>
       </div>
     </li>
   );

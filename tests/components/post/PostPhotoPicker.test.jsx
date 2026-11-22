@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import PostPhotoPicker from '@/pages/ChapterPage/PostPhotoPicker';
+import PostPhotoPicker from '@/components/post/PostPhotoPicker';
 
 const PHOTOS = [
   { id: 'p_a', fileKey: 'public:/photos/vancouver-1.webp', fileName: 'A.JPG' },

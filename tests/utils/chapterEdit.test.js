@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import {
+  buildWriteDays,
   formatPhotoCaption,
   getDayNumber,
   pickEditPhoto,
@@ -169,5 +170,20 @@ describe('formatPhotoCaption', () => {
     );
 
     expect(caption).toBe('a.JPG · 2025.12.31 23:40 · 밴쿠버');
+  });
+});
+
+describe('buildWriteDays', () => {
+  const stop = { from: '2025-08-25T17:00:00-06:00' };
+
+  test('고를 수 있는 날마다 Day N과 그날 글이 있는지를 붙여요', () => {
+    expect(buildWriteDays(stop, ['2025-08-25', '2025-08-26'], [{ date: '2025-08-26' }])).toEqual([
+      { date: '2025-08-25', dayNumber: 1, hasPost: false },
+      { date: '2025-08-26', dayNumber: 2, hasPost: true },
+    ]);
+  });
+
+  test('고를 날이 없으면 글이 있어도 빈 배열이에요', () => {
+    expect(buildWriteDays(stop, [], [{ date: '2025-08-26' }])).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@ import { formatDateRange } from '@/utils/formatDateRange';
 
 /**
  * 한 지점의 글을 그 자리에서 펼쳐 보여 줘요. 04 글 상세 화면이 없어서 [글 보기 →]가 이걸 열어요.
- * 읽기만 해요. 고치는 건 02 챕터의 편집기(14a)에서 해요.
+ * 읽기만 해요. 쓰고 고치는 건 같은 블록의 [+ 글 쓰기]에서 날짜를 골라 해요(StopPostEditor, #216).
  *
  * @param {object} props
  * @param {string} props.id 펼침 버튼의 aria-controls와 맞추는 id예요

@@ -1,11 +1,16 @@
-import { COLLAGE_DESIGN_WIDTH, COLLAGE_HEIGHT, COLLAGE_TOP } from '@/constants/collage';
+import WriteDateMenu from '@/components/common/WriteDateMenu';
+import {
+  COLLAGE_DESIGN_WIDTH,
+  COLLAGE_HEIGHT,
+  COLLAGE_TOP,
+  CONTINUE_ROW_TOP,
+} from '@/constants/collage';
 import { useFitScale } from '@/hooks/useFitScale';
 import { cn } from '@/utils/cn';
 
 import CollageItem from './CollageItem';
 import ContinueRow from './ContinueRow';
 import { FRAME_CLASS } from './frameClass';
-import WriteRow from './WriteRow';
 
 /**
  * 챕터의 글·사진·스티커를 흩어 놓은 콜라주와, 맨 아래 줄([+ 글 쓰기] · [계속 여행하기 →])이에요.
@@ -20,6 +25,8 @@ import WriteRow from './WriteRow';
  *  - transform은 자리를 차지하는 크기를 바꾸지 않아서, 바깥 상자의 높이는 줄인 높이로 따로 정해요.
  *  - 위쪽 130px은 머리(ChapterHeader)가 겹쳐 그려지는 자리라서, 줄이지 않고 그대로 비워 둬요.
  *  - 화면이 1440px보다 넓으면 키우지 않고 가운데에 둬요(FRAME_CLASS). 머리와 같은 폭이에요.
+ *  - [+ 글 쓰기](#203)는 [계속 여행하기]와 같은 줄의 반대편이에요. 콜라주 칸은 정해져 있어서 이 자리는 어느 배치에서도
+ *    조각과 겹치지 않아요. 캔버스 좌표라서 캔버스와 함께 줄어요. 화면 아래 끝이라 목록은 위로 열어요.
  *
  * @param {object} props
  * @param {import('@/utils/layoutCollage').CollageItem[]} props.items layoutCollage가 정한 조각들
@@ -49,7 +56,11 @@ export default function Collage({ items, target, writeDays = [], onOpenPhoto, on
         {items.map((item) => (
           <CollageItem key={item.key} item={item} onOpenPhoto={onOpenPhoto} onEdit={onEdit} />
         ))}
-        {onEdit && writeDays.length > 0 && <WriteRow days={writeDays} onPick={onEdit} />}
+        {onEdit && writeDays.length > 0 && (
+          <div className="absolute left-15" style={{ top: CONTINUE_ROW_TOP }}>
+            <WriteDateMenu days={writeDays} onPick={onEdit} />
+          </div>
+        )}
         <ContinueRow target={target} />
       </div>
     </div>

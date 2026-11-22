@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import PostEditor from '@/components/post/PostEditor';
 import { cn } from '@/utils/cn';
 import {
   formatPhotoCaption,
@@ -10,7 +11,6 @@ import {
 
 import CollagePhoto from './CollagePhoto';
 import { FRAME_CLASS } from './frameClass';
-import PostEditor from './PostEditor';
 
 /**
  * 02 안에서 글 하나를 고치는 화면(14a)이에요. 왼쪽에 그날 사진과 설명, 오른쪽에 D의 PostEditor를 놓아요.

@@ -2,8 +2,7 @@ import { Link } from 'react-router';
 
 import { cn } from '@/utils/cn';
 
-const LINK_CLASS =
-  'inline-flex w-fit items-start gap-2 border-b border-ink pb-1 text-md font-bold text-ink';
+import { ARROW_LINK_CLASS } from './arrowLinkClass';
 
 /**
  * 밑줄과 화살표가 붙은 글자 링크예요. 03의 [챕터 열기 →] [글 보기 →] [지도로 보기 →]가 같은 모양이에요.
@@ -32,14 +31,14 @@ export default function ArrowLink({ to, onClick, arrow = '→', className, child
 
   if (to) {
     return (
-      <Link to={to} className={cn(LINK_CLASS, className)} {...props}>
+      <Link to={to} className={cn(ARROW_LINK_CLASS, className)} {...props}>
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} className={cn(LINK_CLASS, className)} {...props}>
+    <button type="button" onClick={onClick} className={cn(ARROW_LINK_CLASS, className)} {...props}>
       {content}
     </button>
   );
