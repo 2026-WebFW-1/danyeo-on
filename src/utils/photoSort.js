@@ -282,6 +282,77 @@ export function selectExcludedPhotos(corrections, photos) {
 }
 
 /**
+ * 보정이 가리키는 사진 하나를 다른 사진으로 바꾸는 일이에요. 보정 id와 만든 시각은 그대로예요.
+ *
+ * @typedef {object} AnchorMove
+ * @property {string} correctionId
+ * @property {string} fromPhotoId 지울 사진
+ * @property {string} toPhotoId 대신 가리킬 사진
+ */
+
+/**
+ * 뺀 사진을 영구 삭제하기 전에, 그 사진을 기준으로 건 split · merge를 옮길 사진을 찾아요.
+ * 사진을 지우면 보정의 사진 연결이 같이 지워져서(cascade) split · merge가 사라지고, 나눈 여행이 다시 붙거나
+ * 합친 여행이 다시 갈라져요. 지우기 전에 같은 결과가 나오는 사진으로 옮겨 두면 여행이 그대로예요.
+ *
+ * 의도:
+ *  - split은 그 사진 바로 다음에 찍은 사진으로 옮겨요. 그 사진은 이미 빠져 있어서, 앞 여행의 마지막 사진과
+ *    다음 여행의 첫 사진 사이라는 나누는 자리가 그대로예요(group의 findSplitsBetween). 다음 사진이 없으면
+ *    나눌 뒤 여행이 없어서 옮기지 않아요.
+ *  - merge는 collectMergeSpans가 그 사진 대신 쓰고 있는 사진(양쪽 여행에 남은 사진)으로 옮겨요.
+ *    합치기가 지금 효과가 없으면(한쪽 여행이 다 빠짐) 옮기지 않아요.
+ *  - rename은 빼기할 때 이미 남은 사진으로 옮겨서(buildTripExcludeInputs), mode는 뺀 사진이 지점에 없어
+ *    지금도 효과가 없어서 옮기지 않아요.
+ *
+ * @param {string} photoId 지울 사진. 이미 빠져 있어야 해요
+ * @param {import('@/types').Correction[]} corrections 만든 순서
+ * @param {import('@/types').Photo[]} photos 사진 전부
+ * @param {Set<string>} excludedIds selectExcludedIds의 값
+ * @returns {AnchorMove[]}
+ */
+export function buildAnchorMoves(photoId, corrections, photos, excludedIds) {
+  const photoById = new Map(photos.map((photo) => [photo.id, photo]));
+  const nextPhoto = findNextPhoto(photoById.get(photoId), photos);
+  const spanById = new Map(
+    collectMergeSpans(corrections, photoById, excludedIds).map((span) => [span.id, span]),
+  );
+  const toMove = (correction, toPhotoId) =>
+    toPhotoId && toPhotoId !== photoId
+      ? [{ correctionId: correction.id, fromPhotoId: photoId, toPhotoId }]
+      : [];
+
+  return corrections.flatMap((correction) => {
+    if (isSplit(correction) && correction.beforePhotoId === photoId) {
+      return toMove(correction, nextPhoto?.id);
+    }
+    if (correction.type === 'merge' && correction.photoIds?.includes(photoId)) {
+      const side = correction.photoIds.indexOf(photoId);
+      return toMove(correction, spanById.get(correction.id)?.photoIds[side]);
+    }
+    return [];
+  });
+}
+
+/**
+ * 그 사진 다음에 찍은 사진이에요. 같은 시각이면 어느 것이든 나누는 자리가 같아요.
+ *
+ * @param {import('@/types').Photo | undefined} photo
+ * @param {import('@/types').Photo[]} photos
+ * @returns {import('@/types').Photo | null} 시각을 모르거나 뒤에 찍은 사진이 없으면 null
+ */
+function findNextPhoto(photo, photos) {
+  if (!photo?.takenAt) return null;
+  const at = toTakenMs(photo);
+  let next = null;
+  for (const candidate of photos) {
+    if (candidate.id === photo.id || !candidate.takenAt) continue;
+    const candidateAt = toTakenMs(candidate);
+    if (candidateAt >= at && (!next || candidateAt < toTakenMs(next))) next = candidate;
+  }
+  return next;
+}
+
+/**
  * 07b 위치 확인 필요의 날짜 묶음 하나예요.
  *
  * @typedef {object} UnlocatedGroup
