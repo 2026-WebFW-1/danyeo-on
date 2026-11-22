@@ -41,14 +41,13 @@ export default function PassPhotosStep() {
   // 사진 id별 답이에요. 페이지를 나갔다 와도 다시 묻지 않게 스토어에 둬요.
   const answers = useUploadStore((state) => state.passAnswers);
   const answerPass = useUploadStore((state) => state.answerPass);
-  // 지나가는 동안 가운데에 있는 사진의 순서입니다. 사진 줄, 손글씨, 버튼이 같이 봐서 여기에 둡니다.
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // 한 장의 재생 시간이 끝날 때마다 한 번만 올려요. 마지막 장을 보는 중과 다 본 뒤를 구분해요.
+  const [passedCount, setPassedCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  // 줄이 끝까지 지나갔는지예요. 지나간 뒤에는 currentIndex 대신 남은 질문 자리를 가운데에 둬요.
-  const [isPassed, setIsPassed] = useState(false);
 
-  // 아래 값은 모두 photos·currentIndex·isPassed·answers로 계산할 수 있어서 상태로 두지 않았어요.
   const lastIndex = Math.max(0, photos.length - 1);
+  const currentIndex = Math.min(passedCount, lastIndex);
+  const isPassed = passedCount >= photos.length;
   const isLast = currentIndex >= lastIndex;
   const stayMs = calcStayMs(photos);
   const askIndex = findAskIndex(photos, answers);
@@ -62,18 +61,15 @@ export default function PassPhotosStep() {
   const hasAnswer = Object.keys(answers).length > 0;
 
   // timer는 React 밖의 일입니다.(컨벤션 상 외부 동기화)
-  // 사진마다 머무는 시간이 달라서 setInterval 대신 한 장마다 타이머를 새로 걸어요
   useEffect(() => {
     if (isPassed || isPaused) return;
 
     const timer = setTimeout(() => {
-      // 마지막 장에서도 한 번 머문 뒤에 끝난 것으로 쳐야 마지막 사진이 보여요.
-      if (isLast) setIsPassed(true);
-      else setCurrentIndex(currentIndex + 1);
+      setPassedCount(passedCount + 1);
     }, stayMs);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, isLast, isPassed, isPaused, stayMs]);
+  }, [passedCount, isPassed, isPaused, stayMs]);
 
   // 버튼 하나로 멈추고 다시 재생합니다.
   const handlePause = () => {
@@ -82,7 +78,7 @@ export default function PassPhotosStep() {
 
   // 되돌린 사진이 바로 다시 지나가 버리지 않게 같이 멈춥니다.
   const handleUndo = () => {
-    setCurrentIndex(Math.max(0, currentIndex - 1));
+    setPassedCount(Math.max(0, passedCount - 1));
     setIsPaused(true);
   };
 
@@ -111,9 +107,12 @@ export default function PassPhotosStep() {
             <p className="mt-3 text-lg break-keep text-muted">{description}</p>
             {phase === 'done' && <SavePhotos />}
           </div>
-          {/* 멈추지 않고 흐르도록 머무는 시간 내내 다음 장으로 옮겨 가요.
-              끝난 뒤 질문 자리로 되감아도 지나온 만큼은 그대로라 마지막 장 기준으로 채워 둬요 */}
-          <PassTimeline currentIndex={isPassed ? lastIndex : currentIndex} moveMs={stayMs} />
+          {/* 멈추거나 질문으로 넘어간 순간에는 손글씨도 그때까지 다 본 장수에 맞춰요. */}
+          <PassTimeline
+            passedCount={passedCount}
+            total={photos.length}
+            moveMs={isPaused || isPassed ? 0 : stayMs}
+          />
         </header>
         <section aria-label="사진 정리" className="flex flex-1 flex-col justify-center py-4">
           {/* 질문 카드를 띄운 사진 바로 옆에 두려고 사진 줄 가운데를 기준으로 겹쳐요 */}

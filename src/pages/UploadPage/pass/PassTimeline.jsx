@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-import { useUploadStore } from '@/stores/upload/uploadStore';
+import { cn } from '@/utils/cn';
 
 // "My Journey"를 손으로 그린 획이에요(viewBox 10 10 500 150).
 // 글자 모양을 고치려면 피그마에서 이 경로를 펜으로 다듬어 d 값을 바꾸고, MY_SHARE도 다시 재요.
@@ -36,25 +36,23 @@ const WORDS = [
 const STROKE = 'fill-none stroke-12 [stroke-linecap:round] [stroke-linejoin:round]';
 
 /**
- * 전체 사진 중 지금 어디를 지나가는지 보여 주는 손글씨예요. 지나간 만큼 "My Journey" 획이 색으로 채워져요.
+ * 한 장의 재생이 끝날 때마다 "My Journey" 획이 지나간 장수만큼 채워져요.
  *
  * 호출: PassPhotosStep 머리말 오른쪽에서 그려요.
- * <PassTimeline currentIndex={0} moveMs={600} />
+ * <PassTimeline passedCount={2} total={3} moveMs={300} />
  *
  * @param {object} props
- * @param {number} props.currentIndex 지금 지나가는 사진의 순서
+ * @param {number} props.passedCount 재생이 끝난 사진 수
+ * @param {number} props.total 전체 사진 수
  * @param {number} props.moveMs 사진 줄과 같은 빠르기로 차오르게 합니다.
  */
-export default function PassTimeline({ currentIndex, moveMs }) {
-  const total = useUploadStore((state) => state.photos.length);
+export default function PassTimeline({ passedCount, total, moveMs }) {
   // 같은 화면에 두 번 그려져도 그라데이션 id가 겹치지 않게 해요.
   const gradientId = useId();
 
-  // 지금 위치를 0 ~ 1로. 사진이 한 장이면 맨 앞입니다.
-  const position = total > 1 ? currentIndex / (total - 1) : 0;
+  const position = total > 0 ? passedCount / total : 0;
   // 반올림하면 300장 중 299장째(99.7%)도 100%로 보여서, 끝까지 가야만 100%가 되게 내려요.
-  const percent = Math.floor(position * 100);
-  const passedCount = total > 0 ? currentIndex + 1 : 0;
+  const percent = total > 0 ? Math.floor((passedCount * 100) / total) : 0;
 
   return (
     <div
@@ -69,7 +67,10 @@ export default function PassTimeline({ currentIndex, moveMs }) {
       <svg
         viewBox="10 10 500 150"
         aria-hidden="true"
-        className="block h-auto w-full overflow-visible transition-[--pass-progress] ease-linear motion-reduce:transition-none"
+        className={cn(
+          'block h-auto w-full overflow-visible ease-linear motion-reduce:transition-none',
+          moveMs > 0 ? 'transition-[--pass-progress]' : 'transition-none',
+        )}
         style={{ '--pass-progress': position, transitionDuration: `${moveMs}ms` }}
       >
         <defs>

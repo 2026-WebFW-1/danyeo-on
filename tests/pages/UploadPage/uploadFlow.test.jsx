@@ -12,6 +12,7 @@ import { savePhotoImage, savePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { calcStayMs } from '@/utils/upload/pass/calcStayMs';
 import { readExif } from '@/utils/upload/readExif';
 import { resizeFull, resizeThumbnail } from '@/utils/upload/resizePhoto';
 
@@ -124,6 +125,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(() => root.unmount());
+  vi.useRealTimers();
   container.remove();
   useUploadStore.getState().reset();
   useAuthStore.getState().reset();
@@ -250,6 +252,50 @@ test('같은 계정의 세션 갱신에서는 사진을 유지해요', async () 
 
   // then
   expect(useUploadStore.getState().photos[0]).toBe(photo);
+});
+
+test('사진 한 장도 머무는 시간이 끝나야 100%로 정리를 마쳐요', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  await openPass([numbered]);
+  const stayMs = calcStayMs(useUploadStore.getState().photos);
+  const progress = container.querySelector('[role="progressbar"]');
+
+  await act(() => vi.advanceTimersByTime(stayMs - 1));
+  expect(progress.textContent).toBe('0 / 1장0%');
+  await act(() => vi.advanceTimersByTime(1));
+  expect(progress.textContent).toBe('1 / 1장100%');
+  expect(container.textContent).toContain('다 정리했어요');
+});
+
+test('멈추거나 되돌리면 다 본 장수가 맞춰지고, 끝에서 질문 자리로 돌아가면 100%를 유지해요', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  const third = new File(['원본'], 'IMG_0002.jpg', { type: 'image/jpeg' });
+  await openPass([file, numbered, third]);
+  const stayMs = calcStayMs(useUploadStore.getState().photos);
+  const passOne = () => act(() => vi.advanceTimersByTime(stayMs));
+  const progress = container.querySelector('[role="progressbar"]');
+
+  expect(progress.textContent).toBe('0 / 3장0%');
+  await passOne();
+  expect(progress.textContent).toBe('1 / 3장33%');
+  await act(() => findButton('일시정지').click());
+  await passOne();
+  expect(progress.textContent).toBe('1 / 3장33%');
+  await act(() => findButton('되돌리기').click());
+  await passOne();
+  expect(progress.textContent).toBe('0 / 3장0%');
+
+  await act(() => findButton('다시 재생').click());
+  await passOne();
+  await passOne();
+  expect(progress.textContent).toBe('2 / 3장66%');
+  await passOne();
+  expect(container.textContent).toContain('몇 가지만 알려 주세요');
+  expect(container.querySelector('ol li:first-child').getAttribute('aria-current')).toBe('true');
+  expect(progress.textContent).toBe('3 / 3장100%');
+  await act(() => findButton('빼 두기').click());
+  expect(container.textContent).toContain('다 정리했어요');
+  expect(progress.textContent).toBe('3 / 3장100%');
 });
 
 test('빼 둔 사진을 뺀 나머지를 저장하고, 다 올리면 전체 기록으로 넘어가요', async () => {
