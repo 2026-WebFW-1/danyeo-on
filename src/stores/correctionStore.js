@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 
-import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import {
+  addCorrection,
+  getCorrections,
+  moveCorrectionPhoto,
+  removeCorrection,
+} from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -246,6 +251,24 @@ async function deleteOne(get, set, id, ownerId, requested) {
   return true;
 }
 
+/**
+ * 보정 하나의 사진 칸을 move대로 바꾼 값이에요. split은 beforePhotoId, merge는 photoIds의 그 자리를 바꿔요.
+ *
+ * @param {import('@/types').Correction} correction
+ * @param {import('@/utils/photoSort').AnchorMove} move
+ * @returns {import('@/types').Correction}
+ */
+function applyAnchorMove(correction, move) {
+  if (correction.type === 'split') return { ...correction, beforePhotoId: move.toPhotoId };
+  if (correction.type === 'merge') {
+    return {
+      ...correction,
+      photoIds: correction.photoIds.map((id) => (id === move.fromPhotoId ? move.toPhotoId : id)),
+    };
+  }
+  return correction;
+}
+
 function createCorrectionId() {
   return `c_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
@@ -442,6 +465,36 @@ export const useCorrectionStore = create((set, get) => ({
     } finally {
       ids.forEach((id) => endPending(set, id, requested));
     }
+  },
+
+  /**
+   * 보정이 가리키는 사진을 차례로 바꿔요. 사진을 영구 삭제하기 전에 split · merge의 기준을 옮길 때 써요.
+   * 앞서 부른 저장·삭제가 끝난 뒤에 보내요. 실패하면 거기서 멈추고 던지지만, 앞서 바꾼 보정은 목록에도 반영돼요.
+   * 옮겨도 여행은 그대로라 Journey 계산은 시작하지 않아요. 뒤이어 exclude를 지울 때(removeMany) 계산해요.
+   * 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
+   *
+   * @param {import('@/utils/photoSort').AnchorMove[]} moves
+   * @returns {Promise<void>}
+   */
+  moveAnchors: async (moves) => {
+    if (moves.length === 0) return;
+
+    const requested = generation;
+    const ownerId = useAuthStore.getState().user?.id;
+    await enqueue(ownerId, async () => {
+      for (const move of moves) {
+        assertSameAccount(requested);
+        await writeCorrection(ownerId, () =>
+          moveCorrectionPhoto(move.correctionId, move.fromPhotoId, move.toPhotoId),
+        );
+        assertSameAccount(requested);
+        set((state) => ({
+          corrections: state.corrections.map((correction) =>
+            correction.id === move.correctionId ? applyAnchorMove(correction, move) : correction,
+          ),
+        }));
+      }
+    });
   },
 
   /** Journey 계산을 다시 해요. journeyStatus가 'failed'일 때 [다시 시도]가 불러요. 던지지 않아요. */

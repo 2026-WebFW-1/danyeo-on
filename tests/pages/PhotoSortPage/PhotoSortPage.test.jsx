@@ -23,6 +23,7 @@ vi.mock('@/services/correctionService', () => ({
   addCorrection: vi.fn(),
   removeCorrection: vi.fn(),
   getCorrections: vi.fn(),
+  moveCorrectionPhoto: vi.fn(),
 }));
 vi.mock('@/services/journeyService', async (original) => ({
   ...(await original()),

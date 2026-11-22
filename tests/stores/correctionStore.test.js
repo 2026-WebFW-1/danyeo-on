@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import {
+  addCorrection,
+  getCorrections,
+  moveCorrectionPhoto,
+  removeCorrection,
+} from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
 import { getExcludeKey, useCorrectionStore } from '@/stores/correctionStore';
@@ -9,6 +14,7 @@ vi.mock('@/services/correctionService', () => ({
   getCorrections: vi.fn(),
   addCorrection: vi.fn(),
   removeCorrection: vi.fn(),
+  moveCorrectionPhoto: vi.fn(),
 }));
 vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 
@@ -537,6 +543,76 @@ describe('removeMany', () => {
 
     expect(removeCorrection).not.toHaveBeenCalled();
     expect(refreshJourney).not.toHaveBeenCalled();
+  });
+});
+
+describe('moveAnchors', () => {
+  const split = {
+    id: 'c_split',
+    ownerId: 'u1',
+    type: 'split',
+    beforePhotoId: 'p_b',
+    createdAt: '2026-10-03T12:00:00Z',
+  };
+  const merge = {
+    id: 'c_merge',
+    ownerId: 'u1',
+    type: 'merge',
+    photoIds: ['p_b', 'p_d'],
+    createdAt: '2026-10-04T12:00:00Z',
+  };
+
+  async function fetchWithAnchors() {
+    vi.mocked(getCorrections).mockResolvedValue([exclude, split, merge]);
+    await getState().fetch();
+  }
+
+  test('차례로 서버에 보내고, 목록의 split · merge 사진도 바꿔요. Journey 계산은 하지 않아요', async () => {
+    // given
+    await fetchWithAnchors();
+    vi.mocked(moveCorrectionPhoto).mockResolvedValue(true);
+
+    // when
+    await getState().moveAnchors([
+      { correctionId: 'c_split', fromPhotoId: 'p_b', toPhotoId: 'p_c' },
+      { correctionId: 'c_merge', fromPhotoId: 'p_b', toPhotoId: 'p_a' },
+    ]);
+
+    // then
+    expect(vi.mocked(moveCorrectionPhoto).mock.calls).toEqual([
+      ['c_split', 'p_b', 'p_c'],
+      ['c_merge', 'p_b', 'p_a'],
+    ]);
+    expect(getState().corrections).toEqual([
+      exclude,
+      { ...split, beforePhotoId: 'p_c' },
+      { ...merge, photoIds: ['p_a', 'p_d'] },
+    ]);
+    expect(refreshJourney).not.toHaveBeenCalled();
+  });
+
+  test('중간에 실패하면 던지고, 앞서 바꾼 보정만 목록에 반영돼요', async () => {
+    // given
+    await fetchWithAnchors();
+    vi.mocked(moveCorrectionPhoto).mockResolvedValueOnce(true).mockRejectedValueOnce(SAVE_FAILED);
+
+    // when
+    const moving = getState().moveAnchors([
+      { correctionId: 'c_split', fromPhotoId: 'p_b', toPhotoId: 'p_c' },
+      { correctionId: 'c_merge', fromPhotoId: 'p_b', toPhotoId: 'p_a' },
+    ]);
+
+    // then
+    await expect(moving).rejects.toEqual(SAVE_FAILED);
+    expect(getState().corrections).toEqual([exclude, { ...split, beforePhotoId: 'p_c' }, merge]);
+  });
+
+  test('옮길 게 없으면 보내지 않아요', async () => {
+    // when
+    await getState().moveAnchors([]);
+
+    // then
+    expect(moveCorrectionPhoto).not.toHaveBeenCalled();
   });
 });
 
