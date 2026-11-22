@@ -404,6 +404,20 @@ describe('buildJourney 규칙', () => {
     expect(journey.trips.map((trip) => trip.stopIds)).toEqual([['p_b1'], ['p_b3']]);
   });
 
+  test('사진이 지워진 exclude(photoId가 null)는 excluded에 넣지 않아요', async () => {
+    // given
+    const corrections = [
+      { id: 'c_1', type: 'exclude', photoId: 'p_b2' },
+      { id: 'c_2', type: 'exclude', photoId: null },
+    ];
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey.excluded).toEqual(['p_b2']);
+  });
+
   describe('여행 합치기 보정', () => {
     const photos = [...BANGKOK_TRIP, makePhoto('p_d1', 'danang', '2024-08-01T09:00:00')];
     const merge = { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] };

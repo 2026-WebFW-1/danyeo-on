@@ -130,6 +130,12 @@ describe('selectExcludedIds', () => {
     expect(selectExcludedIds({ ...seojin, excluded: ['p_x'] }, null)).toEqual(new Set(['p_x']));
     expect(selectExcludedIds(null, null)).toEqual(new Set());
   });
+
+  test('사진이 지워진 exclude(photoId가 null)는 세지 않아요', () => {
+    expect(selectExcludedIds(seojin, [exclude('p_kept'), exclude(null, 'c_gone')])).toEqual(
+      new Set(['p_kept']),
+    );
+  });
 });
 
 describe('selectSortTrips 뺀 사진', () => {

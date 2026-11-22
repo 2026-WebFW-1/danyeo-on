@@ -113,11 +113,13 @@ const indexById = (items) => new Map(items.map((item) => [item.id, item]));
  * 사용자가 뺀 사진의 ID를 모읍니다.
  * Set을 쓰는 이유는 사진이 많아지면 has가 includes보다 빨라서이며 수백 장이라 차이가 납니다.
  *
+ * 사진을 영구 삭제하면 exclude가 photoId 없이(null) 남을 수 있어서, excluded에 null이 들어가지 않게 거릅니다.
+ *
  * @param {import('@/types').Correction[]} excludeCorrections
  * @returns {Set<string>}
  */
 const collectExcludedIds = (excludeCorrections) =>
-  new Set(excludeCorrections.map((correction) => correction.photoId));
+  new Set(excludeCorrections.map((correction) => correction.photoId).filter(Boolean));
 
 /**
  * 사용자가 뺀 사진을 거릅니다.

@@ -66,7 +66,13 @@ const NO_DATE_KEY = 'none';
  */
 export function selectExcludedIds(journey, corrections) {
   if (!corrections) return new Set(journey?.excluded ?? []);
-  return new Set(corrections.filter(isExclude).map((correction) => correction.photoId));
+  // 사진을 영구 삭제하면 exclude가 photoId 없이 남을 수 있어요. 개수에 세지 않게 걸러요.
+  return new Set(
+    corrections
+      .filter(isExclude)
+      .map((correction) => correction.photoId)
+      .filter(Boolean),
+  );
 }
 
 /**
