@@ -53,7 +53,7 @@ let jobId = 0; // 가장 최근에 시작한 작업의 번호
  * @property {string[]} newPhotoIds 이번 save에서 새로 저장한 사진 id예요. 이미 있던 사진은 빠져요.
  *   Journey를 다시 만들 때([다시 시도] 포함) 이 사진이 든 여행으로 넘어가려고 스토어에 둬요
  * @property {{ total: number, uploaded: number, skipped: number, failed: number }} imageUpload 이미지 올리기 진행 상태.
- *   skipped는 브라우저가 못 여는 사진(HEIC 등)이라 회색 칸으로 두는 것, failed는 다시 시도해도 못 올린 것이에요
+ *   skipped는 업로드 대상 중 보기용 이미지를 만들지 못한 수, failed는 재시도 후에도 전송하지 못한 수예요.
  * @property {(files: File[], skippedFiles?: import('@/types').SkippedFile[]) => Promise<void>} start
  *   이전 작업을 비우고 한 장씩 줄이며 촬영 정보를 읽어요. 고를 때 뺀 파일은 skippedFiles에 그대로 둬요
  * @property {(ownerId: string, target?: 'trip' | 'sort') => Promise<void>} save 쌓을 때 읽은 촬영 정보로 저장하고,
