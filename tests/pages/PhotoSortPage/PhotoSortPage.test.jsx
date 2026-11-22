@@ -15,6 +15,7 @@ import PhotoSortPage from '@/pages/PhotoSortPage/PhotoSortPage';
 
 import { addCorrection, removeCorrection } from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
+import { clearMyPhotos } from '@/services/myPhotosService';
 import { deletePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { useCorrectionStore } from '@/stores/correctionStore';
@@ -28,6 +29,10 @@ vi.mock('@/services/correctionService', () => ({
 vi.mock('@/services/journeyService', async (original) => ({
   ...(await original()),
   refreshJourney: vi.fn(),
+}));
+vi.mock('@/services/myPhotosService', async (original) => ({
+  ...(await original()),
+  clearMyPhotos: vi.fn(),
 }));
 vi.mock('@/services/photoService', async (original) => ({
   ...(await original()),
@@ -482,6 +487,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     await click(buttonByText('영구 삭제'));
 
     expect(deletePhotos).toHaveBeenCalledExactlyOnceWith([second]);
+    expect(clearMyPhotos).toHaveBeenCalledOnce();
     expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_3', 'c_2']);
   });
 
@@ -547,6 +553,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     await click(buttonByText('영구 삭제'));
 
     expect(corrections.moveAnchors).toHaveBeenCalledTimes(2);
+    expect(clearMyPhotos).not.toHaveBeenCalled();
     await expect(corrections.moveAnchors.mock.results[1].value).resolves.toEqual([
       { correctionId: 'c_split', fromPhotoId: third, toPhotoId: second },
     ]);

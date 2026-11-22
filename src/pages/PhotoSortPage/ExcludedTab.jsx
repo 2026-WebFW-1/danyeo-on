@@ -1,3 +1,4 @@
+import { clearMyPhotos } from '@/services/myPhotosService';
 import { deletePhotos } from '@/services/photoService';
 import { formatDateRange } from '@/utils/formatDateRange';
 
@@ -46,6 +47,9 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
       await undoMoves().catch((undoError) => console.error(undoError));
       throw error;
     }
+    // 사진 목록은 Journey를 다 계산한 뒤(20초쯤)에야 다시 읽어요. 그 전에 다른 사진을 지우면 지운 사진을 기준으로
+    // 골라 옮기다 실패해서, 지금 바로 다시 읽게 해요.
+    clearMyPhotos();
     await onDeleted(photo);
   };
 
