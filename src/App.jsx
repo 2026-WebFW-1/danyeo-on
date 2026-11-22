@@ -4,6 +4,7 @@ import { Route, Routes } from 'react-router';
 import AppLayout from '@/components/layout/AppLayout';
 import RequireAuth from '@/components/layout/RequireAuth';
 import ChapterPage from '@/pages/ChapterPage/ChapterPage';
+import CreditsPage from '@/pages/CreditsPage/CreditsPage';
 import HomePage from '@/pages/HomePage/HomePage';
 import LoginPage from '@/pages/LoginPage/LoginPage';
 import MapPage from '@/pages/MapPage/MapPage';
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="chapter/:slug" element={<ChapterPage />} />
           <Route path="upload" element={<UploadPage />} />
           <Route path="edit/photos" element={<PhotoSortPage />} />
+          <Route path="credits" element={<CreditsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

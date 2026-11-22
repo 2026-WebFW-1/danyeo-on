@@ -293,6 +293,18 @@
  */
 
 /**
+ * 데모 사진 한 장의 출처예요(creditService, 출처 페이지).
+ *
+ * @typedef {object} PhotoCredit
+ * @property {string} fileName 예: 'commons-021e9c32fa3441d5.webp'
+ * @property {string} title 예: 'August 2007, Seoul at dawn'
+ * @property {string} author
+ * @property {string} license 예: 'CC BY-SA 4.0'
+ * @property {string | null} licenseUrl
+ * @property {string | null} sourceUrl 원본이 있는 주소
+ */
+
+/**
  * 사진 올리기에서 고른 사진을 썸네일로 줄이고 촬영 정보를 읽은 한 장이에요(useUploadStore, PhotoPile).
  * 아직 저장 전이라 브라우저 메모리에만 있어요.
  *
