@@ -19,6 +19,8 @@ import SortPhotoCard from './SortPhotoCard';
  *  - [영구 삭제]는 되돌릴 수 없어서 window.confirm으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
  *    사진을 지워도 exclude 보정은 사진 없이 남아서, 지운 뒤 onDeleted로 그 exclude를 지우고 Journey를 다시 계산해요.
  *    exclude 지우기가 실패하면 다시 눌러요. 이미 지운 사진은 deletePhotos가 오류 없이 건너뛰어 exclude만 다시 지워요.
+ *    deletePhotos가 0행을 지워도 exclude를 지워요. photos의 RLS는 읽기·지우기가 같은 "본인 사진" 조건이고
+ *    exclude는 본인 사진에만 걸려서, 0행이면 이미 지워진 사진이에요(남은 사진이 다시 여행에 돌아가는 일은 없어요).
  *
  * @param {object} props
  * @param {import('@/utils/photoSort').ExcludedPhoto[]} props.photos
