@@ -1,5 +1,6 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { cn } from '@/utils/cn';
+import { formatPassDateTime } from '@/utils/upload/pass/formatPassDate';
 import { getPassKind } from '@/utils/upload/pass/getPassKind';
 
 // 가운데 사진 양옆으로 몇 장씩 그릴지. 300장을 다 그리지 않으려고 둡니다.
@@ -134,14 +135,14 @@ export default function PassStrip({ currentIndex, moveMs, isAsking }) {
               ) : (
                 <div className="size-45 bg-line" />
               )}
-              {/* 촬영 시각이 스토어에 생기면 날짜(07.03 10:15)로 바뀝니다. */}
+              {/* 촬영 시각이 없으면 어떤 사진인지 알 수 있게 파일 이름을 보여 줘요 */}
               <p
                 className={cn(
                   'mt-2 truncate font-mono text-sm',
                   isColored ? 'text-white' : isCurrent ? 'text-accent' : 'text-dim',
                 )}
               >
-                {photo.filename}
+                {formatPassDateTime(photo.takenAt) ?? photo.filename}
               </p>
             </li>
           );
