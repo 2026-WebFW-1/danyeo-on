@@ -26,15 +26,7 @@ const HEADINGS = {
 };
 
 /**
- * 사진을 시간순 한 줄로 훑으며 빈칸을 채우는 화면 (13h″ 지나가며 정리, #129)
- *
- * 사진마다 calcStayMs만큼 머물렀다가 저절로 다음 장으로 넘어가요.
- * 편집본도 같은 빠르기로 지나가고, 대신 카드 색으로 알려 줘요(PassStrip).
- * 자리를 못 찾은 사진('ask')도 지나갈 때는 멈추지 않고, 줄이 끝나면 그 자리로 되감아 하나씩 물어요(#140).
- * 사진 종류는 쌓을 때 읽은 촬영 정보와 파일 이름으로 정해요(getPassKind).
- *
- * 호출: UploadPage가 쌓기 화면에서 [다음]을 누르면 그립니다.
- * <PassPhotosStep />
+ * 고른 순서로 사진을 보여 주고, 줄이 끝나면 아직 답하지 않은 사진으로 돌아가요.
  */
 export default function PassPhotosStep() {
   const photos = useUploadStore((state) => state.photos);
@@ -60,7 +52,6 @@ export default function PassPhotosStep() {
   // 아직 하나도 답하지 않았으면 끝에서 첫 질문으로 되감는 중이에요.
   const hasAnswer = Object.keys(answers).length > 0;
 
-  // timer는 React 밖의 일입니다.(컨벤션 상 외부 동기화)
   useEffect(() => {
     if (isPassed || isPaused) return;
 
@@ -71,8 +62,7 @@ export default function PassPhotosStep() {
     return () => clearTimeout(timer);
   }, [passedCount, isPassed, isPaused, stayMs]);
 
-  // 버튼 하나로 멈추고 다시 재생합니다.
-  const handlePause = () => {
+  const handleTogglePlayback = () => {
     setIsPaused((prev) => !prev);
   };
 
@@ -139,7 +129,7 @@ export default function PassPhotosStep() {
               isPaused={isPaused}
               isFirst={currentIndex === 0}
               isLast={isLast}
-              onPause={handlePause}
+              onTogglePlayback={handleTogglePlayback}
               onUndo={handleUndo}
             />
           )}
