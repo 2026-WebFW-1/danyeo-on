@@ -158,7 +158,13 @@ export default function PhotoSortPage() {
         />
       )}
       {tab === 'excluded' && (
-        <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore} />
+        // 영구 삭제한 사진의 exclude도 [복구]와 같이 모두 지워요. 사진 없는 보정이 남지 않고 Journey를 다시 계산해요.
+        <ExcludedTab
+          photos={excludedPhotos}
+          status={correctionStatus}
+          onRestore={handleRestore}
+          onDeleted={handleRestore}
+        />
       )}
       {tab === 'unlocated' && (
         <UnlocatedTab
