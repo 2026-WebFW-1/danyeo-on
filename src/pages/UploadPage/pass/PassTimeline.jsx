@@ -21,6 +21,17 @@ const JOURNEY_PATH =
 // 한 경로에 두 단어(M 두 번)를 넣으면 점선이 단어마다 처음부터 다시 시작돼서,
 // 81%만 지나도 두 단어가 다 칠해졌어요. 그래서 단어를 나눠 각자 채워요.
 const MY_SHARE = 0.36;
+// 단어마다 진행률(--pass-progress, global.css)에서 칠할 몫을 계산해요.
+// 단어마다 transition을 따로 걸면, 진행률이 한 번에 크게 뛸 때(탭을 가렸다 돌아올 때 등)
+// 두 단어가 동시에 차올라서 M과 J가 같이 칠해졌어요(#211). 서서히 바뀌는 값을 하나로 두면 늘 My부터 채워요.
+const WORDS = [
+  { key: 'my', d: MY_PATH, progress: `var(--pass-progress) / ${MY_SHARE}` },
+  {
+    key: 'journey',
+    d: JOURNEY_PATH,
+    progress: `(var(--pass-progress) - ${MY_SHARE}) / ${1 - MY_SHARE}`,
+  },
+];
 // 두 획(남은 획·지나온 획)이 같이 쓰는 굵기와 둥근 끝
 const STROKE = 'fill-none stroke-12 [stroke-linecap:round] [stroke-linejoin:round]';
 
@@ -41,9 +52,6 @@ export default function PassTimeline({ currentIndex, moveMs }) {
 
   // 지금 위치를 0 ~ 1로. 사진이 한 장이면 맨 앞입니다.
   const position = total > 1 ? currentIndex / (total - 1) : 0;
-  // "My"를 다 채운 뒤에 "Journey"를 채워요.
-  const myPosition = Math.min(1, position / MY_SHARE);
-  const journeyPosition = Math.max(0, (position - MY_SHARE) / (1 - MY_SHARE));
   // 반올림하면 300장 중 299장째(99.7%)도 100%로 보여서, 끝까지 가야만 100%가 되게 내려요.
   const percent = Math.floor(position * 100);
   const passedCount = total > 0 ? currentIndex + 1 : 0;
@@ -61,7 +69,8 @@ export default function PassTimeline({ currentIndex, moveMs }) {
       <svg
         viewBox="10 10 500 150"
         aria-hidden="true"
-        className="block h-auto w-full overflow-visible"
+        className="block h-auto w-full overflow-visible transition-[--pass-progress] ease-linear motion-reduce:transition-none"
+        style={{ '--pass-progress': position, transitionDuration: `${moveMs}ms` }}
       >
         <defs>
           {/* 두 단어가 한 그라데이션을 나눠 쓰도록, 단어 상자가 아니라 글자 전체 폭(20~500)에 걸어요 */}
@@ -74,19 +83,16 @@ export default function PassTimeline({ currentIndex, moveMs }) {
         {/* 남은 획. 글자 전체를 연회색으로 깔아 둬요 */}
         <path d={`${MY_PATH} ${JOURNEY_PATH}`} className={`${STROKE} stroke-line`} />
         {/* 지나온 획. pathLength를 1로 두고, 점선 하나(길이 1)를 1 - 진행만큼 밀어서
-            지나온 만큼만 획 순서대로 보여요 */}
-        {[
-          { key: 'my', d: MY_PATH, progress: myPosition },
-          { key: 'journey', d: JOURNEY_PATH, progress: journeyPosition },
-        ].map(({ key, d, progress }) => (
+            지나온 만큼만 획 순서대로 보여요. 진행은 0 ~ 1로 잘라서 My를 다 채운 뒤에 Journey를 채워요 */}
+        {WORDS.map(({ key, d, progress }) => (
           <path
             key={key}
             d={d}
             pathLength={1}
             strokeDasharray="1 1"
             stroke={`url(#${gradientId})`}
-            className={`${STROKE} transition-[stroke-dashoffset] ease-linear motion-reduce:transition-none`}
-            style={{ strokeDashoffset: 1 - progress, transitionDuration: `${moveMs}ms` }}
+            className={STROKE}
+            style={{ strokeDashoffset: `calc(1 - clamp(0, ${progress}, 1))` }}
           />
         ))}
       </svg>
