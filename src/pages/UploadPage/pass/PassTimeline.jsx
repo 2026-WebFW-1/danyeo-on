@@ -50,8 +50,8 @@ export default function PassTimeline({ currentIndex, moveMs }) {
   // 같은 화면에 두 번 그려져도 그라데이션 id가 겹치지 않게 해요.
   const gradientId = useId();
 
-  // 지금 위치를 0 ~ 1로. 사진이 한 장이면 맨 앞입니다.
-  const position = total > 1 ? currentIndex / (total - 1) : 0;
+  // 지금 위치를 0 ~ 1로. 한 장이면 첫 장이 곧 마지막 장이라 끝(1)이에요. 0장이면 맨 앞이에요.
+  const position = total > 1 ? currentIndex / (total - 1) : total;
   // 반올림하면 300장 중 299장째(99.7%)도 100%로 보여서, 끝까지 가야만 100%가 되게 내려요.
   const percent = Math.floor(position * 100);
   const passedCount = total > 0 ? currentIndex + 1 : 0;
