@@ -378,6 +378,51 @@ describe('ChapterView 글 고치기', () => {
       expect(container.querySelector('input[name="title"]').value).toBe(post0630.title);
     });
 
+    test('편집기에는 그날 찍은 사진만 고르기 칸으로 보여요', async () => {
+      // given
+      const dayFileNames = stopPhotos
+        .filter((photo) => photo.takenAt?.startsWith('2025-07-12'))
+        .map((photo) => photo.fileName);
+      expect(dayFileNames.length).toBeGreaterThan(0);
+
+      // when
+      await open(post0712);
+
+      // then
+      const pickerNames = [...editor().querySelectorAll('button[aria-pressed]')].map((button) =>
+        button.getAttribute('aria-label').replace(/^사진 | (빼기|넣기)$/g, ''),
+      );
+      expect(pickerNames.toSorted()).toEqual(dayFileNames.toSorted());
+    });
+
+    test('사진을 고르는 동안 왼쪽 큰 사진이 고른 첫 장을 따라가요(저장 전에도)', async () => {
+      // given: 07.12에 사진을 한 장 더 둬요
+      const extra = {
+        ...stopPhotos.find((photo) => photo.takenAt?.startsWith('2025-07-12')),
+        id: 'p_extra',
+        fileName: 'IMG_EXTRA.JPG',
+        fileKey: null,
+        takenAt: '2025-07-12T09:00:00',
+      };
+      await open(post0712, { stopPhotos: [...stopPhotos, extra] });
+      expect(editor().querySelector('figcaption').textContent).toMatch(/^IMG_0188\.JPG/);
+
+      // when
+      await act(async () =>
+        editor().querySelector('[aria-label="사진 IMG_EXTRA.JPG 넣기"]').click(),
+      );
+      await act(async () => editor().querySelector('[aria-label="IMG_EXTRA.JPG 앞으로"]').click());
+
+      // then
+      expect(editor().querySelector('figcaption').textContent).toMatch(/^IMG_EXTRA\.JPG/);
+    });
+
+    test('그날 찍은 사진이 없으면 사진 고르기 칸이 없어요', async () => {
+      await open(post0630);
+
+      expect(editor().querySelectorAll('button[aria-pressed]')).toHaveLength(0);
+    });
+
     test('지점 사진을 못 받았어도(stopPhotos가 없어도) 편집기는 열려요', async () => {
       await render({ posts: [post0712] });
 

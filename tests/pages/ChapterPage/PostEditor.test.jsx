@@ -896,3 +896,133 @@ describe('떠나기', () => {
     expect(leavePage()).toBe(false);
   });
 });
+
+describe('사진', () => {
+  const DAY_PHOTOS = [
+    { id: 'p_a', fileKey: null, fileName: 'A.JPG', takenAt: '2025-07-12T10:00:00' },
+    { id: 'p_b', fileKey: null, fileName: 'B.JPG', takenAt: '2025-07-12T11:00:00' },
+    { id: 'p_c', fileKey: null, fileName: 'C.JPG', takenAt: '2025-07-12T12:00:00' },
+  ];
+
+  const openWithPhotos = (posts = [post], dayPhotos = DAY_PHOTOS) => open(posts, { dayPhotos });
+  const selectedLabels = () =>
+    [...container.querySelectorAll('button[aria-pressed="true"]')].map((button) =>
+      button.getAttribute('aria-label'),
+    );
+  const photoButtons = () => [...container.querySelectorAll('button[aria-pressed]')];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('새 글은 그날 사진이 모두 골라져 있고 저장이 꺼져 있어요', async () => {
+    // when
+    await openWithPhotos([]);
+
+    // then
+    expect(selectedLabels()).toEqual(['사진 A.JPG 빼기', '사진 B.JPG 빼기', '사진 C.JPG 빼기']);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  test('글이 있으면 그 photoIds 순서로 골라져 있고, 그날 사진이 아닌 ID는 빠져요', async () => {
+    // when
+    await openWithPhotos([{ ...post, photoIds: ['p_gone', 'p_c', 'p_a'] }]);
+
+    // then
+    expect(selectedLabels()).toEqual(['사진 C.JPG 빼기', '사진 A.JPG 빼기']);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  test('순서를 바꾸고 사진을 넣으면 저장이 켜지고, 그 순서로 저장해요', async () => {
+    // given
+    vi.mocked(savePost).mockResolvedValue();
+    await openWithPhotos();
+
+    // when
+    await click(container.querySelector('[aria-label="B.JPG 앞으로"]'));
+    await click(container.querySelector('[aria-label="사진 C.JPG 넣기"]'));
+
+    // then
+    expect(saveButton().disabled).toBe(false);
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(savePost).toHaveBeenCalledWith(
+      expect.objectContaining({ photoIds: ['p_b', 'p_a', 'p_c'] }),
+    );
+  });
+
+  test('사진은 한 장까지만 뺄 수 있어서 빈 목록으로 저장되지 않아요', async () => {
+    // given
+    vi.mocked(savePost).mockResolvedValue();
+    await openWithPhotos();
+
+    // when
+    await click(container.querySelector('[aria-label="사진 A.JPG 빼기"]'));
+
+    // then
+    expect(container.querySelector('[aria-label="사진 B.JPG 빼기"]').disabled).toBe(true);
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(savePost).toHaveBeenCalledWith(expect.objectContaining({ photoIds: ['p_b'] }));
+  });
+
+  test('그날 사진이 없으면 사진 칸이 없고 photoIds는 글 그대로예요', async () => {
+    // given
+    vi.mocked(savePost).mockResolvedValue();
+    await openWithPhotos([post], []);
+
+    // when
+    await type(titleInput(), '새 제목');
+    await click(saveButton());
+
+    // then
+    expect(photoButtons()).toEqual([]);
+    expect(container.textContent).not.toContain('사진');
+    expect(savePost).toHaveBeenCalledWith(expect.objectContaining({ photoIds: post.photoIds }));
+  });
+
+  test('저장 중에는 사진 버튼이 꺼져요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    await openWithPhotos();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(photoButtons()).toHaveLength(3);
+    expect(photoButtons().every((button) => button.disabled)).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve());
+  });
+
+  test('임시본을 불러오면 고른 사진도 돌아오고, 그날 사진이 아닌 ID는 빠져요', async () => {
+    // given
+    localStorage.setItem(
+      `post-draft:u1:${DATE}`,
+      JSON.stringify({
+        title: post.title,
+        body: post.body,
+        tags: post.tags,
+        photoIds: ['p_gone', 'p_c'],
+        savedAt: '2025-07-12T11:00:00Z',
+      }),
+    );
+    await openWithPhotos();
+
+    // when
+    await click(findButton('불러오기'));
+
+    // then
+    expect(selectedLabels()).toEqual(['사진 C.JPG 빼기']);
+  });
+});

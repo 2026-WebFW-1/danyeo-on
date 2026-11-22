@@ -6,12 +6,15 @@ import { usePostStore } from '@/stores/postStore';
 import { cn } from '@/utils/cn';
 import { clearDraft, isDraftNewer, readDraft, writeDraft } from '@/utils/postDraft';
 import { formatPostDate, isPostDirty, normalizeTags } from '@/utils/postForm';
+import { initialSelection } from '@/utils/postPhotos';
 
+import PostPhotoPicker from './PostPhotoPicker';
 import PostTagField from './PostTagField';
 
 const SAVED_NOTICE_MS = 1000;
 const DRAFT_DELAY_MS = 500;
 const EMPTY_POST = { title: '', body: '', tags: [], photoIds: [] };
+const NO_PHOTOS = [];
 const FIELD_CLASS =
   'w-full border border-line bg-white px-4 py-3 text-lg leading-body-lg font-normal text-ink disabled:opacity-60';
 const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
@@ -19,13 +22,14 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
 /**
  * 그날의 글을 쓰고 고치는 편집기
  *
- * 책임: 그날 글을 보여 주고, 제목·본문·태그를 고쳐 저장합니다. 저장 중·저장됨은 오른쪽 위에,
+ * 책임: 그날 글을 보여 주고, 제목·본문·태그와 붙일 그날 사진(#194)을 고쳐 저장합니다. 저장 중·저장됨은 오른쪽 위에,
  * 저장 실패는 편집기 안에 [다시 시도]와 함께 보여 줍니다(14b).
  * 쓴 글을 잃지 않게 임시 보관, 다시 열 때 불러오기, 탭 닫기·[취소] 경고도 맡습니다(14b).
  * 왼쪽의 큰 사진과 챕터 머리는 02의 배치라 여기에 없습니다. 너비도 02가 정합니다.
  *
- * 호출: 02 챕터의 글 카드 자리(C). 카드 하나에 날짜 하나로 씁니다.
- * <PostEditor date="2025-07-12" dayNumber={15} onClose={() => setIsEditing(false)} />
+ * 호출: 02 챕터의 글 고치는 화면(PostEditView, C). 글 카드를 누르거나 [+ 글 쓰기]로 날짜를 고르면 열립니다(#203).
+ *   편집기 하나에 날짜 하나로 씁니다.
+ * <PostEditor date="2025-07-12" dayNumber={15} dayPhotos={dayPhotos} onClose={() => setIsEditing(false)} />
  *
  * 의도: 입력은 고치기 시작할 때만 draft로 들고, 그 전에는 스토어의 글을 그대로 보여 줍니다.
  * 그래서 글을 다 불러온 뒤 입력 칸으로 옮겨 담는 useEffect가 필요 없고, 취소는 draft를 비우면 끝납니다.
@@ -43,12 +47,22 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *    0.5초가 지나기 전에 편집기가 사라지면 그때 바로 씁니다. 계정이 바뀌면 입력을 비우고 새 계정의 임시본을 읽습니다.
  *  - 저장 중에는 입력을 막습니다. 저장이 끝나면 입력을 비우니, 그 사이에 고친 내용이 사라지지 않게요.
  *  - "저장 안 한 글이 있어요"가 떠 있는 동안에는 임시본을 쓰지 않습니다. 고르기 전에 맡겨 둔 글을 덮지 않게요.
+ *  - 사진은 dayPhotos(그날 사진)에서만 고릅니다. 처음에는 글의 photoIds 중 그날 사진인 것을, 없으면 그날 사진 전부를
+ *    골라 두고(utils/postPhotos), 그 상태를 저장된 값으로 칩니다. 그날 사진이 아닌 ID는 저장할 때 빠져요.
+ *    dayPhotos가 비면 사진 칸을 숨기고 photoIds를 글 그대로 둡니다. 사진 목록이 없다고 붙은 사진을 지우지 않게요.
+ *    고르는 중인 사진은 onPhotoIdsChange로 알려요. 02가 왼쪽 큰 사진을 저장 전에도 바꿔 보여 줘요.
  *  - 앱 안 이동은 막지 않습니다. useBlocker는 createBrowserRouter에서만 동작해서, 대신 임시본으로 글을 지킵니다.
  *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 window.confirm으로 묻습니다.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=195-158
  */
-export default function PostEditor({ date, dayNumber, onClose }) {
+export default function PostEditor({
+  date,
+  dayNumber,
+  dayPhotos = NO_PHOTOS,
+  onPhotoIdsChange,
+  onClose,
+}) {
   const post = usePostStore((state) => state.byDate[date]);
   const status = usePostStore((state) => state.status);
   const isSaving = usePostStore((state) => Boolean(state.saving[date]));
@@ -85,7 +99,12 @@ export default function PostEditor({ date, dayNumber, onClose }) {
     return () => clearTimeout(timer);
   }, [isJustSaved, onClose]);
 
-  const saved = post ?? EMPTY_POST;
+  const dayPhotoIds = dayPhotos.map((photo) => photo.id);
+  const hasDayPhotos = dayPhotoIds.length > 0;
+  // 그날 사진이 있으면 처음 골라 둔 사진을 저장된 값으로 쳐요. 열자마자 저장이 켜지지 않게요.
+  const saved = hasDayPhotos
+    ? { ...(post ?? EMPTY_POST), photoIds: initialSelection(post, dayPhotoIds) }
+    : (post ?? EMPTY_POST);
   const form = draft ?? saved;
   const current = { ...form, tags: normalizeTags([...form.tags, tagText]) };
   const isReady = status === 'ready';
@@ -111,6 +130,12 @@ export default function PostEditor({ date, dayNumber, onClose }) {
 
   // 0.5초가 지나기 전에 앱 안 링크로 떠나도 마지막 입력이 남게, 사라질 때 못 쓴 임시본을 바로 써요.
   useEffect(() => () => pendingDraftRef.current?.(), []);
+
+  // 고르는 중인 사진을 부모에게 알려요. 02가 저장 전에도 왼쪽 큰 사진을 고른 첫 장으로 보여 줘요.
+  const photoIdsJson = JSON.stringify(form.photoIds);
+  useEffect(() => {
+    onPhotoIdsChange?.(JSON.parse(photoIdsJson));
+  }, [photoIdsJson, onPhotoIdsChange]);
 
   useEffect(() => {
     if (!isDirty) return undefined;
@@ -145,7 +170,12 @@ export default function PostEditor({ date, dayNumber, onClose }) {
 
   const handleLoadDraft = () => {
     const { title, body, tags, photoIds } = storedDraft;
-    setDraft({ title, body, tags, photoIds });
+    setDraft({
+      title,
+      body,
+      tags,
+      photoIds: hasDayPhotos ? initialSelection(storedDraft, dayPhotoIds) : photoIds,
+    });
     setStoredDraft(null);
   };
 
@@ -259,6 +289,18 @@ export default function PostEditor({ date, dayNumber, onClose }) {
           onTextChange={setTagText}
         />
       </div>
+
+      {hasDayPhotos && (
+        <div className={LABEL_CLASS}>
+          사진
+          <PostPhotoPicker
+            photos={dayPhotos}
+            selectedIds={form.photoIds}
+            isDisabled={!isReady || isSaving}
+            onChange={(photoIds) => setDraft({ ...form, photoIds })}
+          />
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button
