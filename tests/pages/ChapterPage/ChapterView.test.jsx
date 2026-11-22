@@ -378,6 +378,29 @@ describe('ChapterView 글 고치기', () => {
       expect(container.querySelector('input[name="title"]').value).toBe(post0630.title);
     });
 
+    test('편집기에는 그날 찍은 사진만 고르기 칸으로 보여요', async () => {
+      // given
+      const dayFileNames = stopPhotos
+        .filter((photo) => photo.takenAt?.startsWith('2025-07-12'))
+        .map((photo) => photo.fileName);
+      expect(dayFileNames.length).toBeGreaterThan(0);
+
+      // when
+      await open(post0712);
+
+      // then
+      const pickerNames = [...editor().querySelectorAll('button[aria-pressed]')].map((button) =>
+        button.getAttribute('aria-label').replace(/^사진 | (빼기|넣기)$/g, ''),
+      );
+      expect(pickerNames.toSorted()).toEqual(dayFileNames.toSorted());
+    });
+
+    test('그날 찍은 사진이 없으면 사진 고르기 칸이 없어요', async () => {
+      await open(post0630);
+
+      expect(editor().querySelectorAll('button[aria-pressed]')).toHaveLength(0);
+    });
+
     test('지점 사진을 못 받았어도(stopPhotos가 없어도) 편집기는 열려요', async () => {
       await render({ posts: [post0712] });
 
