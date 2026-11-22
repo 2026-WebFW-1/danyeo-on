@@ -77,6 +77,10 @@ beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   vi.mocked(useMyPhotos).mockReturnValue({ photos: PHOTOS, status: 'ready', error: null });
   container = document.createElement('div');
+  // 테스트 화면에는 CSS가 없어서 카드 더미가 왼쪽 위 구석에 그려지는데, 그 자리에 브라우저의 실제 마우스 커서가 있어요.
+  // 펼친 사진이 무작위 자리로 날아가다 커서 밑을 지나면 브라우저가 진짜 mouseover를 보내 접히지 않아요(CI에서 가끔 실패).
+  // 커서가 닿지 않게 화면 밖에 그려요. 마우스 이벤트는 dispatchEvent로 보내서 자리와 상관없어요.
+  container.style.cssText = 'position: fixed; top: -10000px; left: -10000px;';
   document.body.append(container);
   root = createRoot(container);
 });
