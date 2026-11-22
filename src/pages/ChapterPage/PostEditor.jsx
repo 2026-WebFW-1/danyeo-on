@@ -44,6 +44,7 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *    피그마 14a에 자리가 없어서, 저장·취소보다 덜 눈에 띄게 버튼 줄 오른쪽 끝의 밑줄 글자로 둡니다.
  *    저장 중에는 지울 수 없고, 지우는 중에는 입력과 버튼을 모두 막습니다. 실패하면 글을 그대로 두고 [다시 시도]를 띄웁니다.
  *    "저장됨 · 방금"을 보여 주는 1초 동안도 끕니다. 그 사이 편집기가 닫혀 지우기 결과를 못 보게 돼요.
+ *    지우는 중에는 [불러오기]·[버리기]도 끄고, 계정이 바뀌면 지우기 실패 안내를 비우고 이전 계정의 결과는 버립니다.
  *    실패 안내의 [다시 시도]는 저장·지우기가 끝난 뒤에만 보입니다. 같은 글에 저장과 지우기가 겹쳐 가지 않게요.
  *  - 저장에 성공하면 "저장됨 · 방금"을 1초 보여 준 뒤 onClose를 부릅니다. 바로 닫으면 카드가 사라져 안내를 볼 수 없어요.
  *    그 사이에 다시 고치면 닫지 않습니다. 쓴 내용이 사라지지 않게요.
@@ -93,6 +94,8 @@ export default function PostEditor({
     setStoredDraft(userId ? readDraft(userId, date) : null);
     setDraft(null);
     setTagText('');
+    // 이전 계정에서 받은 지우기 확인으로 새 계정의 글을 지우지 않게, 지우기 실패 안내도 비워요.
+    setHasDeleteFailed(false);
   }
 
   useEffect(() => {
@@ -175,6 +178,8 @@ export default function PostEditor({
     removeStoredDraft();
     clearInput();
     setHasSaveFailed(false);
+    // 저장이 끝난 글에 앞선 지우기 실패의 [다시 시도]가 남으면, 저장됨 1초 동안 눌려 결과를 못 보고 닫혀요.
+    setHasDeleteFailed(false);
     setIsJustSaved(true);
   };
 
@@ -196,12 +201,15 @@ export default function PostEditor({
 
   // [다시 시도]는 이미 한 번 확인을 받아서 다시 묻지 않아요.
   const deletePost = async () => {
+    // 지우는 사이 다른 탭에서 계정이 바뀌면, 이전 계정의 결과로 새 계정의 편집기를 바꾸지 않아요.
+    const isSameUser = () => useAuthStore.getState().user?.id === userId;
     try {
       await removePost(date);
     } catch {
-      setHasDeleteFailed(true); // 글은 그대로 둬요.
+      if (isSameUser()) setHasDeleteFailed(true); // 글은 그대로 둬요.
       return;
     }
+    if (!isSameUser()) return;
     removeStoredDraft();
     clearInput();
     setHasDeleteFailed(false);
@@ -255,15 +263,17 @@ export default function PostEditor({
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
+              disabled={isBusy}
               onClick={handleLoadDraft}
-              className="border border-ink px-3 py-1 font-medium"
+              className="border border-ink px-3 py-1 font-medium disabled:opacity-60"
             >
               불러오기
             </button>
             <button
               type="button"
+              disabled={isBusy}
               onClick={handleDiscardDraft}
-              className="border border-ink px-3 py-1 font-medium"
+              className="border border-ink px-3 py-1 font-medium disabled:opacity-60"
             >
               버리기
             </button>

@@ -1159,6 +1159,76 @@ describe('지우기', () => {
     expect(deleteButton().disabled).toBe(true);
   });
 
+  test('지우기에 실패한 뒤 다른 계정으로 바뀌면 지우기 [다시 시도]가 사라져요', async () => {
+    // given
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    await open();
+    await click(deleteButton());
+    expect(container.textContent).toContain('지우지 못했어요');
+
+    // when: 다른 탭에서 u2로 로그인해요
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+
+    // then
+    expect(container.textContent).not.toContain('지우지 못했어요');
+    expect(findButton('다시 시도')).toBeUndefined();
+  });
+
+  test('지우는 중에 다른 계정으로 바뀌면, 이전 계정의 지우기가 끝나도 편집기를 닫지 않아요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    await open();
+    await click(deleteButton());
+
+    // when
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+    await act(async () => request.resolve(true));
+
+    // then
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('지우기에 실패한 뒤 고쳐서 저장하면 지우기 실패 안내가 사라져요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+    await click(deleteButton());
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(container.textContent).toContain('저장됨 · 방금');
+    expect(container.textContent).not.toContain('지우지 못했어요');
+    expect(findButton('다시 시도')).toBeUndefined();
+  });
+
+  test('지우는 중에는 저장 안 한 글의 [불러오기]·[버리기]도 꺼져요', async () => {
+    // given
+    localStorage.setItem(
+      `post-draft:u1:${DATE}`,
+      JSON.stringify({ ...post, title: '맡겨 둔 제목', savedAt: '2025-07-12T11:00:00Z' }),
+    );
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    await open();
+    expect(container.textContent).toContain('저장 안 한 글이 있어요');
+
+    // when
+    await click(deleteButton());
+
+    // then
+    expect(findButton('불러오기').disabled).toBe(true);
+    expect(findButton('버리기').disabled).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve(true));
+  });
+
   test('실패하면 글이 그대로이고, [다시 시도]가 다시 지워요', async () => {
     // given
     vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
