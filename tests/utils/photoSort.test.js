@@ -288,6 +288,15 @@ describe('selectExcludedPhotos', () => {
       { id: 'p_gone', fileKey: null, takenAt: null, correctionIds: ['c_p_gone'] },
     ]);
   });
+
+  test('사진이 지워진 exclude(photoId가 null)는 목록에 넣지 않아요', () => {
+    const [a] = seojinSeed.photos;
+    const corrections = [exclude(a.id, 'c_1'), exclude(null, 'c_2')];
+
+    expect(selectExcludedPhotos(corrections, seojinSeed.photos)).toEqual([
+      { id: a.id, fileKey: a.fileKey, takenAt: a.takenAt, correctionIds: ['c_1'] },
+    ]);
+  });
 });
 
 describe('selectPhotoSummary', () => {

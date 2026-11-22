@@ -256,6 +256,8 @@ export function selectExcludedPhotos(corrections, photos) {
   // 뒤에서부터 보면 마지막으로 뺀 순서가 돼요.
   for (const correction of corrections.toReversed()) {
     if (!isExclude(correction)) continue;
+    // 사진을 영구 삭제하면 사진 연결만 같이 지워져서(cascade) photoId가 null인 exclude가 남아요. 보여 줄 사진이 없어 건너뛰어요.
+    if (!correction.photoId) continue;
     const existing = byPhotoId.get(correction.photoId);
     if (existing) {
       existing.correctionIds.push(correction.id);
