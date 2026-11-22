@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigationType, useSearchParams } from 'react-router';
 
 import NoTripsNotice from '@/components/common/NoTripsNotice';
 import { PERIOD_PARAM, TRIP_PARAM } from '@/constants/journey';
@@ -48,6 +48,11 @@ const NO_STOPS = [];
  *    라벨은 지나온 구간에만 있어서, 들어갈 때 재생을 멈추고 끝으로 옮겨 전체 동선과 라벨을 다 보여 줍니다.
  *  - 고치면 Journey가 다시 계산돼 legs가 새 배열로 오지만, 같은 경로라 재생 위치는 그대로입니다(usePlayback).
  *    계산 중이거나 실패하면 머리 아래에 알리고, 실패하면 거기서 다시 계산합니다(JourneyRefreshNotice).
+ *  - 지점 점을 누르면 재생을 그 지점 도착으로 옮기고, 도착 카드(ArrivalStack)를 누르면 그 지점의 02 챕터나
+ *    03 기록으로 갑니다(기능 명세 R106, #206). 점은 지름 8이라 누르기 어렵고 재생 옮기기로 이미 쓰고 있어서,
+ *    가는 길은 점을 눌렀을 때 뜨는 카드에 뒀습니다.
+ *  - 02 · 03에서 뒤로 가기로 돌아오면 보던 자리에서 이어 재생합니다(usePlayback의 canResume).
+ *    Nav나 [지도로 보기]로 새로 들어오면 지금처럼 처음부터입니다. 기간 · 여행은 주소에 있어서 그대로 돌아옵니다.
  *  - 지도는 휠 · 끌기 · 오른쪽 버튼으로 확대하고 옮깁니다(useMapZoom, #184). 기간을 바꿔도 보던 자리는 그대로입니다.
  *    여행이 없는 계정은 볼 경로가 없어서 버튼을 두지 않습니다.
  *
@@ -67,7 +72,9 @@ export default function MapPage() {
     () => (trip ? selectLegsByTrip(journey, trip.id) : selectLegsByPeriod(journey, period)),
     [journey, trip, period],
   );
-  const { position, pause, seek } = usePlayback(legs);
+  // 뒤로 · 앞으로 가기로 들어왔을 때만 이어요. 새로고침도 POP이지만 그때는 스토어가 비어 있어 처음부터예요.
+  const canResume = useNavigationType() === 'POP';
+  const { position, pause, seek } = usePlayback(legs, { canResume });
   const { displayLegs, changes, setMode, clear } = useLegModeDraft(legs);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [highlightedLegId, setHighlightedLegId] = useState(null);

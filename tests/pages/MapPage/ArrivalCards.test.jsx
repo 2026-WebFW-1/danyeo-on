@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import seojin from '@/data/fixtures/seojin.journey.json';
@@ -24,10 +25,29 @@ const PHOTOS = seojin.stops.flatMap((stop) =>
 let container;
 let root;
 
-async function render(trip = TRIP) {
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
+}
+
+async function render(trip = TRIP, arrivalStops = [FRONT_STOP]) {
   await act(() =>
-    root.render(<ArrivalCards arrivalStops={[FRONT_STOP]} stops={seojin.stops} trip={trip} />),
+    root.render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route
+            path="/map"
+            element={<ArrivalCards arrivalStops={arrivalStops} stops={seojin.stops} trip={trip} />}
+          />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    ),
   );
+}
+
+function getLinks() {
+  return [...container.querySelectorAll('article a')];
 }
 
 function getSection() {
@@ -201,5 +221,67 @@ describe('ArrivalCards 사진 펼치기 (#187)', () => {
     await act(() => getSection().blur());
     await act(() => getSection().focus());
     expect(getFan().querySelectorAll('li').length).toBeGreaterThan(before.length);
+  });
+});
+
+describe('ArrivalCards 02 · 03으로 가는 링크 (#206)', () => {
+  const VANCOUVER = seojin.stops.find((stop) => stop.city === '밴쿠버');
+  const BANFF = seojin.stops.find((stop) => stop.city === '밴프');
+  const tripOf = (stop) => seojin.trips.find((trip) => trip.id === stop.tripId);
+
+  test('챕터 지점의 카드는 02 챕터로 가요', async () => {
+    await render(tripOf(VANCOUVER), [VANCOUVER]);
+
+    const [link] = getLinks();
+    expect(link.getAttribute('href')).toBe('/chapter/밴쿠버-2025');
+    expect(link.getAttribute('aria-label')).toBe('밴쿠버 챕터 열기');
+    expect(link.textContent).toBe('챕터 열기→');
+  });
+
+  test('챕터가 아닌 지점의 카드는 03에서 그 여행의 탭으로 가요', async () => {
+    await render(tripOf(BANFF), [BANFF]);
+
+    const [link] = getLinks();
+    expect(link.getAttribute('href')).toBe(`/places?trip=${BANFF.tripId}`);
+    expect(link.getAttribute('aria-label')).toBe('밴프 전체 기록 보기');
+  });
+
+  test('맨 앞 카드에만 링크가 있어요', async () => {
+    await render(tripOf(BANFF), [BANFF, VANCOUVER]);
+
+    expect(container.querySelectorAll('article')).toHaveLength(2);
+    expect(getLinks().map((link) => link.getAttribute('aria-label'))).toEqual([
+      '밴프 전체 기록 보기',
+    ]);
+  });
+
+  test('사진을 펼친 채로 링크를 누르면 그 화면으로 가고, 멈췄던 재생은 이어서 재생으로 돌려놔요', async () => {
+    setPlaying(true);
+    await render(tripOf(VANCOUVER), [VANCOUVER]);
+    await hover();
+    expect(usePlaybackStore.getState().isPlaying).toBe(false);
+
+    await act(() => getLinks()[0].click());
+
+    expect(container.querySelector('[data-testid="location"]').textContent).toBe(
+      '/chapter/밴쿠버-2025',
+    );
+    expect(usePlaybackStore.getState().isPlaying).toBe(true);
+  });
+
+  test('키보드 포커스가 상자에서 링크로 옮겨 가도 펼친 사진은 그 자리에 그대로예요', async () => {
+    setPlaying(false);
+    await render(tripOf(VANCOUVER), [VANCOUVER]);
+
+    await act(() => getSection().focus());
+    const before = getPhotoTransforms();
+    await act(() => getLinks()[0].focus());
+
+    expect(document.activeElement).toBe(getLinks()[0]);
+    expect(getFan().getAttribute('aria-hidden')).toBe('false');
+    expect(getPhotoTransforms()).toEqual(before);
+
+    await act(() => getLinks()[0].blur());
+    expect(getFan().getAttribute('aria-hidden')).toBe('true');
   });
 });

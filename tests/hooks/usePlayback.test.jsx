@@ -34,15 +34,16 @@ function runFrame(now) {
 }
 
 // 렌더 중에 바깥 변수를 바꾸면 안 돼서, 값은 effect에서 테스트로 내보내요.
-function Probe({ legs: probeLegs }) {
-  const result = usePlayback(probeLegs);
+function Probe({ legs: probeLegs, canResume }) {
+  const result = usePlayback(probeLegs, { canResume });
   useEffect(() => {
     latest = result;
   });
   return null;
 }
 
-const mount = (probeLegs = legs) => act(() => root.render(<Probe legs={probeLegs} />));
+const mount = (probeLegs = legs, canResume = false) =>
+  act(() => root.render(<Probe legs={probeLegs} canResume={canResume} />));
 
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -155,5 +156,86 @@ describe('usePlayback', () => {
     mount(legs.map((leg) => ({ ...leg })));
 
     expect(getState().elapsedMs).toBe(0);
+  });
+});
+
+describe('usePlayback canResume (#206)', () => {
+  // 01에서 50ms 재생하다 다른 화면으로 떠난 상태를 만들어요.
+  function playAndLeave() {
+    mount();
+    runFrame(1000);
+    runFrame(1050);
+    act(() => root.unmount());
+    root = createRoot(container);
+  }
+
+  test('같은 경로로 돌아오면 떠날 때의 자리에서 이어서 재생해요', () => {
+    playAndLeave();
+    const reopened = legs.map((leg) => ({ ...leg }));
+
+    mount(reopened, true);
+
+    expect(getState().legs).toBe(reopened);
+    expect(getState().elapsedMs).toBe(50);
+    expect(latest.isPlaying).toBe(true);
+
+    runFrame(2000);
+    runFrame(2020);
+    expect(getState().elapsedMs).toBe(70);
+  });
+
+  test('멈춘 채 떠났으면 멈춘 채로 돌아와요', () => {
+    mount();
+    runFrame(1000);
+    runFrame(1050);
+    act(() => latest.pause());
+    act(() => root.unmount());
+    root = createRoot(container);
+
+    mount(legs, true);
+
+    expect(getState().elapsedMs).toBe(50);
+    expect(latest.isPlaying).toBe(false);
+  });
+
+  test('Journey를 읽는 동안 구간이 0개로 먼저 와도 이어요', () => {
+    playAndLeave();
+
+    mount([], true);
+    expect(getState().legs).toEqual([]);
+
+    mount(legs, true);
+    expect(getState().elapsedMs).toBe(50);
+    expect(latest.isPlaying).toBe(true);
+  });
+
+  test('다른 경로로 돌아오면 처음부터 재생해요', () => {
+    playAndLeave();
+    const firstTrip = legs.filter((leg) => leg.tripId === legs[0].tripId);
+
+    mount(firstTrip, true);
+
+    expect(getState().elapsedMs).toBe(0);
+  });
+
+  test('돌아와서 다른 경로를 본 뒤에는 떠날 때의 경로로 바꿔도 처음부터예요', () => {
+    playAndLeave();
+    const firstTrip = legs.filter((leg) => leg.tripId === legs[0].tripId);
+    mount(firstTrip, true);
+    runFrame(2000);
+    runFrame(2030);
+
+    mount(legs, true);
+
+    expect(getState().elapsedMs).toBe(0);
+  });
+
+  test('스토어가 비어 있으면(처음 열기 · 새로고침) 처음부터 재생해요', () => {
+    act(() => getState().load([]));
+
+    mount(legs, true);
+
+    expect(getState().elapsedMs).toBe(0);
+    expect(latest.isPlaying).toBe(true);
   });
 });

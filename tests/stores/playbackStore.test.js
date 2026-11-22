@@ -171,6 +171,51 @@ describe('seekToDate', () => {
   });
 });
 
+describe('restore', () => {
+  function leave() {
+    const { legs: leftLegs, timeline, elapsedMs, isPlaying } = getState();
+    return { legs: leftLegs, timeline, elapsedMs, isPlaying };
+  }
+
+  test('다른 구간을 실었다가도 떠날 때의 자리와 재생 상태로 돌아가요', () => {
+    getState().tick(5000);
+    const left = leave();
+    const before = position();
+    getState().load([]);
+    const reopened = legs.map((leg) => ({ ...leg }));
+
+    getState().restore(reopened, left);
+
+    expect(getState().legs).toBe(reopened);
+    expect(getState().elapsedMs).toBe(5000);
+    expect(position()).toEqual(before);
+    expect(getState().isPlaying).toBe(true);
+  });
+
+  test('멈춘 채 떠났으면 멈춘 채로 돌아와요', () => {
+    getState().tick(5000);
+    getState().pause();
+    const left = leave();
+    getState().load([]);
+
+    getState().restore(legs, left);
+
+    expect(getState().elapsedMs).toBe(5000);
+    expect(getState().isPlaying).toBe(false);
+  });
+
+  test('다 그린 상태로 떠났으면 다 그린 상태로 돌아오고 재생하지 않아요', () => {
+    getState().seek(null);
+    const left = { ...leave(), isPlaying: true };
+    getState().load([]);
+
+    getState().restore(legs, left);
+
+    expect(position()).toBeNull();
+    expect(getState().isPlaying).toBe(false);
+  });
+});
+
 describe('refresh', () => {
   test('같은 경로의 새 구간으로 바꿔도 위치와 재생 상태는 그대로예요', () => {
     getState().tick(5000);

@@ -103,6 +103,8 @@ beforeEach(() => {
   vi.mocked(useJourney).mockReturnValue({ journey: seojin, status: 'ready', error: null });
   addMany = vi.fn().mockResolvedValue([]);
   vi.mocked(useCorrections).mockReturnValue({ status: 'ready', addMany });
+  // 스토어는 테스트 사이에 남아요. 앞 테스트의 자리에서 이어 재생하지 않게 비워요(usePlayback의 canResume).
+  usePlaybackStore.getState().load([]);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);

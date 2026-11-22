@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import edge from '@/data/fixtures/edge.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { getNextStop } from '@/utils/chapters';
-import { getContinueTarget, getStopPath } from '@/utils/stopPath';
+import { getContinueTarget, getStopLink, getStopPath } from '@/utils/stopPath';
 
 const findStop = (journey, city) => journey.stops.find((stop) => stop.city === city);
 
@@ -34,6 +34,30 @@ describe('getStopPath', () => {
     const stop = { chapter: false, slug: null, transit: false, tripId: 'p a&b' };
 
     expect(getStopPath(stop)).toBe('/places?trip=p%20a%26b');
+  });
+});
+
+describe('getStopLink', () => {
+  test('챕터 지점은 02 챕터로 가는 [챕터 열기]예요', () => {
+    expect(getStopLink(findStop(seojin, '밴쿠버'))).toEqual({
+      path: '/chapter/밴쿠버-2025',
+      label: '챕터 열기',
+    });
+  });
+
+  test('챕터가 아닌 지점은 03에서 그 여행의 탭을 여는 [전체 기록 보기]예요', () => {
+    const banff = findStop(seojin, '밴프');
+
+    expect(getStopLink(banff)).toEqual({
+      path: `/places?trip=${banff.tripId}`,
+      label: '전체 기록 보기',
+    });
+  });
+
+  test('경유 지점은 챕터 표시가 있어도 [전체 기록 보기]예요', () => {
+    const stop = { chapter: true, slug: '경유-2025', transit: true, tripId: 'p_1' };
+
+    expect(getStopLink(stop)).toEqual({ path: '/places?trip=p_1', label: '전체 기록 보기' });
   });
 });
 
