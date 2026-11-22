@@ -39,7 +39,14 @@ export function usePlaybackPosition() {
  * 이동 수단을 고치면 Journey를 다시 계산해서 같은 구간이 새 객체로 오기 때문이에요.
  * 기간 탭을 바꿔도 구간이 똑같으면(예: 여행이 모두 2년 안이라 2Y와 ALL이 같음) 볼 게 달라지지 않아서 그대로 둬요.
  *
+ * canResume을 켜면 페이지를 열 때 처음부터가 아니라 떠날 때의 자리에서 이어 가요(기능 명세 R106, #206).
+ * 01에서 02 · 03으로 갔다가 뒤로 가기로 돌아올 때 써요. 스토어는 페이지를 나가도 남아서, 들어올 때 남아 있던 값을
+ * 찍어 두고 같은 경로가 처음 실릴 때 그 자리로 돌려요. 바로 싣지 못하는 건 Journey를 읽는 동안 구간이 0개로 먼저 와서예요.
+ * 떠난 뒤에 다른 경로를 봤거나(스토어에 다른 구간이 남음) 처음 연 화면이면 지금처럼 처음부터 재생해요.
+ *
  * @param {import('@/types').Leg[]} legs 집을 포함한 전체 구간, 시간 순서
+ * @param {object} [options]
+ * @param {boolean} [options.canResume] 켜면 떠날 때와 같은 경로를 처음 실을 때 그 자리에서 이어요
  * @returns {{
  *   position: import('@/utils/routeMap').RouteProgress | null,
  *   isPlaying: boolean,
@@ -51,7 +58,7 @@ export function usePlaybackPosition() {
  *   play: 재생. 끝난 뒤에 부르면 처음부터
  *   seek: 위치 옮기기. 재생 중이면 거기서부터 이어서 재생해요. null이면 끝으로 가요
  */
-export function usePlayback(legs) {
+export function usePlayback(legs, { canResume = false } = {}) {
   const position = usePlaybackPosition();
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const play = usePlaybackStore((state) => state.play);
@@ -60,15 +67,33 @@ export function usePlayback(legs) {
 
   // 이 화면에서 마지막으로 실은 구간이에요. 스토어의 legs는 페이지를 나가도 남아서 처음 열었는지 알 수 없어요.
   const loadedLegsRef = useRef(null);
+  // 이 화면에 들어올 때 스토어에 남아 있던, 떠날 때의 재생 상태예요. 한 번 쓰거나 다른 경로를 실으면 비워요.
+  const leftRef = useRef(null);
 
   // 화면에 그리기 전에 구간을 실어요. useEffect면 한 번은 옛 위치(처음 열 땐 다 그린 상태)로 그려져요.
   useLayoutEffect(() => {
-    const { load, refresh } = usePlaybackStore.getState();
     const loadedLegs = loadedLegsRef.current;
-    if (loadedLegs && loadedLegs !== legs && isSameRoute(loadedLegs, legs)) refresh(legs);
-    else load(legs);
+    // StrictMode가 effect를 한 번 더 부를 때 방금 실은 구간을 처음으로 되돌리지 않아요.
+    if (loadedLegs === legs) return;
+
+    const store = usePlaybackStore.getState();
+    if (!loadedLegs && canResume && store.legs.length > 0) {
+      leftRef.current = {
+        legs: store.legs,
+        timeline: store.timeline,
+        elapsedMs: store.elapsedMs,
+        isPlaying: store.isPlaying,
+      };
+    }
+    const left = leftRef.current;
+
+    if (loadedLegs && isSameRoute(loadedLegs, legs)) store.refresh(legs);
+    else if (left && isSameRoute(left.legs, legs)) store.restore(legs, left);
+    else store.load(legs);
+
+    if (legs.length > 0) leftRef.current = null;
     loadedLegsRef.current = legs;
-  }, [legs]);
+  }, [legs, canResume]);
 
   useEffect(() => {
     if (!isPlaying) return undefined;

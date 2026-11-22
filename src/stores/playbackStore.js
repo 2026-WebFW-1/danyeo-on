@@ -21,6 +21,8 @@ import {
  * @property {boolean} isPlaying
  * @property {(legs: import('@/types').Leg[]) => void} load
  *   구간을 싣고 처음부터 재생해요. 움직임 줄이기 설정이면 재생 없이 다 그린 상태로 시작해요
+ * @property {(legs: import('@/types').Leg[], left: PlaybackLeft) => void} restore
+ *   구간을 싣고 화면을 떠날 때의 자리와 재생 상태로 돌아가요. 뒤로 가기로 01에 돌아올 때 써요(#206)
  * @property {(legs: import('@/types').Leg[]) => void} refresh
  *   같은 경로의 새 구간으로 바꿔 끼워요. 진행 위치와 재생 상태는 그대로예요. 이동 수단을 고친 뒤에 써요
  * @property {() => void} play 재생. 끝난 뒤에 부르면 처음부터
@@ -30,6 +32,12 @@ import {
  *   위치 옮기기. 재생 중이면 거기서부터 이어서 재생해요. null이면 끝으로 가요
  * @property {(time: number) => void} seekToDate 그 날짜(밀리초)로 옮기기. 타임라인을 끌 때 써요
  * @property {(deltaMs: number) => void} tick 재생 중일 때 시간을 흘려요. usePlayback만 불러요
+ */
+
+/**
+ * 화면을 떠날 때의 재생 상태예요. usePlayback이 들어올 때 스토어에 남아 있던 값을 찍어 둬요.
+ *
+ * @typedef {Pick<PlaybackState, 'legs' | 'timeline' | 'elapsedMs' | 'isPlaying'>} PlaybackLeft
  */
 
 function prefersReducedMotion() {
@@ -53,6 +61,19 @@ export const usePlaybackStore = create((set, get) => ({
       dateTrack: buildDateTrack(legs, timeline),
       elapsedMs: reduceMotion ? Infinity : 0,
       isPlaying: !reduceMotion && timeline.steps.length > 0,
+    });
+  },
+
+  restore: (legs, left) => {
+    const timeline = buildTimeline(legs);
+    // 떠나 있는 동안 보정으로 구간 길이가 바뀌었어도 같은 자리에 있게 새 일정으로 옮겨요(refresh와 같아요).
+    const elapsedMs = calcRefreshedElapsedMs(left.timeline, timeline, left.elapsedMs);
+    set({
+      legs,
+      timeline,
+      dateTrack: buildDateTrack(legs, timeline),
+      elapsedMs,
+      isPlaying: left.isPlaying && elapsedMs < timeline.totalMs,
     });
   },
 

@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import edge from '@/data/fixtures/edge.journey.json';
@@ -13,6 +13,10 @@ import { selectLegsByPeriod } from '@/utils/periodLegs';
 import { selectLegsByTrip } from '@/utils/tripLegs';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
+// 도착 카드가 펼칠 사진을 읽어요. 이 테스트는 카드의 링크만 봐서 사진 없이 둬요.
+vi.mock('@/hooks/useMyPhotos', () => ({
+  useMyPhotos: () => ({ photos: [], status: 'ready', error: null }),
+}));
 
 const OSAKA = seojin.trips.find((trip) => trip.name === '오사카');
 const READY = { journey: seojin, status: 'ready', error: null };
@@ -21,8 +25,23 @@ let container;
 let root;
 
 function LocationProbe() {
-  const { search } = useLocation();
-  return <output data-testid="search">{search}</output>;
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <output data-testid="pathname">{pathname}</output>
+      <output data-testid="search">{search}</output>
+    </>
+  );
+}
+
+// 02 · 03 자리예요. 브라우저의 뒤로 가기 대신 누를 버튼만 있어요.
+function OtherPage() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" data-testid="back" onClick={() => navigate(-1)}>
+      뒤로
+    </button>
+  );
 }
 
 function renderApp(entry) {
@@ -31,6 +50,7 @@ function renderApp(entry) {
       <LocationProbe />
       <Routes>
         <Route path="/map" element={<MapPage />} />
+        <Route path="*" element={<OtherPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -68,6 +88,20 @@ function getPlaybackButton() {
   );
 }
 
+function getPathname() {
+  return container.querySelector('[data-testid="pathname"]').textContent;
+}
+
+function getStopDot(city) {
+  return [...container.querySelectorAll('svg [role="button"]')].find((dot) =>
+    dot.getAttribute('aria-label').startsWith(`${city},`),
+  );
+}
+
+function getCardLink() {
+  return container.querySelector('[aria-label="도착한 지점"] a');
+}
+
 function getSearch() {
   return container.querySelector('[data-testid="search"]').textContent;
 }
@@ -85,6 +119,8 @@ beforeEach(() => {
   // 재생이 프레임마다 흐르지 않게 움직임 줄이기로 열어요. 다 그린 상태로 시작해요.
   vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
   vi.mocked(useJourney).mockReturnValue(READY);
+  // 스토어는 테스트 사이에 남아요. 앞 테스트의 자리에서 이어 재생하지 않게 비워요(usePlayback의 canResume).
+  usePlaybackStore.getState().load([]);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -173,6 +209,72 @@ describe('MapPage ?trip=', () => {
     await act(() => root.render(renderApp(`/map?trip=${OSAKA.id}`)));
 
     expect(usePlaybackStore.getState().legs).toBe(loadedLegs);
+  });
+});
+
+describe('MapPage 지점에서 02 · 03으로 가기 (#206)', () => {
+  const BANFF = seojin.stops.find((stop) => stop.city === '밴프');
+
+  test('챕터 지점을 누르면 도착 카드가 뜨고, 카드를 누르면 02 챕터로 가요', async () => {
+    await openMap('/map?period=all');
+    expect(getCardLink()).toBeNull();
+
+    await act(() => getStopDot('밴쿠버').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(getCardLink().getAttribute('aria-label')).toBe('밴쿠버 챕터 열기');
+
+    await act(() => getCardLink().click());
+
+    expect(getPathname()).toBe('/chapter/밴쿠버-2025');
+  });
+
+  test('챕터가 아닌 지점은 03에서 그 여행의 탭으로 가요', async () => {
+    await openMap('/map?period=all');
+
+    await act(() => getStopDot('밴프').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await act(() => getCardLink().click());
+
+    expect(getPathname()).toBe('/places');
+    expect(getSearch()).toBe(`?trip=${BANFF.tripId}`);
+  });
+
+  test('키보드로 지점을 고르고 카드의 링크로 갈 수 있어요', async () => {
+    await openMap('/map?period=all');
+
+    await act(() =>
+      getStopDot('밴쿠버').dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+      ),
+    );
+
+    // 링크(a)라 Tab으로 닿고 Enter로 가요. Enter는 브라우저가 click으로 바꿔 줘요.
+    expect(getCardLink().tabIndex).toBe(0);
+    await act(() => getCardLink().click());
+
+    expect(getPathname()).toBe('/chapter/밴쿠버-2025');
+  });
+
+  test('경유 지점은 지도에 점이 없고 도착하는 구간도 없어서, 갈 카드가 뜨지 않아요', async () => {
+    vi.mocked(useJourney).mockReturnValue({ journey: edge, status: 'ready', error: null });
+    const transit = edge.stops.find((stop) => stop.transit);
+    await openMap('/map?period=all');
+
+    expect(getStopDot(transit.city)).toBeUndefined();
+    expect(usePlaybackStore.getState().legs.some((leg) => leg.to === transit.id)).toBe(false);
+  });
+
+  test('뒤로 가기로 돌아오면 같은 기간을 보던 자리에서 이어요', async () => {
+    await openMap('/map?period=all');
+    await act(() => getStopDot('밴쿠버').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    const { elapsedMs } = usePlaybackStore.getState();
+    expect(elapsedMs).toBeLessThan(Infinity);
+
+    await act(() => getCardLink().click());
+    await act(() => container.querySelector('[data-testid="back"]').click());
+
+    expect(getPathname()).toBe('/map');
+    expect(getSearch()).toBe('?period=all');
+    expect(usePlaybackStore.getState().elapsedMs).toBe(elapsedMs);
+    expect(getCardLink().getAttribute('aria-label')).toBe('밴쿠버 챕터 열기');
   });
 });
 
