@@ -4,17 +4,8 @@ import { formatSkippedCounts } from '@/utils/upload/formatSkippedCounts';
 import PhotoPile from './PhotoPile';
 
 /**
- * 고른 사진이 포개지며 쌓이는 화면 (13a″ 다음, 13h″ 전, #87)
+ * 잘못 고른 폴더를 바로 바꿀 수 있도록 사진을 모으는 중에도 [다시 고르기]를 보여 줘요.
  *
- * 책임: 스토어에 준비된 사진 수와 미리 볼 수 없는 수, 고를 때 뺀 파일 수를 보여 줍니다.
- * 사용자는 보기만 하면 되고, 잘못 골랐을 때만 [다시 고르기]를 누릅니다.
- *
- * 호출: UploadPage가 고른 사진이 있을 때 그립니다.
- * <PilePhotosStep onReset={handleReset} />
- *
- * 의도: 13b″(읽으면서 미리보기)·13c″(다 읽음)를 없애고 이 화면 하나로 대신합니다.
- * [다시 고르기]는 13c″에 작은 링크로 있던 것을 옮겨 왔습니다. 깨진 파일만 골랐거나 폴더를 잘못 골랐을 때
- * 13a″로 돌아갈 길이 이것뿐이라, 다 모으기 전에도 늘 보여 줍니다.
  * @param {object} props
  * @param {() => void} props.onReset [다시 고르기]를 누르면 불러요. 13a″로 돌아가요
  * @param {() => void} props.onNext 다 모은 뒤 [다음]을 누르면 불러요. 13h″로 넘어가요
