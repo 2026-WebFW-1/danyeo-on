@@ -1,9 +1,10 @@
 import { Outlet } from 'react-router';
 
+import BackgroundErrorToast from '@/components/layout/BackgroundErrorToast';
 import Nav from '@/components/layout/Nav';
 
 /**
- * 모든 페이지가 같이 쓰는 틀. 위에 Nav, 아래에 지금 주소의 페이지(Outlet)
+ * 모든 페이지가 같이 쓰는 틀. 위에 Nav, 아래에 지금 주소의 페이지(Outlet), 화면 뒤 데이터가 실패하면 15b 토스트
  *
  * 호출: App의 Routes에서 다른 Route를 감싸는 부모 Route로 씁니다.
  * <Route element={<AppLayout />}>…</Route>
@@ -16,6 +17,7 @@ export default function AppLayout() {
     <div className="flex min-h-screen flex-col">
       <Nav />
       <Outlet />
+      <BackgroundErrorToast />
     </div>
   );
 }
