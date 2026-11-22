@@ -115,6 +115,25 @@ describe('fetch', () => {
 });
 
 describe('add', () => {
+  test('같은 여행 쌍을 저장 중 다시 보내도 보정과 재계산은 한 번이에요', async () => {
+    // given
+    await fetchSaved();
+    const saving = deferred();
+    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    const input = { type: 'merge', photoIds: ['b', 'c'] };
+    // when
+    const first = getState().add(input);
+    const second = getState().add({ ...input, photoIds: [...input.photoIds] });
+    expect(Object.keys(getState().pending)).toHaveLength(1);
+    saving.resolve();
+    // then
+    const [a, b] = await Promise.all([first, second]);
+    expect(a.id).toBe(b.id);
+    expect(addCorrection).toHaveBeenCalledTimes(1);
+    expect(refreshJourney).toHaveBeenCalledTimes(1);
+    expect(getState().pending).toEqual({});
+  });
+
   test('저장이 끝나면 id · ownerId · createdAt을 붙여 목록 끝에 더하고 그 보정을 돌려줘요', async () => {
     await fetchSaved();
     vi.useFakeTimers({ now: new Date(NOW) });

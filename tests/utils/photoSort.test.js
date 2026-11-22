@@ -4,6 +4,7 @@ import seojin from '@/data/fixtures/seojin.journey.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import {
   buildTripExcludeInputs,
+  buildTripMergeInput,
   buildTripRenameInput,
   selectExcludedIds,
   selectExcludedPhotos,
@@ -198,6 +199,71 @@ describe('selectSortTrips 나누기', () => {
 
     expect(row.splittingPhotoIds).toEqual([middlePhotoId]);
     expect(row.splitCorrectionIds).toEqual([]);
+  });
+});
+
+describe('여행 합치기', () => {
+  const [first, second] = seojin.trips;
+  const firstIds = photoIdsOf(first);
+  const secondIds = photoIdsOf(second);
+  const merge = Object.freeze({
+    id: 'm',
+    type: 'merge',
+    photoIds: Object.freeze([firstIds.at(-1), secondIds[0]]),
+  });
+  const select = (journey, corrections, excluded = NONE) =>
+    selectSortTrips(journey, corrections, seojinSeed.photos, excluded);
+
+  test('바로 이웃한 두 줄만 시간 순서로 저장하고 제외한 기준 사진은 건너뛰어요', () => {
+    // given
+    const excluded = new Set([firstIds.at(-1), secondIds[0]]);
+    const [a, b, c] = select(seojin, [], excluded);
+    // when, then
+    expect(buildTripMergeInput(a, b)).toEqual({
+      type: 'merge',
+      photoIds: [firstIds.at(-2), secondIds[1]],
+    });
+    expect(buildTripMergeInput(a, c)).toBeNull();
+    expect(buildTripMergeInput(b, a)).toBeNull();
+    expect(buildTripMergeInput(undefined, b)).toBeNull();
+  });
+
+  test('재계산 전에는 같은 보정을 다시 저장하지 않고, 나누기 경계에서는 나누기 취소를 써요', () => {
+    // when
+    const [a, b] = select(seojin, [merge]);
+    const [, cut] = select(seojin, [merge, split(secondIds[0])]);
+    // then
+    expect(b.isMergingWithPrevious).toBe(true);
+    expect(b.mergeCorrectionIds).toEqual([]);
+    expect(buildTripMergeInput(a, b)).toBeNull();
+    expect(cut.isMergingWithPrevious).toBe(false);
+    expect(cut.mergeWithPreviousId).toBeNull();
+  });
+
+  test('합친 줄에만 취소 ID가 붙고 같은 자리에 저장한 보정을 모두 줘요', () => {
+    // given
+    const joined = { ...first, to: second.to, stopIds: [...first.stopIds, ...second.stopIds] };
+    const journey = { ...seojin, trips: [joined, ...seojin.trips.slice(2)] };
+    const corrections = Object.freeze([merge, Object.freeze({ ...merge, id: 'duplicate' })]);
+    const before = structuredClone({ journey, corrections, photos: seojinSeed.photos });
+    // when
+    const [row, ...others] = select(journey, corrections);
+    // then
+    expect(row.mergeCorrectionIds).toEqual(['m', 'duplicate']);
+    expect(
+      others.every((other) => !other.mergeCorrectionIds.length && !other.isMergingWithPrevious),
+    ).toBe(true);
+    expect({ journey, corrections, photos: seojinSeed.photos }).toEqual(before);
+  });
+
+  test('중간 여행이 사진 제외로 임시로 숨으면 그 줄을 건너뛰는 입력을 만들지 않아요', () => {
+    // given
+    const excluded = new Set(secondIds);
+    // when
+    const [a, c] = select(seojin, [], excluded);
+    // then
+    expect(c.id).toBe(seojin.trips[2].id);
+    expect(buildTripMergeInput(a, c)).toBeNull();
   });
 });
 

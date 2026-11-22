@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn';
 import { TRIP_ROW_GRID_CLASS } from './sectionClass';
 import TripName from './TripName';
 import TripPhotos from './TripPhotos';
-import UndoSplitButton from './UndoSplitButton';
+import UndoGroupingButton from './UndoGroupingButton';
 
 /**
  * 07a 여행 표의 줄 하나예요. 번호 · 이름 ✎ · 기간 | 도시 칩(머문 날 수) | 썸네일 3장 · 장수.
@@ -25,17 +25,34 @@ import UndoSplitButton from './UndoSplitButton';
  *  - 이 여행의 이름 바꾸기 · 빼기 · 나누기는 하나씩 보내요. 요청이 끝날 때까지 ✎ · [저장] · 다른 사진 버튼을 막아요.
  *    둘 다 지금 보정으로 입력을 만들어서(buildTripRenameInput · buildTripExcludeInputs), 이름을 옮겨 거는 빼기가 끝나기
  *    전에 새 기준 사진을 빼면 옮긴 걸 모른 채 빼서 이름이 사라져요. 끝나면 보정 목록이 바뀌어 다음 입력은 새 값으로 만들어요.
- *  - 나누기(C105)는 피그마의 줄 ✂ 대신 펼친 사진의 [여기서 나누기]로 해요(#191). 체크박스(합치기 C106)는 다루지 않아요.
+ *  - 나누기(C105)는 피그마의 줄 ✂ 대신 펼친 사진의 [여기서 나누기]로 해요(#191). 줄 앞 체크박스로 이웃한 두 여행을 골라 합쳐요.
  *
  * @param {object} props
  * @param {import('@/utils/photoSort').SortTripRow} props.trip
+ * @param {boolean} props.isSelected
+ * @param {boolean} props.canSelect
+ * @param {() => void} props.onSelect
+ * @param {boolean} props.canUndoMerge
+ * @param {() => Promise<unknown>} props.onUndoMerge
  * @param {boolean} props.canEdit 보정을 다 불러왔을 때만 true. 이름 바꾸기와 사진 빼기를 막아요
  * @param {(name: string) => Promise<unknown>} props.onRename
  * @param {(photoId: string) => Promise<unknown>} props.onExclude
  * @param {(photoId: string) => Promise<unknown>} props.onSplit
  * @param {() => Promise<unknown>} props.onUndoSplit
  */
-export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit, onUndoSplit }) {
+export default function TripRow({
+  trip,
+  canEdit,
+  isSelected,
+  canSelect,
+  onSelect,
+  canUndoMerge,
+  onUndoMerge,
+  onRename,
+  onExclude,
+  onSplit,
+  onUndoSplit,
+}) {
   const { ref: thumbsRef, isInView } = useInView();
   const [isOpen, setIsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -55,6 +72,14 @@ export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit, o
   return (
     <li className="border-b border-line">
       <div className={`${TRIP_ROW_GRID_CLASS} items-center py-6`}>
+        <input
+          type="checkbox"
+          aria-label={`${trip.no}번 ${trip.name} 합치기 선택`}
+          checked={isSelected}
+          disabled={!canSelect || isSending}
+          onChange={onSelect}
+          className="size-4 accent-ink"
+        />
         <div className="flex flex-col gap-1">
           <TripName
             no={trip.no}
@@ -66,8 +91,20 @@ export default function TripRow({ trip, canEdit, onRename, onExclude, onSplit, o
             {trip.dateRange}
           </p>
           {trip.splitCorrectionIds.length > 0 && (
-            <UndoSplitButton canUndo={canEditNow} onUndo={() => sendOne(onUndoSplit)} />
+            <UndoGroupingButton
+              action="나누기"
+              canUndo={canEditNow}
+              onUndo={() => sendOne(onUndoSplit)}
+            />
           )}
+          {trip.mergeCorrectionIds.length > 0 && (
+            <UndoGroupingButton
+              action="합치기"
+              canUndo={canUndoMerge && canEditNow}
+              onUndo={() => sendOne(onUndoMerge)}
+            />
+          )}
+          {trip.isMergingWithPrevious && <p className="text-xs text-muted">앞 여행과 합치는 중…</p>}
         </div>
 
         <ul aria-label="도시" className="flex flex-wrap items-center gap-y-2">

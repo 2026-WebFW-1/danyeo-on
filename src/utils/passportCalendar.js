@@ -1,3 +1,4 @@
+import { selectPassportTrips } from '@/utils/passportTrips';
 import { CALENDAR_MONTHS } from '@/constants/passport';
 import { toUtcDay } from '@/utils/localDate';
 
@@ -39,7 +40,7 @@ function collectAwayDays(journey) {
     for (let day = toUtcDay(fromIso); day <= toUtcDay(toIso); day += MS_PER_DAY) days.add(day);
   };
 
-  for (const trip of journey?.trips ?? []) addRange(trip.from, trip.to);
+  for (const trip of selectPassportTrips(journey)) addRange(trip.from, trip.to);
   for (const leg of journey?.legs ?? []) {
     if (leg.kind === 'gap') addRange(leg.departAt, leg.arriveAt);
   }

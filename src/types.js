@@ -55,6 +55,7 @@
  * 여행 하나. 지점과 구간은 ID로 가리켜요.
  *
  * @typedef {object} Trip
+ * @property {string[]} [outingStartIds] 한 여행 안에서 집을 다시 떠난 뒤의 첫 지점 ID
  * @property {string} id 이 여행의 첫 사진 ID
  * @property {string} name 예: '방콕 · 다낭'
  * @property {'auto' | 'user'} nameSource

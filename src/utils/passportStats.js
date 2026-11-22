@@ -1,3 +1,4 @@
+import { selectPassportTrips } from '@/utils/passportTrips';
 import { EARTH_CIRCUMFERENCE_KM } from '@/constants/passport';
 import { selectJourneyTotals } from '@/utils/journeyTotals';
 import { calcTravelHours } from '@/utils/legMode';
@@ -13,7 +14,7 @@ import { calcDaysBetween } from '@/utils/localDate';
 export function selectPassportStats(journey) {
   const totals = selectJourneyTotals(journey);
   const legs = journey?.legs ?? [];
-  const trips = journey?.trips ?? [];
+  const trips = selectPassportTrips(journey);
 
   // 사진으로 시각을 잰 구간은 공항에서 기다린 시간까지 들어 있어서(방콕 → 다낭 20.5시간),
   // 기내에 있던 시간은 모든 비행 구간을 거리 ÷ 속도로 똑같이 추정해 더해요.

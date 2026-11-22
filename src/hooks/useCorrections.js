@@ -32,6 +32,7 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *   remove: (id: string) => Promise<void>,
  *   addMany: (inputs: import('@/types').CorrectionInput[]) => Promise<import('@/types').Correction[]>,
  *   removeMany: (ids: string[]) => Promise<void>,
+ *   hasPending: boolean,
  *   journeyStatus: 'idle' | 'building' | 'saved' | 'failed',
  *   refreshJourney: () => Promise<void>,
  * }}
@@ -45,6 +46,7 @@ export function useCorrections() {
   const addMany = useCorrectionStore((state) => state.addMany);
   const removeMany = useCorrectionStore((state) => state.removeMany);
   const fetchCorrections = useCorrectionStore((state) => state.fetch);
+  const hasPending = useCorrectionStore((state) => Object.keys(state.pending).length > 0);
   const journeyStatus = useCorrectionStore((state) => state.journeyStatus);
   const refreshJourney = useCorrectionStore((state) => state.refreshJourney);
 
@@ -64,6 +66,7 @@ export function useCorrections() {
     remove,
     addMany,
     removeMany,
+    hasPending,
     journeyStatus,
     refreshJourney,
   };
