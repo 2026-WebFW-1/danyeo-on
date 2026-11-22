@@ -1,6 +1,6 @@
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { cn } from '@/utils/cn';
-import { formatPassDateTime } from '@/utils/upload/pass/formatPassDate';
+import { formatPassDateTime } from '@/utils/upload/pass/formatPassDateTime';
 import { getPassKind } from '@/utils/upload/pass/getPassKind';
 
 // 가운데 사진 양옆으로 몇 장씩 그릴지. 300장을 다 그리지 않으려고 둡니다.
