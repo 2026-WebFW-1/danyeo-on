@@ -666,7 +666,7 @@ describe('PhotoSortPage 한 여행의 요청은 하나씩', () => {
 describe('07a 경유 지점', () => {
   const doha = edge.stops.find((stop) => stop.transit);
   const transit = { id: 'c_edge_1', type: 'transit', photoIds: doha.photoIds };
-  const markButton = () => container.querySelector('button[aria-label="도하 경유로 표시"]');
+  const markButton = () => container.querySelector('button[aria-label="도하 경유로 처리"]');
   const notice = () => container.querySelector('section[aria-label="경유 감지 안내"]');
   const dohaChip = () =>
     [...container.querySelectorAll('ul[aria-label="도시"] li')].find((li) =>
@@ -687,11 +687,13 @@ describe('07a 경유 지점', () => {
     vi.mocked(useMyPhotos).mockReturnValue({ photos: edgeSeed.photos, status: 'ready' });
   }
 
-  test('경유 후보를 안내하고, [경유로 표시]는 그 지점의 사진을 모두 transit 보정에 넣어요', async () => {
+  test('경유 후보를 물어보고, [경유로 처리]는 그 지점의 사진을 모두 transit 보정에 넣어요', async () => {
     await mockEdgeWithoutTransit();
     await render('/edit/photos');
 
     expect(notice().querySelectorAll('li')).toHaveLength(1);
+    expect(notice().textContent).toContain('도하에서 찍은 사진 1장이 도시로 잡혔어요');
+    expect(notice().textContent).toContain('2025.04.10 · 잠깐 머묾');
     expect(dohaChip().textContent).toBe('도하1일');
 
     await click(markButton());
@@ -711,7 +713,7 @@ describe('07a 경유 지점', () => {
     expect(dohaChip().textContent).toBe('도하경유');
   });
 
-  test('경유로 표시하지 못하면 그 줄에 안내하고 다시 누를 수 있어요', async () => {
+  test('경유로 처리하지 못하면 그 상자에 안내하고 다시 누를 수 있어요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await mockEdgeWithoutTransit();
     mockCorrections({ add: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }) });
@@ -720,17 +722,35 @@ describe('07a 경유 지점', () => {
     await click(markButton());
 
     expect(notice().querySelector('[role="alert"]').textContent).toBe(
-      '경유로 표시하지 못했어요. 다시 시도해 주세요.',
+      '경유로 처리하지 못했어요. 다시 시도해 주세요.',
     );
     expect(markButton().disabled).toBe(false);
   });
 
-  test('보정을 다 불러오기 전에는 경유로 표시할 수 없어요', async () => {
+  test('보정을 다 불러오기 전에는 경유로 처리할 수 없어요', async () => {
     await mockEdgeWithoutTransit();
     mockCorrections({ status: 'loading' });
     await render('/edit/photos');
 
     expect(markButton().disabled).toBe(true);
+  });
+
+  test('[도시로 둘게요]는 보정 없이 안내를 닫고, 다시 들어와도 닫혀 있어요', async () => {
+    onTestFinished(() => localStorage.clear());
+    await mockEdgeWithoutTransit();
+    await render('/edit/photos');
+
+    await click(container.querySelector('button[aria-label="도하 도시로 둘게요"]'));
+
+    expect(notice()).toBeNull();
+    expect(corrections.add).not.toHaveBeenCalled();
+    expect(dohaChip().textContent).toBe('도하1일');
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render('/edit/photos');
+
+    expect(notice()).toBeNull();
   });
 
   test('[도하 경유 취소]는 그 지점의 transit 보정을 모두 지워요', async () => {

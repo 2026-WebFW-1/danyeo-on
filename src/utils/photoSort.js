@@ -13,7 +13,9 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {number} days 머문 날 수
  * @property {boolean} isTransit 경유로 표시한 지점. 흐리게 그리고 되돌릴 수 있어요
  * @property {boolean} isTransitCandidate 경유로 보이는 지점(공항 근처에 잠깐 머묾). 경유로 표시할지 물어봐요
- * @property {string[]} photoIds 이 지점에 남아 있는 사진. 경유로 표시할 때 transit 보정에 넣어요
+ * @property {string} from 이 지점 첫 사진의 시각(시간대 포함). 경유 감지 안내가 날짜와 머문 시간을 적어요
+ * @property {string} to 이 지점 마지막 사진의 시각
+ * @property {import('@/types').PhotoRef[]} photos 이 지점에 남아 있는 사진. 경유로 처리할 때 모두 transit 보정에 넣어요
  * @property {string[]} transitCorrectionIds 이 지점을 경유로 만든 transit 보정. 되돌리기가 지워요
  */
 
@@ -166,7 +168,9 @@ export function selectSortTrips(
         isTransit: isTransitNow,
         isTransitCandidate:
           !isTransitNow && cityStops.length > 1 && transitCandidateIds.has(stop.id),
-        photoIds,
+        from: stop.from,
+        to: stop.to,
+        photos: photoIds.map(toRef),
         transitCorrectionIds: transits
           .filter((correction) => correction.photoIds?.some((id) => photoIds.includes(id)))
           .map((correction) => correction.id),

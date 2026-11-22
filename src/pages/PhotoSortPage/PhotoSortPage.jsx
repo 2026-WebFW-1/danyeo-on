@@ -45,7 +45,7 @@ import UnlocatedTab from './UnlocatedTab';
  *    buildJourney가 같은 여행을 찾아요. 그 사진을 빼면 남은 사진으로 이름을 옮겨 걸어요(buildTripExcludeInputs).
  *  - 한 여행의 이름 바꾸기 · 빼기는 하나씩 보내요(TripRow). 둘 다 지금 보정으로 입력을 만들어서, 앞 요청이 끝나기 전에
  *    보내면 이름을 옮긴 걸 모르고 빼서 이름이 사라질 수 있어요.
- *  - 경유(C107)는 공항에 잠깐 머문 지점을 안내 상자로 알려요. [경유로 표시]는 그 지점에 남은 사진을 모두 transit 보정에
+ *  - 경유(C107)는 공항에 잠깐 머문 지점을 CHECK 배너로 물어봐요. [경유로 처리]는 그 지점에 남은 사진을 모두 transit 보정에
  *    넣어요. 지점 ID는 첫 사진 ID라, 한 장만 넣으면 그 사진을 뺐을 때 경유가 풀려요. 되돌리기는 그 보정을 모두 지워요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
@@ -138,7 +138,8 @@ export default function PhotoSortPage() {
   const handleSplit = (photoId) => add({ type: 'split', beforePhotoId: photoId });
   // 같은 자리를 두 번 나눴을 수 있어서, 그 줄을 떼어 낸 split을 모두 지우고 Journey 계산은 한 번만 해요.
   const handleUndoSplit = (trip) => removeMany(trip.splitCorrectionIds);
-  const handleMarkTransit = (city) => add({ type: 'transit', photoIds: city.photoIds });
+  const handleMarkTransit = (city) =>
+    add({ type: 'transit', photoIds: city.photos.map((photo) => photo.id) });
   const handleUndoTransit = (city) => removeMany(city.transitCorrectionIds);
   // 묶음의 사진을 차례로 빼고 Journey 계산은 끝에 한 번만 해요(사진마다 add하면 사진 수만큼 계산해요).
   // 실패하면 던지고, 그 전까지 뺀 사진은 이미 묶음에서 빠져 있어서 다시 누르면 남은 사진만 빼요.

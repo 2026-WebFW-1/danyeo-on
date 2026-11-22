@@ -6,7 +6,7 @@ import edgeSeed from '@/data/seed/edge.json';
 import { getAirports } from '@/services/airportService';
 import { calcDistanceKm } from '@/utils/distance';
 import { buildJourney } from '@/utils/journey/buildJourney';
-import { selectTransitCandidateIds } from '@/utils/transitCandidates';
+import { formatStay, selectTransitCandidateIds } from '@/utils/transitCandidates';
 
 // 인천공항이에요.
 const AIRPORT = { lat: 37.469, lng: 126.451 };
@@ -86,6 +86,14 @@ describe('selectTransitCandidateIds', () => {
     expect(candidatesOf(journey, airports).map(cityOf)).toEqual(['도하']);
     // 이미 경유인 도하는 이동 구간이 없어서 다시 고르지 않아요.
     expect(candidatesOf(edge, airports)).toEqual([]);
+  });
+});
+
+describe('formatStay', () => {
+  test('한 시간이 넘으면 시간, 안 되면 분, 사진 한 장이면 잠깐이라고 적어요', () => {
+    expect(formatStay('2025-03-05T08:00:00+09:00', '2025-03-05T10:59:00+09:00')).toBe('2시간 머묾');
+    expect(formatStay('2025-03-05T08:00:00+09:00', '2025-03-05T08:40:30+09:00')).toBe('40분 머묾');
+    expect(formatStay('2025-03-05T08:00:00+09:00', '2025-03-05T08:00:00+09:00')).toBe('잠깐 머묾');
   });
 });
 

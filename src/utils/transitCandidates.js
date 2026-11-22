@@ -1,7 +1,9 @@
 import { TRANSIT_AIRPORT_KM, TRANSIT_MAX_STAY_HOURS } from '@/constants/photoSort';
 import { calcDistanceKm } from '@/utils/distance';
 
-const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+const MINUTES_PER_HOUR = 60;
 
 /**
  * 경유로 보이는 지점의 ID를 골라요(기능 명세 C107). 07a가 경유로 표시할지 물어볼 지점이에요.
@@ -40,4 +42,18 @@ export function selectTransitCandidateIds(journey, airports) {
       )
       .map((stop) => stop.id),
   );
+}
+
+/**
+ * 지점에 머문 시간을 07a 경유 감지 안내에 적을 글자로 바꿔요. 첫 사진부터 마지막 사진까지예요.
+ *
+ * @param {string} from 시간대가 붙은 시각
+ * @param {string} to 시간대가 붙은 시각
+ * @returns {string} 예: '2시간 머묾', '40분 머묾'. 사진이 한 장이거나 1분이 안 되면 '잠깐 머묾'
+ */
+export function formatStay(from, to) {
+  const minutes = Math.floor((Date.parse(to) - Date.parse(from)) / MS_PER_MINUTE);
+  if (minutes >= MINUTES_PER_HOUR) return `${Math.floor(minutes / MINUTES_PER_HOUR)}시간 머묾`;
+  if (minutes >= 1) return `${minutes}분 머묾`;
+  return '잠깐 머묾';
 }

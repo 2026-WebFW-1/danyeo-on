@@ -457,10 +457,9 @@ describe('경유 지점', () => {
       (row) => row.id === dohaTrip.id,
     );
 
-    expect(chipOf([reverted], doha.id)).toMatchObject({
-      isTransit: false,
-      photoIds: doha.photoIds,
-    });
+    const chip = chipOf([reverted], doha.id);
+    expect(chip).toMatchObject({ isTransit: false, from: doha.from, to: doha.to });
+    expect(chip.photos.map((photo) => photo.id)).toEqual(doha.photoIds);
     expect(reverted.photoCount).toBe(withTransit.photoCount + doha.photoCount);
   });
 
