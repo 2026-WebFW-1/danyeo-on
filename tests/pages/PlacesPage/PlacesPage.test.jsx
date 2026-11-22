@@ -14,7 +14,11 @@ import { usePostStore } from '@/stores/postStore';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 const tripIdOf = (name) => seojin.trips.find((trip) => trip.name === name).id;
 

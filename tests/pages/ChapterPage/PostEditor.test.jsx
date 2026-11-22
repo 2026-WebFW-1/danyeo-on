@@ -3,12 +3,16 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import PostEditor from '@/pages/ChapterPage/PostEditor';
-import { getPosts, savePost } from '@/services/postService';
+import { getPosts, removePost, savePost } from '@/services/postService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 import { readDraft } from '@/utils/postDraft';
 
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 const DATE = '2025-07-12';
 const post = {
@@ -1024,5 +1028,226 @@ describe('사진', () => {
 
     // then
     expect(selectedLabels()).toEqual(['사진 C.JPG 빼기']);
+  });
+});
+
+describe('지우기', () => {
+  const DELETE_QUESTION = '이 글을 지울까요? 되돌릴 수 없어요.';
+  const deleteButton = () => findButton('글 지우기');
+
+  beforeEach(() => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  test('새 글에는 [글 지우기]가 없어요', async () => {
+    // when
+    await open([]);
+
+    // then
+    expect(deleteButton()).toBeUndefined();
+  });
+
+  test('묻고, 아니요를 고르면 지우지 않아요', async () => {
+    // given
+    window.confirm.mockReturnValue(false);
+    await open();
+
+    // when
+    await click(deleteButton());
+
+    // then
+    expect(window.confirm).toHaveBeenCalledWith(DELETE_QUESTION);
+    expect(removePost).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('확인하면 지우고, 임시본도 지우고 닫아요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.mocked(removePost).mockResolvedValue(true);
+    await open();
+    await type(titleInput(), '고치던 제목');
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(readDraft('u1', DATE)).not.toBeNull();
+
+    // when
+    await click(deleteButton());
+    await act(async () => vi.advanceTimersByTime(500));
+
+    // then
+    expect(removePost).toHaveBeenCalledWith(post.id);
+    expect(usePostStore.getState().byDate[DATE]).toBeUndefined();
+    expect(readDraft('u1', DATE)).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('지우는 중에는 지우는 중…이고 입력과 버튼이 모두 꺼져요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    await open();
+
+    // when
+    await click(deleteButton());
+
+    // then
+    expect(container.textContent).toContain('지우는 중…');
+    expect(titleInput().disabled).toBe(true);
+    expect(bodyInput().disabled).toBe(true);
+    expect(tagInput().disabled).toBe(true);
+    expect(cancelButton().disabled).toBe(true);
+    expect(deleteButton().disabled).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve(true));
+  });
+
+  test('저장 중에는 [글 지우기]가 꺼져요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(deleteButton().disabled).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve());
+  });
+
+  test('지우기에 실패한 뒤 저장하는 중에는 지우기 [다시 시도]를 누를 수 없어요', async () => {
+    // given
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    await open();
+    await click(deleteButton());
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    const retry = findButton('다시 시도');
+    expect(retry === undefined || retry.disabled).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve());
+  });
+
+  test('저장됨을 보여 주는 동안에는 [글 지우기]가 꺼져요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(container.textContent).toContain('저장됨 · 방금');
+    expect(deleteButton().disabled).toBe(true);
+  });
+
+  test('지우기에 실패한 뒤 다른 계정으로 바뀌면 지우기 [다시 시도]가 사라져요', async () => {
+    // given
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    await open();
+    await click(deleteButton());
+    expect(container.textContent).toContain('지우지 못했어요');
+
+    // when: 다른 탭에서 u2로 로그인해요
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+
+    // then
+    expect(container.textContent).not.toContain('지우지 못했어요');
+    expect(findButton('다시 시도')).toBeUndefined();
+  });
+
+  test('지우는 중에 다른 계정으로 바뀌면, 이전 계정의 지우기가 끝나도 편집기를 닫지 않아요', async () => {
+    // given
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    await open();
+    await click(deleteButton());
+
+    // when
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+    await act(async () => request.resolve(true));
+
+    // then
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('지우기에 실패한 뒤 고쳐서 저장하면 지우기 실패 안내가 사라져요', async () => {
+    // given
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    vi.mocked(savePost).mockResolvedValue();
+    await open();
+    await click(deleteButton());
+    await type(titleInput(), '새 제목');
+
+    // when
+    await click(saveButton());
+
+    // then
+    expect(container.textContent).toContain('저장됨 · 방금');
+    expect(container.textContent).not.toContain('지우지 못했어요');
+    expect(findButton('다시 시도')).toBeUndefined();
+  });
+
+  test('지우는 중에는 저장 안 한 글의 [불러오기]·[버리기]도 꺼져요', async () => {
+    // given
+    localStorage.setItem(
+      `post-draft:u1:${DATE}`,
+      JSON.stringify({ ...post, title: '맡겨 둔 제목', savedAt: '2025-07-12T11:00:00Z' }),
+    );
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    await open();
+    expect(container.textContent).toContain('저장 안 한 글이 있어요');
+
+    // when
+    await click(deleteButton());
+
+    // then
+    expect(findButton('불러오기').disabled).toBe(true);
+    expect(findButton('버리기').disabled).toBe(true);
+
+    // cleanup
+    await act(async () => request.resolve(true));
+  });
+
+  test('실패하면 글이 그대로이고, [다시 시도]가 다시 지워요', async () => {
+    // given
+    vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
+    await open();
+
+    // when
+    await click(deleteButton());
+
+    // then
+    expect(container.textContent).toContain('지우지 못했어요');
+    expect(titleInput().value).toBe(post.title);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // when
+    vi.mocked(removePost).mockResolvedValueOnce(true);
+    await click(findButton('다시 시도'));
+
+    // then
+    expect(removePost).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

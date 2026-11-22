@@ -18,7 +18,11 @@ import { formatPostDate } from '@/utils/postForm';
 
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 vi.mock('@/services/noteService', () => ({ getPhotoNotes: vi.fn() }));
 
 const VANCOUVER = '/chapter/밴쿠버-2025';

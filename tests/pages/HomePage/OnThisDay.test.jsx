@@ -13,7 +13,11 @@ import { getStopPath } from '@/utils/stopPath';
 
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
 vi.mock('@/hooks/usePhoto', () => ({ usePhoto: vi.fn() }));
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 // 테스트용 사진 파일은 없어서, 진짜 주소를 쓰면 이미지가 못 열려 회색 칸이 되고 <img>가 사라져요.
 // 그 실패가 언제 오느냐에 따라 결과가 달라지지 않게, 늘 열리는 1×1 그림에 어떤 사진인지 #뒤에 붙여 줘요.

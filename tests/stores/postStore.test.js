@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { getPosts, savePost } from '@/services/postService';
+import { getPosts, removePost, savePost } from '@/services/postService';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
 
-vi.mock('@/services/postService', () => ({ getPosts: vi.fn(), savePost: vi.fn() }));
+vi.mock('@/services/postService', () => ({
+  getPosts: vi.fn(),
+  removePost: vi.fn(),
+  savePost: vi.fn(),
+}));
 
 const { getState } = usePostStore;
 const DATE = '2025-07-12';
@@ -200,6 +204,130 @@ describe('save', () => {
   test('날짜가 YYYY-MM-DD가 아니면 서버를 부르지 않고 던져요', async () => {
     await expect(getState().save({ ...input, date: '2025-7-1' })).rejects.toThrow();
     expect(savePost).not.toHaveBeenCalled();
+  });
+});
+
+describe('remove', () => {
+  test('그날 글을 지우고 byDate에서 빼요. 다른 날 글은 그대로예요', async () => {
+    // given
+    await fetchSaved();
+    vi.mocked(removePost).mockResolvedValue(true);
+
+    // when
+    await getState().remove(DATE);
+
+    // then
+    expect(removePost).toHaveBeenCalledWith(saved.id);
+    expect(getState().byDate[DATE]).toBeUndefined();
+    expect(getState().byDate[otherDay.date]).toBe(otherDay);
+    expect(getState().deleting[DATE]).toBeUndefined();
+  });
+
+  test('지운 행이 없어도(이미 지워짐) byDate에서 빼요', async () => {
+    // given
+    await fetchSaved();
+    vi.mocked(removePost).mockResolvedValue(false);
+
+    // when
+    await getState().remove(DATE);
+
+    // then
+    expect(getState().byDate[DATE]).toBeUndefined();
+  });
+
+  test('지우는 중에는 deleting이 true이고, 또 부르면 서버를 부르지 않고 던져요', async () => {
+    // given
+    await fetchSaved();
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+
+    // when
+    const removing = getState().remove(DATE);
+
+    // then
+    expect(getState().deleting[DATE]).toBe(true);
+    await expect(getState().remove(DATE)).rejects.toThrow();
+    expect(removePost).toHaveBeenCalledTimes(1);
+
+    // when
+    request.resolve(true);
+    await removing;
+
+    // then
+    expect(getState().deleting[DATE]).toBeUndefined();
+  });
+
+  test('실패하면 던지고 글은 그대로 둬요', async () => {
+    // given
+    await fetchSaved();
+    const error = { status: 0, code: 'REMOVE_FAILED', message: '연결 실패' };
+    vi.mocked(removePost).mockRejectedValue(error);
+
+    // when, then
+    await expect(getState().remove(DATE)).rejects.toBe(error);
+    expect(getState().byDate[DATE]).toBe(saved);
+    expect(getState().deleting[DATE]).toBeUndefined();
+  });
+
+  test('그날 글을 저장 중이면 지우지 않고 던져요', async () => {
+    // given
+    await fetchSaved();
+    const request = deferred();
+    vi.mocked(savePost).mockReturnValue(request.promise);
+    const saving = getState().save(input);
+
+    // when, then
+    await expect(getState().remove(DATE)).rejects.toThrow();
+    expect(removePost).not.toHaveBeenCalled();
+
+    // cleanup
+    request.resolve();
+    await saving;
+  });
+
+  test('그날 글을 지우는 중이면 저장하지 않고 던져요', async () => {
+    // given
+    await fetchSaved();
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    const removing = getState().remove(DATE);
+
+    // when, then
+    await expect(getState().save(input)).rejects.toThrow();
+    expect(savePost).not.toHaveBeenCalled();
+
+    // cleanup
+    request.resolve(true);
+    await removing;
+  });
+
+  test('그날 글이 없으면 서버를 부르지 않아요', async () => {
+    // given
+    await fetchSaved();
+
+    // when
+    await getState().remove('2025-01-01');
+
+    // then
+    expect(removePost).not.toHaveBeenCalled();
+  });
+
+  test('reset 뒤 늦게 끝난 지우기가 상태를 바꾸지 않아요', async () => {
+    // given
+    await fetchSaved();
+    const request = deferred();
+    vi.mocked(removePost).mockReturnValue(request.promise);
+    const removing = getState().remove(DATE);
+
+    // when
+    getState().reset();
+    vi.mocked(getPosts).mockResolvedValue([saved]);
+    await getState().fetch();
+    request.resolve(true);
+    await removing;
+
+    // then
+    expect(getState().byDate[DATE]).toBe(saved);
   });
 });
 
