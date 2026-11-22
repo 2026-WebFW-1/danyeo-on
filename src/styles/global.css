@@ -1,3 +1,11 @@
 /* box-sizing, body margin 같은 기본 초기화는 Tailwind의 Preflight가 해 줘요 */
 @import 'tailwindcss';
 @import './tokens.css';
+
+/* 지나가며 정리 손글씨(PassTimeline)의 진행률(0 ~ 1)이에요.
+   숫자로 등록해야 transition으로 서서히 바뀌어요. 등록하지 않은 변수는 값이 한 번에 바뀌어요. */
+@property --pass-progress {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
