@@ -66,7 +66,7 @@ export function collectMergeSpans(corrections, photoById, excludedIds = new Set(
       merges.push({ id, left: [left], right: [right] });
       continue;
     }
-    // 이미 합친 여행에 다시 합치기를 했다면, 앞선 보정까지 적용한 시점의 두 여행을 복원해요.
+    // 기준 사진이 제외되면 합칠 당시의 두 여행을 복원해 같은 여행 안에서 대체 사진을 찾아요.
     const savedAt = Date.parse(correction.createdAt);
     const original = [...photoById.values()].filter(
       (photo) => !earlierExcludes.has(photo.id) && !(Date.parse(photo.uploadedAt) > savedAt),
