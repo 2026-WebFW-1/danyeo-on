@@ -251,7 +251,7 @@ function toGroupStop(raw, home, filledPhotos) {
   // 나누는 시각 뒤의 위치 없는 사진은 지점의 첫 위치 있는 사진보다 앞일 수 있어서, 넣은 사진까지 세요.
   const days = countDays([...raw.photos, ...filledPhotos].map((photo) => photo.takenAt));
   const isHome = home !== null && calcDistanceKm(home, raw) <= SAME_PLACE_KM;
-  // 안정 정렬이라 같은 시각이면 위치 있는 사진이 앞에 남아서, photoIds[0]이 지점 ID와 같아요.
+  // 지점 ID는 위치가 있는 첫 사진에서 가져와요. 위치 없는 사진이 더 일찍 찍혔다면 목록에서는 그 사진이 먼저예요.
   const photoIds = [...raw.photos, ...filledPhotos].toSorted(byTakenMs).map((photo) => photo.id);
 
   return {

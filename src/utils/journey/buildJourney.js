@@ -494,7 +494,7 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
  * @returns {Promise<import('@/types').Journey>}
  */
 export async function buildJourney(photos, corrections, findPlace) {
-  // 3. 보정 시각은 전체 사진에서 찾고, 여행에는 남긴 사진만 넣어요.
+  // 기준 사진을 제외해도 나누기·합치기 위치를 찾을 수 있게 보정 시각은 전체 사진에서 구해요.
   const excludedIds = collectExcludedIds(filterByType(corrections, 'exclude'));
   const keptPhotos = removePhotos(photos, excludedIds);
   const allPhotosById = indexById(photos);
@@ -506,17 +506,14 @@ export async function buildJourney(photos, corrections, findPlace) {
     tripIdByStopId: mapTripIdByStopId(grouped.trips),
   };
 
-  // 4. 지점
   const places = await findPlaces(grouped, findPlace);
   const transitPhotoIds = collectTransitPhotoIds(filterByType(corrections, 'transit'));
   const stops = buildStops(grouped.stops, places.byStopId, transitPhotoIds, lookup);
   const stopById = indexById(stops);
 
-  // 5. 구간
   const points = pickLinePoints(grouped.stops, stopById);
   const legs = buildLegs(points, filterByType(corrections, 'mode'), lookup);
 
-  // 6. 여행
   const trips = buildTrips(
     grouped.trips,
     stopById,
@@ -525,7 +522,6 @@ export async function buildJourney(photos, corrections, findPlace) {
     grouped.stops,
   );
 
-  // 7. 기간과 집
   return {
     home: buildHome(grouped.home, places.home),
     stops,

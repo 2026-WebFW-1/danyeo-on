@@ -427,6 +427,7 @@ describe('group', () => {
       const result = group(photos, splitAts);
 
       // then
+      expect(result.stops.map((stop) => stop.id)).toEqual(['a', 'c']);
       expect(result.stops.map((stop) => stop.photoIds)).toEqual([expectedBefore, expectedAfter]);
       expect(result.trips).toHaveLength(2);
       expect(result.unlocated).toEqual([]);
