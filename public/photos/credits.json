@@ -567,7 +567,10 @@
   },
   {
    "file": "/photos/full/sydney-2.webp",
-   "title": "Sydney Opera House"
+   "title": "Sydney Opera House",
+   "artist": "Bernard Spragg. NZ from Christchurch, New Zealand",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Sydney_Australia._(21339175489).jpg"
   },
   {
    "file": "/photos/full/sydney-3.webp",
