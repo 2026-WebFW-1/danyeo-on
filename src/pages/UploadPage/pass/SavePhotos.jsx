@@ -6,6 +6,7 @@ import { SKIP_REASON_LABELS } from '@/constants/upload';
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadStore } from '@/stores/upload/uploadStore';
 import { getTripPath } from '@/utils/stopPath';
+import { isUploadFinished } from '@/utils/upload/isUploadFinished';
 
 const PLACE_PATH = '/places';
 // [사진 정리하기]는 07의 위치 확인 필요 탭으로 보내요(피그마 13c 동작 메모).
@@ -46,7 +47,7 @@ export default function SavePhotos() {
     const isUploaded = done >= imageUpload.total;
 
     // 뒤로 가기로 다 끝난 정리 화면에 돌아오지 않게 replace로 넘어갑니다.
-    if (isUploaded && journeyStatus === 'saved') {
+    if (isUploadFinished({ saveStatus, imageUpload, journeyStatus })) {
       const tripPath = newTripId ? getTripPath(newTripId) : PLACE_PATH;
       return <Navigate to={goesToSort ? SORT_UNLOCATED_PATH : tripPath} replace />;
     }
