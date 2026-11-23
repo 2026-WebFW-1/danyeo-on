@@ -16,6 +16,7 @@ import { selectLegsByTrip } from '@/utils/tripLegs';
 import ArrivalStack from './ArrivalStack';
 import JourneyRefreshNotice from './JourneyRefreshNotice';
 import LegModePanel from './LegModePanel';
+import MapAttribution from './MapAttribution';
 import MapHeader from './MapHeader';
 import MapZoomControls from './MapZoomControls';
 import MoveLegend from './MoveLegend';
@@ -55,6 +56,7 @@ const NO_STOPS = [];
  *    Nav나 [지도로 보기]로 새로 들어오면 지금처럼 처음부터입니다. 기간 · 여행은 주소에 있어서 그대로 돌아옵니다.
  *  - 지도는 휠 · 끌기 · 오른쪽 버튼으로 확대하고 옮깁니다(useMapZoom, #184). 기간을 바꿔도 보던 자리는 그대로입니다.
  *    여행이 없는 계정은 볼 경로가 없어서 버튼을 두지 않습니다.
+ *  - 지점 이름의 출처(OpenStreetMap) 표기는 여행이 없어도 구석에 둡니다(MapAttribution, #205).
  *
  * 주의할 것들:
  *  - usePlayback은 시간을 흘리는 훅이라 여기서 한 번만 부릅니다.
@@ -143,6 +145,8 @@ export default function MapPage() {
         isDragging={isDragging}
         className="absolute inset-0 size-full"
       />
+
+      <MapAttribution />
 
       {hasNoTrips && (
         <>

@@ -2,51 +2,84 @@
  "gangneung": [
   {
    "file": "/photos/full/gangneung-1.webp",
-   "title": "Gangneung"
+   "title": "Gangneung",
+   "artist": "Mobius6",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Jumunjin_Lighthouse_20220501_026.jpg"
   },
   {
    "file": "/photos/full/gangneung-3.webp",
-   "title": "Ojukheon"
+   "title": "Ojukheon",
+   "artist": "최광모",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:20151003OjukheonDSC03018.jpg"
   },
   {
    "file": "/photos/full/gangneung-4.webp",
-   "title": "Jumunjin"
+   "title": "Jumunjin",
+   "artist": "parhessiastes",
+   "license": "CC BY-SA 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Korea-Gangneung-Jumunjin_Harbor-01.jpg"
   }
  ],
  "busan": [
   {
    "file": "/photos/full/busan-1.webp",
-   "title": "Haeundae Beach"
+   "title": "Haeundae Beach",
+   "artist": "Brit in Seoul",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Haeundae_Beach_May_2024.jpg"
   },
   {
    "file": "/photos/full/busan-2.webp",
-   "title": "Gamcheon Culture Village"
+   "title": "Gamcheon Culture Village",
+   "artist": "Bl00dnFl4mes",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Gamcheon_Houses,_2024.jpg"
   },
   {
    "file": "/photos/full/busan-3.webp",
-   "title": "Gwangan Bridge"
+   "title": "Gwangan Bridge",
+   "artist": "Glabb",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Gwangan_Bridge1.jpg"
   },
   {
    "file": "/photos/full/busan-4.webp",
-   "title": "Jagalchi Market"
+   "title": "Jagalchi Market",
+   "artist": "Mobius6",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Jagalchi_Market_20200523_019.jpg"
   }
  ],
  "gyeongju": [
   {
    "file": "/photos/full/gyeongju-1.webp",
-   "title": "Donggung Palace and Wolji Pond"
+   "title": "Donggung Palace and Wolji Pond",
+   "artist": "Basile Morin",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Water_reflection_of_Donggung_Palace_in_Wolji_Pond_at_blue_hour_in_Gyeongju_South_Korea.jpg"
   },
   {
    "file": "/photos/full/gyeongju-2.webp",
-   "title": "Bulguksa"
+   "title": "Bulguksa",
+   "artist": "Unknown author",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Lotus_Flower_Bridge_and_Seven_Treasure_Bridge_at_Bulguksa_in_Gyeongju,_Korea.jpg"
   },
   {
    "file": "/photos/full/gyeongju-3.webp",
-   "title": "Cheomseongdae"
+   "title": "Cheomseongdae",
+   "artist": "Basile Morin",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Cheomseongdae_Observatory_under_blue_sky_in_Gyeongju_South_Korea.jpg"
   },
   {
    "file": "/photos/full/gyeongju-4.webp",
-   "title": "Seokguram"
+   "title": "Seokguram",
+   "artist": "Seok-Hong, Han",
+   "license": "KOGL Type 1",
+   "source": "https://commons.wikimedia.org/wiki/File:Front_view_of_Seokguram_from_front_chamber.jpg"
   }
  ],
  "jeju": [
@@ -70,115 +103,183 @@
  "jeonju": [
   {
    "file": "/photos/full/jeonju-3.webp",
-   "title": "Jeondong Cathedral"
+   "title": "Jeondong Cathedral",
+   "artist": "Mobius6",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Jeondong_Catholic_Cathedral_20230408_005.jpg"
   },
   {
    "file": "/photos/full/jeonju-4.webp",
-   "title": "Bibimbap"
+   "title": "Bibimbap",
+   "artist": "Sous Chef",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Dolsot-bibimbap.jpg"
   },
   {
    "file": "/photos/full/jeonju-5.webp",
    "title": "Jeonju",
-   "source": "https://en.wikipedia.org/wiki/Jeonju"
+   "artist": "Bernard Gagnon",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Jeonju_Hanok_Maeul_01.jpg"
   }
  ],
  "yeosu": [
   {
    "file": "/photos/full/yeosu-1.webp",
-   "title": "Yeosu"
+   "title": "Yeosu",
+   "artist": "Glabb",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Dolsan_Bridge1.JPG"
   },
   {
    "file": "/photos/full/yeosu-2.webp",
-   "title": "Odongdo"
+   "title": "Odongdo",
+   "artist": "Mobius6",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Yeosu_Odongdo_20180929_002.jpg"
   },
   {
    "file": "/photos/full/yeosu-3.webp",
-   "title": "Hyangiram"
+   "title": "Hyangiram",
+   "artist": "Garam",
+   "license": "Attribution",
+   "source": "https://commons.wikimedia.org/wiki/File:Wontongbojeon_of_Hyangiram_in_2017.jpg"
   }
  ],
  "suncheon": [
   {
    "file": "/photos/full/suncheon-4.webp",
-   "title": "Songgwangsa"
+   "title": "Songgwangsa",
+   "artist": "by The Chosun Bimbo",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Korea-Songgwangsa-02.jpg"
   },
   {
    "file": "/photos/full/suncheon-5.webp",
    "title": "Suncheon",
-   "source": "https://en.wikipedia.org/wiki/Suncheon"
+   "artist": "Bernard Gagnon",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:View_of_Suncheon.jpg"
   },
   {
    "file": "/photos/full/suncheon-6.webp",
    "title": "Seonamsa",
-   "source": "https://en.wikipedia.org/wiki/Seonamsa"
+   "artist": "Steve46814",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Seonamsa_Iljumun_11-06782.JPG"
   }
  ],
  "sokcho": [
   {
    "file": "/photos/full/sokcho-1.webp",
    "title": "Seoraksan",
-   "source": "https://en.wikipedia.org/wiki/Seoraksan"
+   "artist": "Taewangkorea",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Dinosaur_Ridge_of_Seoraksan.jpg"
   },
   {
    "file": "/photos/full/sokcho-2.webp",
-   "title": "Ulsanbawi"
+   "title": "Ulsanbawi",
+   "artist": "Korea Heritage Service",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%EC%84%A4%EC%95%85%EC%82%B0_%EC%9A%B8%EC%82%B0%EB%B0%94%EC%9C%84.jpg"
   },
   {
    "file": "/photos/full/sokcho-3.webp",
-   "title": "Sokcho"
+   "title": "Sokcho",
+   "artist": "Bernard Gagnon",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Geumgang_Bridge,_Sokcho_02.jpg"
   },
   {
    "file": "/photos/full/sokcho-4.webp",
-   "title": "Sinheungsa"
+   "title": "Sinheungsa",
+   "artist": "by Nagyman",
+   "license": "CC BY-SA 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Korea-Seoraksan-Buddha-Statue-02.jpg"
   }
  ],
  "tokyo": [
   {
    "file": "/photos/full/tokyo-1.webp",
-   "title": "Tokyo"
+   "title": "Tokyo",
+   "artist": "Morio",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Skyscrapers_of_Shinjuku_2009_January.jpg"
   },
   {
    "file": "/photos/full/tokyo-2.webp",
-   "title": "Senso-ji"
+   "title": "Senso-ji",
+   "artist": "Akonnchiroll",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Sensoji_2023.jpg"
   },
   {
    "file": "/photos/full/tokyo-3.webp",
-   "title": "Shibuya Crossing"
+   "title": "Shibuya Crossing",
+   "artist": "David Kernan",
+   "license": "CC BY 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Shibuya_Crossing,_Aerial.jpg"
   },
   {
    "file": "/photos/full/tokyo-4.webp",
-   "title": "Tokyo Tower"
+   "title": "Tokyo Tower",
+   "artist": "Akonnchiroll",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Tokyo_Tower_2023.jpg"
   }
  ],
  "bangkok": [
   {
    "file": "/photos/full/bangkok-1.webp",
-   "title": "Bangkok"
+   "title": "Bangkok",
+   "artist": "Ninara from Helsinki, Finland",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:4Y1A1159_Bangkok_(33536795515).jpg"
   },
   {
    "file": "/photos/full/bangkok-2.webp",
-   "title": "Wat Arun"
+   "title": "Wat Arun",
+   "artist": "Mastertongapollo",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%E0%B9%80%E0%B8%88%E0%B8%94%E0%B8%B5%E0%B8%A2%E0%B9%8C%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B8%98%E0%B8%B2%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B8%87%E0%B8%9B%E0%B8%A3%E0%B8%B2%E0%B8%87%E0%B8%84%E0%B9%8C%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%AD%E0%B8%A3%E0%B8%B8%E0%B8%932.jpg"
   },
   {
    "file": "/photos/full/bangkok-3.webp",
-   "title": "Grand Palace"
+   "title": "Grand Palace",
+   "artist": "Preecha.MJ",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:0005574_-_Wat_Phra_Kaew_006.jpg"
   },
   {
    "file": "/photos/full/bangkok-4.webp",
-   "title": "Chatuchak Weekend Market"
+   "title": "Chatuchak Weekend Market",
+   "artist": "Azreey",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bangkok_-_Jatujak_Market_02.JPG"
   }
  ],
  "danang": [
   {
    "file": "/photos/full/danang-1.webp",
-   "title": "Da Nang"
+   "title": "Da Nang",
+   "artist": "Somerset999",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Dragon_Bridge,_Da_Nang_during_day_-_20230819_(cropped).jpg"
   },
   {
    "file": "/photos/full/danang-2.webp",
-   "title": "Marble Mountains (Vietnam)"
+   "title": "Marble Mountains (Vietnam)",
+   "artist": "Viethavvh at vi.wikipedia",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Ngu_hanh_son_toan_canh.jpg"
   },
   {
    "file": "/photos/full/danang-3.webp",
-   "title": "Dragon Bridge (Da Nang)"
+   "title": "Dragon Bridge (Da Nang)",
+   "artist": "Bùi Thụy Đào Nguyên",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:C%E1%BA%A7u_R%E1%BB%93ng.jpg"
   },
   {
    "file": "/photos/full/danang-4.webp",
@@ -191,7 +292,10 @@
  "vancouver": [
   {
    "file": "/photos/full/vancouver-1.webp",
-   "title": "Vancouver"
+   "title": "Vancouver",
+   "artist": "Quintin Soloviev",
+   "license": "CC BY 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Skyline_of_Vancouver,_Canada.jpg"
   },
   {
    "file": "/photos/full/vancouver-2.webp",
@@ -199,33 +303,54 @@
   },
   {
    "file": "/photos/full/vancouver-3.webp",
-   "title": "Grouse Mountain"
+   "title": "Grouse Mountain",
+   "artist": "Pburka at English Wikipedia",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Grouse_Mountain_Gondola.JPG"
   },
   {
    "file": "/photos/full/vancouver-4.webp",
-   "title": "Gastown"
+   "title": "Gastown",
+   "artist": "Lee Coursey from Decatur, GA",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Vancouver_2018-20180422-2108_(42138196834).jpg"
   },
   {
    "file": "/photos/full/vancouver-5.webp",
-   "title": "Capilano Suspension Bridge"
+   "title": "Capilano Suspension Bridge",
+   "artist": "Markus Säynevirta",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Capilano_Suspension_Bridge,_Vancouver,_Canada_(July_2016)_1.jpg"
   },
   {
    "file": "/photos/full/vancouver-6.webp",
-   "title": "Coal Harbour"
+   "title": "Coal Harbour",
+   "artist": "Daderot",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Skyline_with_seaplane_-_Vancouver,_Canada_-_DSC09323.JPG"
   },
   {
    "file": "/photos/full/vancouver-8.webp",
-   "title": "Granville Island"
+   "title": "Granville Island",
+   "artist": "Joe Mabel",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Granville_Island_view_from_Granville_Bridge_in_2010.jpg"
   }
  ],
  "banff": [
   {
    "file": "/photos/full/banff-1.webp",
-   "title": "Banff National Park"
+   "title": "Banff National Park",
+   "artist": "Gorgo",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:Moraine_Lake_17092005.jpg"
   },
   {
    "file": "/photos/full/banff-2.webp",
-   "title": "Lake Louise (Alberta)"
+   "title": "Lake Louise (Alberta)",
+   "artist": "Chensiyuan",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:1_lake_louise_pano_2019.jpg"
   },
   {
    "file": "/photos/full/banff-3.webp",
@@ -233,121 +358,199 @@
   },
   {
    "file": "/photos/full/banff-4.webp",
-   "title": "Banff, Alberta"
+   "title": "Banff, Alberta",
+   "artist": "Ethan Sahagun",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Town_of_Banff_viewed_from_Sulphur_Mountain.jpg"
   }
  ],
  "toronto": [
   {
    "file": "/photos/full/toronto-1.webp",
-   "title": "Toronto"
+   "title": "Toronto",
+   "artist": "Dillan Payne",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Toronto_Skyline_from_Snake_Island,_September_11_2026_(01).jpg"
   },
   {
    "file": "/photos/full/toronto-2.webp",
-   "title": "Niagara Falls"
+   "title": "Niagara Falls",
+   "artist": "Saffron Blaze",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:3Falls_Niagara.jpg"
   },
   {
    "file": "/photos/full/toronto-3.webp",
-   "title": "CN Tower"
+   "title": "CN Tower",
+   "artist": "Unknown author",
+   "license": "Public domain",
+   "source": "https://commons.wikimedia.org/wiki/File:CN_Tower_logo.png"
   },
   {
    "file": "/photos/full/toronto-4.webp",
-   "title": "Distillery District"
+   "title": "Distillery District",
+   "artist": "Geo Swan, stitched by Marku1988",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Gooderham.jpg"
   }
  ],
  "newyork": [
   {
    "file": "/photos/full/newyork-1.webp",
-   "title": "New York City"
+   "title": "New York City",
+   "artist": "Dllu",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_(cropped).jpg"
   },
   {
    "file": "/photos/full/newyork-2.webp",
-   "title": "Times Square"
+   "title": "Times Square",
+   "artist": "Terabass",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:New_york_times_square-terabass.jpg"
   },
   {
    "file": "/photos/full/newyork-3.webp",
-   "title": "Central Park"
+   "title": "Central Park",
+   "artist": "Anthony Quintano from Hillsborough, NJ, United States",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Global_Citizen_Festival_Central_Park_New_York_City_from_NYonAir_(15351915006).jpg"
   },
   {
    "file": "/photos/full/newyork-4.webp",
-   "title": "Brooklyn Bridge"
+   "title": "Brooklyn Bridge",
+   "artist": "Christian David",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach,_New_York.jpg"
   }
  ],
  "osaka": [
   {
    "file": "/photos/full/osaka-1.webp",
-   "title": "Osaka"
+   "title": "Osaka",
+   "artist": "663highland",
+   "license": "CC BY 2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:Osaka_Castle_03bs3200.jpg"
   },
   {
    "file": "/photos/full/osaka-2.webp",
-   "title": "Dōtonbori"
+   "title": "Dōtonbori",
+   "artist": "Type specimen",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Osaka_Dotonbori_Ebisu_Bridge.jpg"
   },
   {
    "file": "/photos/full/osaka-3.webp",
-   "title": "Osaka Castle"
+   "title": "Osaka Castle",
+   "artist": "663highland",
+   "license": "CC BY 2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:Osaka_Castle_03bs3200.jpg"
   },
   {
    "file": "/photos/full/osaka-4.webp",
-   "title": "Shinsekai"
+   "title": "Shinsekai",
+   "artist": "Dick Thomas Johnson from Tokyo, Japan",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Shinsekai_and_Tsutenkaku_at_night_2019-04-12.jpg"
   }
  ],
  "paris": [
   {
    "file": "/photos/full/paris-1.webp",
-   "title": "Paris"
+   "title": "Paris",
+   "artist": "Yann Caradec from Paris, France",
+   "license": "CC BY-SA 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques,_Paris_ao%C3%BBt_2014_(2).jpg"
   },
   {
    "file": "/photos/full/paris-3.webp",
-   "title": "Seine"
+   "title": "Seine",
+   "artist": "Mortimer62",
+   "license": "CC BY-SA 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bercy,_Paris_01.jpg"
   },
   {
    "file": "/photos/full/paris-4.webp",
-   "title": "Louvre"
+   "title": "Louvre",
+   "artist": "Benh LIEU SONG (Flickr)",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Louvre_Museum_Wikimedia_Commons.jpg"
   }
  ],
  "london": [
   {
    "file": "/photos/full/london-1.webp",
-   "title": "London"
+   "title": "London",
+   "artist": "Ilya Grigorik",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:London_Skyline_(125508655).jpeg"
   },
   {
    "file": "/photos/full/london-2.webp",
-   "title": "Tower Bridge"
+   "title": "Tower Bridge",
+   "artist": "Fuzzypiggy",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Tower_Bridge_at_Dawn.jpg"
   },
   {
    "file": "/photos/full/london-3.webp",
-   "title": "Big Ben"
+   "title": "Big Ben",
+   "artist": "Christian David",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Elizabeth_Tower_and_the_north_front_of_the_Palace_of_Westminster,_London.jpg"
   },
   {
    "file": "/photos/full/london-4.webp",
-   "title": "Eurostar"
+   "title": "Eurostar",
+   "artist": "Florian Pépellin",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Croisement_Thalys-Eurostar_Neige_en_Savoie_(f%C3%A9vrier_2023).JPG"
   }
  ],
  "barcelona": [
   {
    "file": "/photos/full/barcelona-1.webp",
-   "title": "Barcelona"
+   "title": "Barcelona",
+   "artist": "M McBey",
+   "license": "CC BY 2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Evening_light_over_Barcelona.jpg"
   },
   {
    "file": "/photos/full/barcelona-2.webp",
-   "title": "Sagrada Família"
+   "title": "Sagrada Família",
+   "artist": "Canaan",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:SF_maig_2_cropped.jpg"
   },
   {
    "file": "/photos/full/barcelona-3.webp",
-   "title": "Park Güell"
+   "title": "Park Güell",
+   "artist": "essetefano",
+   "license": "CC BY 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Parc_guell_-_panoramio.jpg"
   },
   {
    "file": "/photos/full/barcelona-4.webp",
-   "title": "Casa Batlló"
+   "title": "Casa Batlló",
+   "artist": "ChristianSchd",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Casa_Batllo_Overview_Barcelona_Spain_cut.jpg"
   }
  ],
  "istanbul": [
   {
    "file": "/photos/full/istanbul-1.webp",
-   "title": "Istanbul"
+   "title": "Istanbul",
+   "artist": "Hunanuk",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Historical_peninsula_and_modern_skyline_of_Istanbul.jpg"
   },
   {
    "file": "/photos/full/istanbul-2.webp",
-   "title": "Hagia Sophia"
+   "title": "Hagia Sophia",
+   "artist": "Adli Wahid",
+   "license": "CC BY-SA 3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Hagia_Sophia_(228968325).jpeg"
   },
   {
    "file": "/photos/full/istanbul-4.webp",
@@ -357,19 +560,31 @@
  "sydney": [
   {
    "file": "/photos/full/sydney-1.webp",
-   "title": "Sydney"
+   "title": "Sydney",
+   "artist": "Benh LIEU SONG (Flickr)",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Sydney_Opera_House_and_Harbour_Bridge_Dusk_(2)_2019-06-21.jpg"
   },
   {
    "file": "/photos/full/sydney-2.webp",
-   "title": "Sydney Opera House"
+   "title": "Sydney Opera House",
+   "artist": "Bernard Spragg. NZ from Christchurch, New Zealand",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Sydney_Australia._(21339175489).jpg"
   },
   {
    "file": "/photos/full/sydney-3.webp",
-   "title": "Bondi Beach"
+   "title": "Bondi Beach",
+   "artist": "Nick Ang",
+   "license": "CC BY-SA 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bondi_from_above.jpg"
   },
   {
    "file": "/photos/full/sydney-4.webp",
-   "title": "Sydney Harbour Bridge"
+   "title": "Sydney Harbour Bridge",
+   "artist": "Servite et contribuere",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:Sydney_Harbour_Bridge-16_October_2025.jpg"
   }
  ],
  "tongyeong": [
