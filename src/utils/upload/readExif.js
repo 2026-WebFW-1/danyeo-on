@@ -1,8 +1,7 @@
-// 사진 파일 안의 메타데이터를 읽는 라이브러리입니다.
-// * 메타데이터: EXIF(촬영 시각, 카메라 설정)와 GPS, XMP, IPTC(편집 프로그램이 넣는 정보)등이 존재.
-import exifr from 'exifr'; // v7.1.3
+import exifr from 'exifr';
 
-// 필요한 태그들이고 나머지는 파싱하지 않을 예정입니다.
+/** @typedef {Pick<import('@/types').PilePhoto, 'takenAt' | 'offset' | 'timeUncertain' | 'lat' | 'lng' | 'camera'>} PhotoMetadata */
+
 const TAGS = [
   'DateTimeOriginal',
   'OffsetTimeOriginal',
@@ -36,18 +35,9 @@ const UNREADABLE = {
 };
 
 /**
- * <p>사진 파일에서 촬영 시각·위치·카메라 정보를 읽어 seed의 photos 모양으로 돌려줍니다.
- * <p>줄이면 EXIF가 사라지므로 resizePhoto.js로 줄이기 전에, 원본 파일로 불러야 합니다.
- *
- * <p>readable은 파일 자체를 읽을 수 있는지입니다. EXIF가 없는 사진(메신저, 캡처)은 true에 값만 null입니다.
- * @param {File | Blob} file
- * @returns {Promise<{ readable, takenAt, offset, timeUncertain, lat, lng, camera }>}
- * <p>readable: boolean
- * <p>takenAt: string | null. 현지 시각, 시간대 없음. 예: '2024-11-24T08:30:49'
- * <p>offset: string | null. 예: '+09:00'
- * <p>timeUncertain: boolean. offset이 없으면 true
- * <p>lat, lng: number | null
- * <p>camera: toCamera 결과 | null
+ * 썸네일에는 EXIF가 남지 않으므로 원본에서 촬영 정보를 읽어요.
+ * @param {File | Blob} file 원본 사진
+ * @returns {Promise<PhotoMetadata & { readable: boolean }>} EXIF가 없는 사진도 읽을 수 있으면 readable은 true예요.
  */
 export async function readExif(file) {
   let tags;
@@ -71,27 +61,14 @@ export async function readExif(file) {
     return { ...UNREADABLE };
   }
 
-  // {
-  //   readable: true,
-  //   takenAt: '2024-11-24T08:30:49',
-  //   offset: '+09:00',
-  //   timeUncertain: false,
-  //   lat: 34.9949,
-  //   lng: 135.785,
-  //   camera: {...}
-  // }
-  return { readable: true, ...toPhoto(tags ?? {}) };
+  return { readable: true, ...toPhotoMetadata(tags ?? {}) };
 }
 
 /**
- * <p>exifr가 읽은 태그를 seed의 photos 모양으로 바꿉니다.
- *
  * @param {object} tags exifr.parse 결과. EXIF가 없으면 빈 객체
- * @returns {{ takenAt, offset, timeUncertain, lat, lng, camera }}
- * <p>
- * <p>readExif 결과에서 readable만 뺀 모양입니다. readable은 readExif가 붙입니다.
+ * @returns {PhotoMetadata}
  */
-function toPhoto(tags) {
+function toPhotoMetadata(tags) {
   // 촬영일만 씁니다. 수정일(ModifyDate)은 편집하거나 받은 날일 수 있습니다.
   const takenAt = toLocalTime(tags.DateTimeOriginal);
   const offset = takenAt && OFFSET.test(tags.OffsetTimeOriginal) ? tags.OffsetTimeOriginal : null;
@@ -113,15 +90,6 @@ function toPhoto(tags) {
  */
 function toLocalTime(value) {
   const match = EXIF_DATE.exec(value ?? '');
-  // match = [
-  //   '2024:11:24 08:30:49', // [0] 패턴에 맞은 문자열 전체
-  //   '2024', // [1] 첫 번째 괄호
-  //   '11', // [2]
-  //   '24', // [3]
-  //   '08', // [4]
-  //   '30', // [5]
-  //   '49', // [6] 여섯 번째 괄호
-  // ];
 
   // 시계가 설정되지 않은 카메라는 0000:00:00을 적습니다.
   if (!match || match[1] === '0000') {

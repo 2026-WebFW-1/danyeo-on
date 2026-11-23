@@ -55,7 +55,7 @@ export const useAuthStore = create((set) => ({
         // 본인이 로그아웃할 때도 세션이 끊겨 여기가 불려요. 그때는 이미 anonymous라 표시를 덮지 않게 그대로 둬요.
         if (!user) return state.status === 'anonymous' ? state : ANONYMOUS;
         // 세션은 탭끼리 같이 써서, 다른 탭에서 로그인하면 그 사람으로 맞춰요. 로그아웃 중이면 무시해요.
-        // TODO(jihyo0517): 스토어 규칙 이슈에서 계정이 바뀔 때 resetStores()도 부르기(D 문서 3장 스토어 규칙 5).
+        // 사람이 바뀌면 App의 구독이 앞 사람의 사진 · 글 · 보정 스토어를 비워요.
         if (signOutPromise || state.user?.id === user.id) return state;
         return { user, status: 'authenticated', isSignedOutByUser: false };
       }),

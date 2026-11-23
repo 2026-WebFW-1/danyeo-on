@@ -3,7 +3,7 @@ import { calcDistanceKm } from '@/utils/distance';
 import { legMode } from '@/utils/legMode';
 
 // 지점·여행 규칙은 my-journey의 mock/reference-group.mjs와 같아서, seed를 넣으면 fixtures의 *.group.json과 같아요.
-// fillByTime(#170)은 참고 구현에 없지만 seed에는 채울 사진이 없어서 결과가 같아요.
+// 위치 없는 사진을 지점에 배정하는 규칙(#170)은 seed에 해당 사진이 없어서 결과에 영향을 주지 않아요.
 // 나누는 시각(split, #191)도 참고 구현에 없고, 넘기지 않으면 결과가 같아요.
 // 잇는 구간(merge, #198)도 참고 구현에 없고, 넘기지 않으면 결과가 같아요.
 
@@ -33,7 +33,7 @@ const COORD_SCALE = 1e5;
  * @typedef {object} StopEntry
  * @property {import('@/types').GroupStop} stop
  * @property {RawStop} raw
- * @property {import('@/types').Photo[]} filled fillByTime이 이 지점에 넣은 위치 없는 사진
+ * @property {import('@/types').Photo[]} filled 이 지점에 배정된 위치 없는 사진
  */
 
 /**
@@ -159,7 +159,7 @@ function addToStop(stop, photo, at) {
  * @param {import('@/types').Photo[]} photos 시각만 있고 위치가 없는 사진
  * @returns {Map<RawStop, import('@/types').Photo[]>} 받은 순서 그대로
  */
-function fillByTime(stops, located, photos) {
+function groupUnlocatedPhotosByStop(stops, located, photos) {
   const locatedAts = located.map(toTakenMs);
   const stopOf = new Map(stops.flatMap((stop) => stop.photos.map((photo) => [photo, stop])));
 
@@ -243,7 +243,7 @@ function groupIntoRegions(stops) {
 /**
  * @param {RawStop} raw
  * @param {{ lat: number, lng: number } | null} home
- * @param {import('@/types').Photo[]} filledPhotos fillByTime이 이 지점에 넣은 사진
+ * @param {import('@/types').Photo[]} filledPhotos 이 지점에 배정된 위치 없는 사진
  * @returns {import('@/types').GroupStop}
  */
 function toGroupStop(raw, home, filledPhotos) {
@@ -251,7 +251,7 @@ function toGroupStop(raw, home, filledPhotos) {
   // 나누는 시각 뒤의 위치 없는 사진은 지점의 첫 위치 있는 사진보다 앞일 수 있어서, 넣은 사진까지 세요.
   const days = countDays([...raw.photos, ...filledPhotos].map((photo) => photo.takenAt));
   const isHome = home !== null && calcDistanceKm(home, raw) <= SAME_PLACE_KM;
-  // 안정 정렬이라 같은 시각이면 위치 있는 사진이 앞에 남아서, photoIds[0]이 지점 ID와 같아요.
+  // 지점 ID는 위치가 있는 첫 사진에서 가져와요. 위치 없는 사진이 더 일찍 찍혔다면 목록에서는 그 사진이 먼저예요.
   const photoIds = [...raw.photos, ...filledPhotos].toSorted(byTakenMs).map((photo) => photo.id);
 
   return {
@@ -360,7 +360,7 @@ function toLeg(from, to) {
  * @param {number[]} [splitAts] 여행을 나눌 시각(밀리초). 이 시각에 찍은 사진부터 새 여행이에요.
  *   split 보정의 사진을 빼도 나눈 자리가 남게, 사진 ID 대신 시각으로 받아요
  * @param {MergeSpan[]} [mergeSpans] 이을 시각 구간. 이 구간에 걸친 여행 경계는 집을 거치거나 14일 넘게 비어도 끊지 않아요.
- *   splitAts처럼 사진 ID 대신 시각으로 받아요
+ *   기준 사진 ID가 있으면 두 사진 모두 집 밖 지점에 남아 있을 때만 이어요.
  * @returns {import('@/types').GroupResult}
  */
 export function group(photos, splitAts = [], mergeSpans = []) {
@@ -372,7 +372,7 @@ export function group(photos, splitAts = [], mergeSpans = []) {
   const home = findHome(splitAts.length > 0 ? buildStops(located, []) : rawStops);
 
   const timedOnly = photos.filter((photo) => hasTime(photo) && !isLocated(photo));
-  const filledByStop = fillByTime(rawStops, located, timedOnly);
+  const filledByStop = groupUnlocatedPhotosByStop(rawStops, located, timedOnly);
   const filled = new Set([...filledByStop.values()].flat());
 
   const entries = rawStops.map((raw) => {

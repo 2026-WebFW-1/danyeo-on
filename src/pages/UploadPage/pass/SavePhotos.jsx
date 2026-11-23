@@ -18,7 +18,7 @@ const SORT_UNLOCATED_PATH = `${PHOTO_SORT_PATH}?${SORT_TAB_PARAM}=unlocated`;
  * 호출: PassPhotosStep이 "다 정리했어요"일 때 그려요.
  * <SavePhotos />
  *
- * 의도: 올리는 진행은 원래 03의 회색 한 줄(#27)이 보여 줄 자리인데 아직 없어요.
+ * 의도: 올리는 진행을 03의 회색 한 줄로 보여 주는 안(#27)은 하지 않기로 했어요.
  * 그래서 이미지를 다 올릴 때까지 이 화면에 남아 진행을 보여 주고, 못 올린 장이 있어도 끝나면 넘어가요.
  * 03·지도는 journeys에 저장된 Journey를 읽어서, Journey를 다 쓴 뒤에 넘어가야 새 여행이 보여요.
  * Journey를 못 만들면 사진은 저장된 채로 Journey만 다시 만들게 해요.
