@@ -68,7 +68,8 @@ function readCityName(address, cc, regionCodes) {
     const name = normalizeCityName(address[key], cc);
     if (name) return name;
   }
-  return '';
+  // 국립공원처럼 도시 칸이 모두 비면 주(state) 이름을 써요. county는 "Improvement District No. 9"처럼 어색해서 쓰지 않아요.
+  return normalizeCityName(address.state, cc);
 }
 
 /**

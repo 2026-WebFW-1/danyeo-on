@@ -55,7 +55,7 @@ describe('parsePlaceResponse: 실제 응답 샘플', () => {
   // 도시 이름이 시연 데이터와 다르게 오는 곳이에요. 나라 이름과 코드는 같아야 해요.
   const differing = {
     밴쿠버: 'District of North Vancouver', // 지점 좌표가 항구 바다 위라 옆 지역 이름이 와요
-    밴프: UNKNOWN_CITY, // 국립공원 안이라 도시 칸 없이 county만 와요
+    밴프: '앨버타주', // 국립공원 안이라 도시 칸 없이 county와 state만 와요
     '나이아가라 폴스': 'Niagara Falls', // OSM에 한국어 이름이 없어요
     발리: '페네벨', // 지점 좌표가 시골이라 마을 이름이 와요
   };
@@ -115,10 +115,24 @@ describe('parsePlaceResponse: 도시 이름 고르기', () => {
     expect(place({ municipality: 'E', hamlet: '  ' }).city).toBe('E');
   });
 
-  test('county, state, suburb 같은 칸은 도시 이름으로 쓰지 않아요', () => {
-    expect(place({ county: 'X', state: 'Y', suburb: 'Z', borough: 'W' })).toEqual(
-      unknownIn('FR', '프랑스'),
-    );
+  test('county, suburb 같은 칸은 도시 이름으로 쓰지 않아요', () => {
+    expect(place({ county: 'X', suburb: 'Z', borough: 'W' })).toEqual(unknownIn('FR', '프랑스'));
+  });
+
+  test.each([
+    [{ county: 'Improvement District No. 9', state: '앨버타주' }, 'ca', '앨버타주'],
+    [{ state: '도쿄도' }, 'jp', '도쿄'],
+    [{ town: '양양읍', state: '강원특별자치도' }, 'kr', '강원특별자치도'],
+  ])('도시 칸이 모두 비면 주(state) 이름을 써요: %j (%s)', (address, cc, expected) => {
+    const { city } = place(address, cc);
+
+    expect(city).toBe(expected);
+  });
+
+  test('도시 칸이 있으면 주(state) 이름보다 먼저 써요', () => {
+    const { city } = place({ town: '밴프', state: '앨버타주' }, 'ca');
+
+    expect(city).toBe('밴프');
   });
 
   test('한국은 city가 없으면 군(county)을 쓰고 읍·면은 쓰지 않아요', () => {
