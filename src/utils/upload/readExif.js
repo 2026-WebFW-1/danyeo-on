@@ -23,6 +23,8 @@ const TAGS = [
 const EXIF_DATE = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/;
 // '+09:00', '-07:00' 처럼 부호 + 시 두 자리 + : + 분 두 자리
 const OFFSET = /^[+-]\d{2}:\d{2}$/;
+// takenAt은 시간대 없는 현지 시각이라, 지금(UTC)과 비교할 때 시간대 차이(최대 14시간)를 하루로 덮습니다.
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // 읽지 못한 파일. 받는 쪽이 키를 따로 확인하지 않도록 성공했을 때와 같은 모양으로 둡니다.
 const UNREADABLE = {
@@ -130,8 +132,10 @@ function toLocalTime(value) {
 
   const [, year, month, day, hour, minute, second] = match;
 
+  const date = toUtcDate([year, month, day, hour, minute, second].map(Number));
   // '2026:13:45 25:61:00'처럼 없는 시각은 save_photos의 timestamp 변환에서 함께 올린 사진 전체를 막습니다.
-  if (!toUtcDate([year, month, day, hour, minute, second].map(Number))) {
+  // 미래 시각은 시계가 틀린 카메라라서, 두면 01 지도 기본 범위가 사진 없는 해로 끌려갑니다. 시각 없음으로 두고 묻습니다.
+  if (!date || date.getTime() > Date.now() + DAY_MS) {
     return null;
   }
 

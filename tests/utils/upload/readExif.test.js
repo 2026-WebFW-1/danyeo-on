@@ -101,6 +101,31 @@ describe('불가능한 촬영 정보', () => {
     expect(photo).toMatchObject({ readable: true, takenAt: null });
   });
 
+  test('5년 뒤 날짜 → 시각 없음', async () => {
+    const value = `${new Date().getFullYear() + 5}:01:01 00:00:00`;
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: value });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, takenAt: null });
+  });
+
+  test('방금 찍은 현지 시각은 그대로', async () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const date = `${now.getFullYear()}:${pad(now.getMonth() + 1)}:${pad(now.getDate())}`;
+    const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: `${date} ${time}` });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo.takenAt).toBe(`${date.replaceAll(':', '-')}T${time}`);
+  });
+
   test('윤년 2월 29일은 그대로', async () => {
     vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: '2024:02:29 10:00:00' });
 

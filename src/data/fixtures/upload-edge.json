@@ -204,17 +204,16 @@
     },
     {
       "file": "15_future-date.jpg",
-      "why": "시계가 미래로 잘못 맞춰진 사진",
+      "why": "시계가 미래로 잘못 맞춰진 사진. 시각 없음으로 보고 묻는다",
       "expect": {
         "readable": true,
-        "takenAt": "2031-05-01T12:00:00",
-        "offset": "+09:00",
-        "timeUncertain": false,
+        "takenAt": null,
+        "offset": null,
+        "timeUncertain": true,
         "lat": 34.9949,
         "lng": 135.785,
         "camera": "Apple iPhone 13",
-        "imageDecodable": true,
-        "suspiciousDate": true
+        "imageDecodable": true
       }
     },
     {
