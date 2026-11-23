@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { clearMyPhotos } from '@/services/myPhotosService';
 import { deletePhotos } from '@/services/photoService';
 import { formatDateRange } from '@/utils/formatDateRange';
@@ -24,6 +26,9 @@ import SortPhotoCard from './SortPhotoCard';
  *    사진을 지우지 못하면 옮긴 기준을 되돌려요. 옮긴 채 [복구]하면 나눈 자리가 옮긴 사진으로 바뀌어 있어서예요.
  *    사진을 지워도 exclude 보정은 사진 없이 남아서, 지운 뒤 onDeleted로 그 exclude를 지우고 Journey를 다시 계산해요.
  *    exclude 지우기가 실패하면 다시 눌러요. 이미 지운 사진은 deletePhotos가 오류 없이 건너뛰어 exclude만 다시 지워요.
+ *  - 한 장을 지우는 동안 다른 사진의 [영구 삭제]를 막아요. 기준 옮기기는 아직 목록에 있는 사진으로 고르는데,
+ *    지우는 중인 사진으로 옮기면 그 사진이 지워질 때 옮긴 연결도 같이 지워져 나눈 여행이 다시 붙어서예요.
+ *    지우는 중인 사진은 여러 칸이 같이 봐야 해서 이 탭에 둬요.
  *    deletePhotos가 0행을 지워도 exclude를 지워요. photos의 RLS는 읽기·지우기가 같은 "본인 사진" 조건이고
  *    exclude는 본인 사진에만 걸려서, 0행이면 이미 지워진 사진이에요(남은 사진이 다시 여행에 돌아가는 일은 없어요).
  *
@@ -36,9 +41,9 @@ import SortPhotoCard from './SortPhotoCard';
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onDeleted 사진을 지운 뒤 그 exclude를 지워요. 실패하면 던져요
  */
 export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete, onDeleted }) {
-  const handleDelete = async (photo) => {
-    if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.'))
-      return;
+  const [deletingId, setDeletingId] = useState(null);
+
+  const deletePhoto = async (photo) => {
     const undoMoves = await onBeforeDelete(photo);
     try {
       await deletePhotos([photo.id]);
@@ -51,6 +56,17 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
     // 골라 옮기다 실패해서, 지금 바로 다시 읽게 해요.
     clearMyPhotos();
     await onDeleted(photo);
+  };
+
+  const handleDelete = async (photo) => {
+    if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.'))
+      return;
+    setDeletingId(photo.id);
+    try {
+      await deletePhoto(photo);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // 불러오기 실패 안내는 PhotoSortPage가 탭 위에 띄워요.
@@ -98,6 +114,7 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
                 label: '영구 삭제',
                 workingLabel: '삭제하는 중…',
                 failMessage: '사진을 지우지 못했어요. 다시 눌러 주세요',
+                disabled: deletingId !== null && deletingId !== photo.id,
                 onAction: () => handleDelete(photo),
               },
             ]}

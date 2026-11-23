@@ -10,6 +10,7 @@ import PhotoGridCell from '@/components/common/PhotoGridCell';
  * @property {string} workingLabel 예: '빼는 중…'
  * @property {string} failMessage 예: '사진을 빼지 못했어요'
  * @property {() => Promise<unknown>} onAction 실패하면 던져요
+ * @property {boolean} [disabled] 다른 칸의 요청 때문에 이 버튼만 막을 때 true
  */
 
 /**
@@ -58,7 +59,7 @@ export default function SortPhotoCard({ fileKey, caption, actions, canAct }) {
               key={action.label}
               type="button"
               onClick={() => handleClick(action)}
-              disabled={!canAct || runningLabel !== null}
+              disabled={!canAct || runningLabel !== null || action.disabled}
               className="border-b border-ink text-sm font-bold text-ink disabled:border-dim disabled:text-dim"
             >
               {runningLabel === action.label ? action.workingLabel : action.label}

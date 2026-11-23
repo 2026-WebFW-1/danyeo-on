@@ -577,6 +577,40 @@ describe('PhotoSortPage 제외한 사진', () => {
     expect(buttonByText('삭제하는 중…').disabled).toBe(true);
   });
 
+  test('한 장을 지우는 동안 다른 사진의 [영구 삭제]를 막고, 끝나면 다시 풀어요', async () => {
+    const [first, second] = bangkokPhotoIds;
+    let finishDelete;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(deletePhotos).mockReturnValue(
+      new Promise((_, reject) => {
+        finishDelete = () => reject(new Error('network'));
+      }),
+    );
+    mockCorrections({
+      corrections: [
+        { id: 'c_1', type: 'exclude', photoId: first },
+        { id: 'c_2', type: 'exclude', photoId: second },
+      ],
+    });
+    await render('/edit/photos?tab=excluded');
+
+    await click(buttonByText('영구 삭제'));
+
+    const otherDelete = buttonByText('영구 삭제');
+    expect(otherDelete.disabled).toBe(true);
+    await click(otherDelete);
+    expect(deletePhotos).toHaveBeenCalledOnce();
+
+    await act(async () => finishDelete());
+
+    const deleteButtons = [...container.querySelectorAll('button')].filter(
+      (button) => button.textContent === '영구 삭제',
+    );
+    expect(deleteButtons).toHaveLength(2);
+    expect(deleteButtons.every((button) => !button.disabled)).toBe(true);
+  });
+
   test('영구 삭제가 실패하면 그 사진 칸에 안내하고, 다시 누르면 다시 지워요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(window, 'confirm').mockReturnValue(true);
