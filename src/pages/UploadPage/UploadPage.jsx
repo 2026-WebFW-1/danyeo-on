@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useUploadStore } from '@/stores/upload/uploadStore';
+import { isUploadFinished } from '@/utils/upload/isUploadFinished';
 
 import PassPhotosStep from './pass/PassPhotosStep';
 import PilePhotosStep from './pile/PilePhotosStep';
@@ -16,15 +17,23 @@ import SelectPhotosStep from './select/SelectPhotosStep';
  *
  * 의도: 단계는 주소를 바꾸지 않고 이 안에서 상태로 넘깁니다.(#21)
  * 새로고침하면 처음부터, 페이지 이동 후 돌아오면 보관한 사진을 이어서 보여 줍니다.
+ * 저장까지 다 끝난 뒤 돌아오면 스토어를 비우고 고르기부터 합니다. 남겨 두면 [다음] 뒤 SavePhotos가
+ * 끝난 상태를 보고 저장 없이 곧바로 넘어가요.
  * 13b″(읽으면서 미리보기)·13c″(다 읽음)는 없애고 포개지며 쌓이는 화면으로 대신합니다.(#87)
  */
 export default function UploadPage() {
-  const [step, setStep] = useState(() =>
-    useUploadStore.getState().files.length > 0 ? 'pile' : 'select',
-  );
+  const [step, setStep] = useState(() => {
+    const state = useUploadStore.getState();
+    return state.files.length > 0 && !isUploadFinished(state) ? 'pile' : 'select';
+  });
   const start = useUploadStore((state) => state.start);
   const reset = useUploadStore((state) => state.reset);
   const totalCount = useUploadStore((state) => state.files.length);
+
+  // 다 끝난 작업의 사진 주소를 놓아줘요. 렌더링 중에 스토어를 바꾸지 않게 그린 뒤에 비워요.
+  useEffect(() => {
+    if (isUploadFinished(useUploadStore.getState())) reset();
+  }, [reset]);
 
   const handleSelectPhotos = (files, skippedFiles) => {
     void start(files, skippedFiles);
