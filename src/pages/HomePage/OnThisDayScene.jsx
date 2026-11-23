@@ -32,6 +32,9 @@ const PAGER_BUTTON_CLASS =
  *  - 고른 해는 번호가 아니라 "몇 년 전"으로 기억해요. 사진을 더 올려 Journey가 다시 계산되어 목록이 바뀌어도
  *    보던 해를 그대로 보여 주고, 그 해가 없어지면 가장 최근 해로 돌아가요.
  *  - 한 줄 글은 03 도시 블록과 같은 규칙이에요(첫 글 본문, 비면 제목). 글이 없거나 아직 못 받았으면 그 줄을 빼요.
+ *  - 링크는 글을 다 받았는데 이 지점 글이 없으면 [그날의 기록 보기 →]예요(#243). 03이 글 없는 지점에 [글 보기]를
+ *    안 보여 주는 것과 맞췄어요. 링크를 빼면 그 챕터 · 여행으로 갈 길이 없어져서 글자만 바꿔요.
+ *    받는 중이거나 못 받았으면 글이 있을 수도 있어서 [그날의 글 보기 →] 그대로예요.
  *  - 작은 사진은 넓은 창에서 96px 네 장(피그마)이고, 창이 좁아 글 칸이 408px보다 좁아지면 칸에 맞춰 같이 줄어요.
  *    96px로 고정하면 좁은 창에서 화면 옆으로 나가요.
  *  - 피그마는 제목과 한 줄 글을 Playfair로 썼지만 도시 이름과 글이 한글이라, 03 도시 이름처럼 본문 글꼴로 써요.
@@ -45,6 +48,7 @@ export default function OnThisDayScene({ journey, items }) {
   const [pickedYearsAgo, setPickedYearsAgo] = useState(null);
   const { photos } = useMyPhotos();
   const postsByDate = usePostStore((state) => state.byDate);
+  const postsStatus = usePostStore((state) => state.status);
 
   useLoadPosts();
 
@@ -54,10 +58,13 @@ export default function OnThisDayScene({ journey, items }) {
   const { stop } = item;
 
   const posts = useMemo(() => Object.values(postsByDate), [postsByDate]);
-  const oneLiner = useMemo(
-    () => getOneLiner(selectPostsOfStop(journey, posts, stop.id)),
+  const stopPosts = useMemo(
+    () => selectPostsOfStop(journey, posts, stop.id),
     [journey, posts, stop.id],
   );
+  const oneLiner = getOneLiner(stopPosts);
+  const linkLabel =
+    postsStatus === 'ready' && stopPosts.length === 0 ? '그날의 기록 보기' : '그날의 글 보기';
   const thumbs = useMemo(() => selectThumbPhotos(stop, photos), [stop, photos]);
 
   const older = items[index + 1];
@@ -107,7 +114,7 @@ export default function OnThisDayScene({ journey, items }) {
           )}
           <div className="flex items-center gap-6">
             <ArrowLink to={getStopPath(stop)} className="gap-1 text-lg">
-              그날의 글 보기
+              {linkLabel}
             </ArrowLink>
             {items.length > 1 && (
               <div className="flex items-center gap-1 text-md leading-body-md text-muted">
