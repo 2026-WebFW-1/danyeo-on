@@ -1,3 +1,4 @@
+import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
@@ -348,6 +349,8 @@ function calcLegTimes(kind, departPhoto, arrivePhoto, travelHours) {
 /**
  * 앞 점을 떠난 사진과 뒤 점에 닿은 사진 사이 시간입니다. 이동 수단을 정할 때 속도를 재는 데 씁니다.
  * 집 쪽 시각은 사진으로 알 수 없어서(ESTIMATED_END) 집을 낀 구간은 undefined입니다.
+ * 시간대가 없는 사진은 +09:00으로 읽어서(withOffset) 다른 시간대에서 찍었으면 간격이 몇 시간씩 틀립니다.
+ * 그 간격으로 속도를 재면 육로 이동이 비행으로 나올 수 있어서, 한쪽이라도 시간대가 없으면 undefined입니다.
  *
  * @param {import('@/types').Leg['kind']} kind
  * @param {import('@/types').Photo} departPhoto
@@ -356,6 +359,7 @@ function calcLegTimes(kind, departPhoto, arrivePhoto, travelHours) {
  */
 function calcPhotoGapHours(kind, departPhoto, arrivePhoto) {
   if (ESTIMATED_END[kind]) return undefined;
+  if (!departPhoto.offset || !arrivePhoto.offset) return undefined;
   return (toInstant(arrivePhoto) - toInstant(departPhoto)) / MS_PER_HOUR;
 }
 
@@ -553,6 +557,7 @@ export async function buildJourney(photos, corrections, findPlace) {
   );
 
   return {
+    rulesVersion: JOURNEY_RULES_VERSION,
     home: buildHome(grouped.home, places.home),
     stops,
     legs,

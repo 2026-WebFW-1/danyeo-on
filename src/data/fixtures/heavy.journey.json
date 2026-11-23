@@ -2,6 +2,7 @@
   "personaId": "heavy",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
+  "rulesVersion": 2,
   "home": {
     "lat": 37.56712,
     "lng": 126.98176,

@@ -1,3 +1,4 @@
+import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { buildJourney } from '@/utils/journey/buildJourney';
 import { findSavedPlace } from '@/utils/journey/findSavedPlace';
 
@@ -29,6 +30,24 @@ export const getJourneyVersion = journeyChanged.getVersion;
 const latestRefresh = new Map();
 // 계정마다 journeys 쓰기를 한 줄로 세워요. 앞 쓰기가 끝나야 다음 쓰기가 최신인지 보고 써요.
 const writeQueue = new Map();
+// 이번에 앱을 연 뒤로 다시 계산을 시작한 적이 있는 계정이에요. 옛 규칙의 Journey를 읽을 때마다 다시 계산하지 않게 해요.
+const refreshStarted = new Set();
+
+/**
+ * 옛 규칙으로 계산해 저장된 Journey면 뒤에서 한 번 다시 계산해요(#247).
+ * 규칙을 바꿔도 저장된 Journey는 사진이나 보정을 저장하기 전까지 그대로라서, 읽을 때 판(rulesVersion)을 봐요.
+ * 화면은 기다리지 않고 저장된 Journey를 먼저 받고, 계산이 끝나면 saveJourney가 알려서 다시 읽어요.
+ * 구간이 없으면 규칙이 바뀌어도 달라질 게 없어서 계산하지 않아요(빈 계정 포함).
+ * 실패해도 알리지 않아요. 사용자가 한 일이 아니고 저장된 Journey는 그대로 보이니, 다음에 앱을 열 때 다시 해요.
+ *
+ * @param {string} userId
+ * @param {import('@/types').Journey} journey 방금 읽은 Journey
+ */
+function refreshIfOutdated(userId, journey) {
+  const isOutdated = journey.legs.length > 0 && journey.rulesVersion !== JOURNEY_RULES_VERSION;
+  if (!isOutdated || refreshStarted.has(userId)) return;
+  refreshJourney(userId).catch(() => {});
+}
 
 /**
  * 로그인한 사람의 Journey를 Supabase journeys 테이블에서 읽어요(owner_id 행의 payload).
@@ -37,6 +56,7 @@ const writeQueue = new Map();
  * 실패하면 { status: 0, code: 'LOAD_FAILED', message }로 거절하고 기억을 지워서 다음에 다시 읽어요.
  * 주소·키(.env.local)가 없거나 연결에 실패해도 같아요.
  * 읽는 사이에 세션 계정이 바뀌었으면 결과를 버리고 code: 'ACCOUNT_CHANGED'로 거절해요(기억하지 않아요).
+ * 옛 규칙으로 계산된 Journey면 그대로 돌려주고, 뒤에서 한 번 다시 계산해 저장해요(refreshIfOutdated).
  *
  * @param {string} userId 로그인한 사람의 id(AuthUser.id). 기억을 계정별로 나누는 열쇠예요
  * @returns {Promise<import('@/types').Journey>}
@@ -57,7 +77,9 @@ export function getJourney(userId) {
         if (auth.session?.user.id !== userId) {
           throw { status: 0, code: 'ACCOUNT_CHANGED', message: '읽는 사이에 계정이 바뀌었어요' };
         }
-        return data?.payload ?? EMPTY_JOURNEY;
+        const journey = data?.payload ?? EMPTY_JOURNEY;
+        refreshIfOutdated(userId, journey);
+        return journey;
       })
       .catch((error) => {
         if (error.code === 'ACCOUNT_CHANGED') throw error;
@@ -133,6 +155,7 @@ function queueWrite(userId, write) {
  * @returns {Promise<import('@/types').Journey>} 저장한 Journey
  */
 export function refreshJourney(userId) {
+  refreshStarted.add(userId);
   const isSuperseded = () => latestRefresh.get(userId) !== refresh;
   // 새 계산에 밀렸으면 저장하지 않았거나 실패했어도 새 계산의 결과를 줘요.
   const refresh = buildAndSave(userId, isSuperseded).then(

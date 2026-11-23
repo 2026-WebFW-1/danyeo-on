@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import edgeGroup from '@/data/fixtures/edge.group.json';
 import edgeJourney from '@/data/fixtures/edge.journey.json';
 import emptyGroup from '@/data/fixtures/empty.group.json';
@@ -175,6 +176,22 @@ const CITIES = {
   bangkok: { lat: 13.75, lng: 100.5, offset: '+07:00', city: '방콕', country: '태국', cc: 'TH' },
   danang: { lat: 16.05, lng: 108.2, offset: '+07:00', city: '다낭', country: '베트남', cc: 'VN' },
   tokyo: { lat: 35.68, lng: 139.69, offset: '+09:00', city: '도쿄', country: '일본', cc: 'JP' },
+  fukuoka: {
+    lat: 33.59,
+    lng: 130.4,
+    offset: '+09:00',
+    city: '후쿠오카',
+    country: '일본',
+    cc: 'JP',
+  },
+  chiangmai: {
+    lat: 18.79,
+    lng: 98.98,
+    offset: '+07:00',
+    city: '치앙마이',
+    country: '태국',
+    cc: 'TH',
+  },
 };
 
 /** 그 도시에서 찍은 사진 한 장을 만들어요. */
@@ -801,5 +818,78 @@ describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
 
     // then
     expect(moves).toEqual([]);
+  });
+});
+
+describe('buildJourney 이동 수단 추정(#247)', () => {
+  // 서울(집)에서 사진을 많이 찍고, 한 번 다녀와요.
+  const tripTo = (...awayPhotos) => [
+    makePhoto('p_s1', 'seoul', '2024-07-01T09:00:00'),
+    makePhoto('p_s2', 'seoul', '2024-07-05T09:00:00'),
+    makePhoto('p_s3', 'seoul', '2024-07-06T09:00:00'),
+    ...awayPhotos,
+    makePhoto('p_s4', 'seoul', '2024-07-20T09:00:00'),
+    makePhoto('p_s5', 'seoul', '2024-07-21T09:00:00'),
+  ];
+  const modesOf = (journey) => journey.legs.map((leg) => [leg.kind, leg.mode]);
+
+  test('계산한 규칙의 판을 적어요', async () => {
+    const journey = await buildJourney(BANGKOK_TRIP, [], findCity);
+
+    expect(journey.rulesVersion).toBe(JOURNEY_RULES_VERSION);
+  });
+
+  test('서울 ↔ 후쿠오카는 700km가 안 돼도 바다를 건너서 비행이에요. 집 쪽 시각도 비행 속도로 추정해요', async () => {
+    // given
+    const photos = tripTo(
+      makePhoto('p_f1', 'fukuoka', '2024-07-11T13:00:00'),
+      makePhoto('p_f2', 'fukuoka', '2024-07-13T11:00:00'),
+    );
+
+    // when
+    const journey = await buildJourney(photos, [], findCity);
+
+    // then
+    expect(modesOf(journey)).toEqual([
+      ['outbound', 'flight'],
+      ['return', 'flight'],
+    ]);
+    expect(journey.legs.map((leg) => leg.km)).toEqual([532, 532]);
+    expect(journey.legs.map((leg) => leg.hours)).toEqual([1.2, 1.2]);
+  });
+
+  test.each([
+    [
+      '사진 사이가 30시간이면 속도를 알 수 없어 거리로 정해요',
+      '2024-07-12T16:00:00',
+      '+07:00',
+      'train',
+    ],
+    [
+      '사진 사이가 2시간이면 150km/h를 넘어서 비행이에요',
+      '2024-07-11T12:00:00',
+      '+07:00',
+      'flight',
+    ],
+    [
+      '시간대가 없는 사진은 간격을 믿을 수 없어서 속도를 재지 않아요',
+      '2024-07-11T12:00:00',
+      null,
+      'train',
+    ],
+  ])('방콕 → 치앙마이(583km): %s', async (_, arriveAt, arriveOffset, mode) => {
+    // given
+    const photos = tripTo(makePhoto('p_b1', 'bangkok', '2024-07-11T10:00:00'), {
+      ...makePhoto('p_c1', 'chiangmai', arriveAt),
+      offset: arriveOffset,
+    });
+
+    // when
+    const journey = await buildJourney(photos, [], findCity);
+
+    // then
+    const between = journey.legs.find((leg) => leg.kind === 'between');
+    expect(between.km).toBe(583);
+    expect(between.mode).toBe(mode);
   });
 });
