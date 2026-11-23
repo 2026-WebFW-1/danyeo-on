@@ -4,9 +4,9 @@ import { clearMyPhotos } from '@/services/myPhotosService';
 import { deletePhotos } from '@/services/photoService';
 import { formatDateRange } from '@/utils/formatDateRange';
 
+import ExcludedPhotoRow from './ExcludedPhotoRow';
 import PagedPhotoList from './PagedPhotoList';
-import { SECTION_CLASS } from './sectionClass';
-import SortPhotoCard from './SortPhotoCard';
+import { COLUMN_LABEL_CLASS, EXCLUDED_ROW_GRID_CLASS, SECTION_CLASS } from './sectionClass';
 
 /**
  * 제외한 사진 탭이에요. 뺀 사진을 최근에 뺀 순서로 보여 주고, 사진마다 [복구] · [영구 삭제]가 있어요.
@@ -18,7 +18,7 @@ import SortPhotoCard from './SortPhotoCard';
  * 의도:
  *  - [복구]는 그 사진의 exclude 보정을 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
  *  - 복구한 사진은 바로 이 목록에서 빠지고, 여행 묶음에는 Journey를 다시 계산한 뒤 돌아와요.
- *  - 피그마에 이 탭의 디자인이 없어서 07b의 사진 칸(128px)과 같은 크기로 그려요.
+ *  - 피그마에 이 탭의 디자인이 없어서 07a 여행 표처럼 사진 한 장을 한 줄로 그리고, 버튼은 줄 오른쪽 끝에 둬요(ExcludedPhotoRow).
  *  - 목록은 보정에서 만들어서, 보정을 다 불러오기 전에는 그리지 않아요.
  *  - [영구 삭제]는 되돌릴 수 없어서 window.confirm으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
  *    지우기 전에 onBeforeDelete로 그 사진에 건 split · merge 기준을 옮겨요. 사진과 함께 연결이 지워지면 나눈 여행이
@@ -93,15 +93,19 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
       <p className="pb-8 text-md leading-body-md text-body">
         뺀 사진은 지도와 기록에 나오지 않아요. [복구]하면 다시 여행에 들어가요.
       </p>
+      <div aria-hidden="true" className={`${EXCLUDED_ROW_GRID_CLASS} border-b border-line pb-3`}>
+        <span className={COLUMN_LABEL_CLASS}>Photo</span>
+        <span className={COLUMN_LABEL_CLASS}>Taken</span>
+      </div>
       <PagedPhotoList
         items={photos}
         label="뺀 사진"
-        className="grid-cols-[repeat(auto-fill,8rem)] gap-x-4"
+        className="flex flex-col gap-0"
         renderItem={(photo) => (
-          <SortPhotoCard
+          <ExcludedPhotoRow
             key={photo.id}
             fileKey={photo.fileKey}
-            caption={photo.takenAt ? formatDateRange(photo.takenAt, photo.takenAt) : '날짜 없음'}
+            date={photo.takenAt ? formatDateRange(photo.takenAt, photo.takenAt) : null}
             canAct
             actions={[
               {

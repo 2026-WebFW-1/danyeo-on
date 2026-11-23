@@ -4,10 +4,8 @@ import NoTripsNotice from '@/components/common/NoTripsNotice';
 
 import { buildTripMergeInput } from '@/utils/photoSort';
 
-import { SECTION_CLASS, TRIP_ROW_GRID_CLASS } from './sectionClass';
+import { COLUMN_LABEL_CLASS, SECTION_CLASS, TRIP_ROW_GRID_CLASS } from './sectionClass';
 import TripRow from './TripRow';
-
-const COLUMN_LABEL_CLASS = 'font-serif text-2xs font-bold tracking-[0.2em] text-muted uppercase';
 
 /**
  * 07a 여행 묶음 표예요. 머리 줄(TRIP · CITIES · PHOTOS) 아래로 여행을 시간 순서대로 그려요.
