@@ -344,7 +344,7 @@ export function selectExcludedPhotos(corrections, photos) {
  *
  * @typedef {object} AnchorMove
  * @property {string} correctionId
- * @property {string} fromPhotoId 지울 사진
+ * @property {string} fromPhotoId 지금 가리키는 사진. 지울 사진이거나, merge에서는 이미 빠진 다른 기준 사진
  * @property {string} toPhotoId 대신 가리킬 사진
  */
 
@@ -357,7 +357,10 @@ export function selectExcludedPhotos(corrections, photos) {
  *  - split은 그 사진 바로 다음에 찍은 사진으로 옮겨요. 그 사진은 이미 빠져 있어서, 앞 여행의 마지막 사진과
  *    다음 여행의 첫 사진 사이라는 나누는 자리가 그대로예요(group의 findSplitsBetween). 다음 사진이 없으면
  *    나눌 뒤 여행이 없어서 옮기지 않아요.
- *  - merge는 collectMergeSpans가 그 사진 대신 쓰고 있는 사진(양쪽 여행에 남은 사진)으로 옮겨요.
+ *  - merge는 기준 사진이 빠진 것을 모두 collectMergeSpans가 지금 대신 쓰고 있는 사진(양쪽 여행에 남은 사진)으로
+ *    옮겨요. 지울 사진이 기준이 아니어도 옮겨요. 기준이 빠진 merge는 합칠 때의 사진 전부로 여행을 다시 묶어
+ *    대신 쓸 사진을 찾는데, 지울 사진이 그 묶음을 이어 주고 있었다면 지운 뒤에는 못 찾아 합친 여행이 갈라져서예요(#232).
+ *    옮긴 뒤에는 모든 merge의 기준이 남은 사진이라, 다시 묶지 않고 지금과 같은 span이 나와요.
  *    합치기가 지금 효과가 없으면(한쪽 여행이 다 빠짐) 옮기지 않아요.
  *  - rename은 빼기할 때 이미 남은 사진으로 옮겨서(buildTripExcludeInputs), mode는 뺀 사진이 지점에 없어
  *    지금도 효과가 없어서 옮기지 않아요.
@@ -374,20 +377,23 @@ export function buildAnchorMoves(photoId, corrections, photos, excludedIds) {
   const spanById = new Map(
     collectMergeSpans(corrections, photoById, excludedIds).map((span) => [span.id, span]),
   );
-  const toMove = (correction, toPhotoId) =>
-    toPhotoId && toPhotoId !== photoId
-      ? [{ correctionId: correction.id, fromPhotoId: photoId, toPhotoId }]
-      : [];
 
   return corrections.flatMap((correction) => {
     if (isSplit(correction) && correction.beforePhotoId === photoId) {
-      return toMove(correction, nextPhoto?.id);
+      const toPhotoId = nextPhoto?.id;
+      return toPhotoId && toPhotoId !== photoId
+        ? [{ correctionId: correction.id, fromPhotoId: photoId, toPhotoId }]
+        : [];
     }
-    if (correction.type === 'merge' && correction.photoIds?.includes(photoId)) {
-      const side = correction.photoIds.indexOf(photoId);
-      return toMove(correction, spanById.get(correction.id)?.photoIds[side]);
-    }
-    return [];
+    const span = correction.type === 'merge' ? spanById.get(correction.id) : undefined;
+    if (!span) return [];
+    // 기준 사진이 빠진 쪽만 지금 대신 쓰는 사진으로 옮겨요. 빠지지 않은 기준은 span과 같아서 그대로예요.
+    return correction.photoIds.flatMap((fromPhotoId, side) => {
+      const toPhotoId = span.photoIds[side];
+      return excludedIds.has(fromPhotoId) && toPhotoId !== fromPhotoId
+        ? [{ correctionId: correction.id, fromPhotoId, toPhotoId }]
+        : [];
+    });
   });
 }
 
