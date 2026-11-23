@@ -1,8 +1,14 @@
 import { create } from 'zustand';
 
-import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import {
+  addCorrection,
+  getCorrections,
+  moveCorrectionPhoto,
+  removeCorrection,
+} from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
 import { useAuthStore } from '@/stores/authStore';
+import { invertAnchorMove } from '@/utils/photoSort';
 
 const INITIAL_STATE = {
   corrections: [],
@@ -246,6 +252,24 @@ async function deleteOne(get, set, id, ownerId, requested) {
   return true;
 }
 
+/**
+ * 보정 하나의 사진 칸을 move대로 바꾼 값이에요. split은 beforePhotoId, merge는 photoIds의 그 자리를 바꿔요.
+ *
+ * @param {import('@/types').Correction} correction
+ * @param {import('@/utils/photoSort').AnchorMove} move
+ * @returns {import('@/types').Correction}
+ */
+function applyAnchorMove(correction, move) {
+  if (correction.type === 'split') return { ...correction, beforePhotoId: move.toPhotoId };
+  if (correction.type === 'merge') {
+    return {
+      ...correction,
+      photoIds: correction.photoIds.map((id) => (id === move.fromPhotoId ? move.toPhotoId : id)),
+    };
+  }
+  return correction;
+}
+
 function createCorrectionId() {
   return `c_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
 }
@@ -442,6 +466,54 @@ export const useCorrectionStore = create((set, get) => ({
     } finally {
       ids.forEach((id) => endPending(set, id, requested));
     }
+  },
+
+  /**
+   * 보정이 가리키는 사진을 차례로 바꿔요. 사진을 영구 삭제하기 전에 split · merge의 기준을 옮길 때 써요.
+   * 앞서 부른 저장·삭제가 끝난 뒤에 보내요. 중간에 실패하면 앞서 옮긴 것을 되돌려 놓고 던져요.
+   * 옮겨도 여행은 그대로라 Journey 계산은 시작하지 않아요. 뒤이어 exclude를 지울 때(removeMany) 계산해요.
+   * 기다리는 사이 계정이 바뀌면 code: 'ACCOUNT_CHANGED'로 던져요.
+   *
+   * 무엇을 옮길지는 차례가 온 뒤의 보정 목록으로 정해요(saveOne과 같은 이유). 누를 때 정하면, 앞서 다른 사진을 지우며
+   * 옮긴 기준을 모르고 그 사진으로 옮겼다가 같이 지워질 수 있어요.
+   *
+   * @param {(corrections: import('@/types').Correction[]) => import('@/utils/photoSort').AnchorMove[]} buildMoves
+   * @returns {Promise<import('@/utils/photoSort').AnchorMove[]>} 옮긴 것
+   */
+  moveAnchors: async (buildMoves) => {
+    const requested = generation;
+    const ownerId = useAuthStore.getState().user?.id;
+    return enqueue(ownerId, async () => {
+      assertSameAccount(requested);
+      const moves = buildMoves(get().corrections);
+      const moveOne = async (move) => {
+        assertSameAccount(requested);
+        await writeCorrection(ownerId, () =>
+          moveCorrectionPhoto(move.correctionId, move.fromPhotoId, move.toPhotoId),
+        );
+        assertSameAccount(requested);
+        set((state) => ({
+          corrections: state.corrections.map((correction) =>
+            correction.id === move.correctionId ? applyAnchorMove(correction, move) : correction,
+          ),
+        }));
+      };
+
+      const moved = [];
+      try {
+        for (const move of moves) {
+          await moveOne(move);
+          moved.push(move);
+        }
+      } catch (error) {
+        // 일부만 옮긴 채 사진을 지우지 않으면, [복구]했을 때 나눈 자리가 옮긴 사진으로 바뀌어 있어요. 되돌려 놓아요.
+        for (const move of moved.toReversed()) {
+          await moveOne(invertAnchorMove(move)).catch((undoError) => console.error(undoError));
+        }
+        throw error;
+      }
+      return moves;
+    });
   },
 
   /** Journey 계산을 다시 해요. journeyStatus가 'failed'일 때 [다시 시도]가 불러요. 던지지 않아요. */

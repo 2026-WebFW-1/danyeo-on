@@ -137,6 +137,12 @@ describe('selectExcludedIds', () => {
     expect(selectExcludedIds({ ...seojin, excluded: ['p_x'] }, null)).toEqual(new Set(['p_x']));
     expect(selectExcludedIds(null, null)).toEqual(new Set());
   });
+
+  test('사진이 지워진 exclude(photoId가 null)는 세지 않아요', () => {
+    expect(selectExcludedIds(seojin, [exclude('p_kept'), exclude(null, 'c_gone')])).toEqual(
+      new Set(['p_kept']),
+    );
+  });
 });
 
 describe('selectSortTrips 뺀 사진', () => {
@@ -293,6 +299,15 @@ describe('selectExcludedPhotos', () => {
   test('사진을 못 받았으면 fileKey · takenAt이 null이에요', () => {
     expect(selectExcludedPhotos([exclude('p_gone')], [])).toEqual([
       { id: 'p_gone', fileKey: null, takenAt: null, correctionIds: ['c_p_gone'] },
+    ]);
+  });
+
+  test('사진이 지워진 exclude(photoId가 null)는 목록에 넣지 않아요', () => {
+    const [a] = seojinSeed.photos;
+    const corrections = [exclude(a.id, 'c_1'), exclude(null, 'c_2')];
+
+    expect(selectExcludedPhotos(corrections, seojinSeed.photos)).toEqual([
+      { id: a.id, fileKey: a.fileKey, takenAt: a.takenAt, correctionIds: ['c_1'] },
     ]);
   });
 });

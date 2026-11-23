@@ -11,7 +11,7 @@ import emptySeed from '@/data/seed/empty.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import { calcDistanceKm } from '@/utils/distance';
 import { buildJourney } from '@/utils/journey/buildJourney';
-import { selectSortTrips } from '@/utils/photoSort';
+import { buildAnchorMoves, selectSortTrips } from '@/utils/photoSort';
 import { selectPassportCalendar } from '@/utils/passportCalendar';
 import { selectPassportStats } from '@/utils/passportStats';
 import { selectPassportStamps } from '@/utils/passportStamps';
@@ -404,6 +404,20 @@ describe('buildJourney 규칙', () => {
     expect(journey.trips.map((trip) => trip.stopIds)).toEqual([['p_b1'], ['p_b3']]);
   });
 
+  test('사진이 지워진 exclude(photoId가 null)는 excluded에 넣지 않아요', async () => {
+    // given
+    const corrections = [
+      { id: 'c_1', type: 'exclude', photoId: 'p_b2' },
+      { id: 'c_2', type: 'exclude', photoId: null },
+    ];
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey.excluded).toEqual(['p_b2']);
+  });
+
   describe('여행 합치기 보정', () => {
     const photos = [...BANGKOK_TRIP, makePhoto('p_d1', 'danang', '2024-08-01T09:00:00')];
     const merge = { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] };
@@ -563,5 +577,130 @@ describe('합치기 뒤에 바뀐 여행 사진', () => {
       expect(selectPassportStamps(j)[0].days).toBe(2);
       expect(selectPassportRecords(j).mostVisited.visits).toBe(2);
     }
+  });
+});
+
+describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
+  const excludedOf = (corrections) =>
+    new Set(corrections.filter((c) => c.type === 'exclude').map((c) => c.photoId));
+
+  /**
+   * 사진을 영구 삭제한 뒤 my_data가 돌려줄 사진과 보정을 만들어요.
+   * moves를 먼저 반영하고, 지운 사진을 가리키던 연결은 cascade로 빠진 모양(null · 짧아진 배열)이 돼요.
+   */
+  function deletePhoto(photos, corrections, photoId, moves) {
+    const moved = corrections.map((correction) => {
+      const move = moves.find((m) => m.correctionId === correction.id);
+      if (!move) return correction;
+      if (correction.type === 'split') return { ...correction, beforePhotoId: move.toPhotoId };
+      return {
+        ...correction,
+        photoIds: correction.photoIds.map((id) => (id === move.fromPhotoId ? move.toPhotoId : id)),
+      };
+    });
+    const cascaded = moved.map((correction) => {
+      if (correction.type === 'exclude' && correction.photoId === photoId)
+        return { ...correction, photoId: null };
+      if (correction.type === 'split' && correction.beforePhotoId === photoId)
+        return { ...correction, beforePhotoId: null };
+      if (correction.type === 'merge')
+        return { ...correction, photoIds: correction.photoIds.filter((id) => id !== photoId) };
+      return correction;
+    });
+    return [photos.filter((photo) => photo.id !== photoId), cascaded];
+  }
+
+  async function tripsAfterDelete(photos, corrections, photoId, { move }) {
+    const moves = move
+      ? buildAnchorMoves(photoId, corrections, photos, excludedOf(corrections))
+      : [];
+    const [left, cs] = deletePhoto(photos, corrections, photoId, moves);
+    const journey = await buildJourney(left, cs, findCity);
+    return journey.trips.map((trip) => trip.stopIds);
+  }
+
+  test('나눈 자리의 사진을 지워도, 다음 사진으로 옮기면 여행이 나뉜 채예요', async () => {
+    // given: 방콕 p_b1 · p_b2 · p_b3 중 p_b2 앞에서 나눈 뒤 p_b2를 뺌
+    const photos = [
+      ...BANGKOK_TRIP.slice(0, 4),
+      makePhoto('p_b3', 'bangkok', '2024-07-14T10:00:00'),
+      ...BANGKOK_TRIP.slice(4),
+    ];
+    const corrections = [
+      { id: 'c_1', type: 'split', beforePhotoId: 'p_b2' },
+      { id: 'c_2', type: 'exclude', photoId: 'p_b2' },
+    ];
+
+    // when
+    const moved = await tripsAfterDelete(photos, corrections, 'p_b2', { move: true });
+    const notMoved = await tripsAfterDelete(photos, corrections, 'p_b2', { move: false });
+
+    // then
+    expect(buildAnchorMoves('p_b2', corrections, photos, excludedOf(corrections))).toEqual([
+      { correctionId: 'c_1', fromPhotoId: 'p_b2', toPhotoId: 'p_b3' },
+    ]);
+    expect(moved).toEqual([['p_b1'], ['p_b3']]);
+    // 옮기지 않으면 split이 사라져 한 여행 · 한 지점(방콕)으로 붙어요.
+    expect(notMoved).toEqual([['p_b1']]);
+  });
+
+  test('합친 기준 사진을 지워도, 남은 사진으로 옮기면 여행이 합쳐진 채예요', async () => {
+    // given
+    const photos = [
+      ...BANGKOK_TRIP.slice(0, 3),
+      makePhoto('p_b0', 'bangkok', '2024-07-12T10:00:00'),
+      ...BANGKOK_TRIP.slice(3),
+      makePhoto('p_d1', 'danang', '2024-08-01T09:00:00'),
+    ];
+    const corrections = [
+      { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] },
+      { id: 'x', type: 'exclude', photoId: 'p_b2' },
+    ];
+
+    // when
+    const moved = await tripsAfterDelete(photos, corrections, 'p_b2', { move: true });
+    const notMoved = await tripsAfterDelete(photos, corrections, 'p_b2', { move: false });
+
+    // then
+    expect(buildAnchorMoves('p_b2', corrections, photos, excludedOf(corrections))).toEqual([
+      { correctionId: 'm', fromPhotoId: 'p_b2', toPhotoId: 'p_b0' },
+    ]);
+    expect(moved).toEqual([['p_b1', 'p_d1']]);
+    expect(notMoved).toEqual([['p_b1'], ['p_d1']]);
+  });
+
+  test('합친 뒤 여행의 기준 사진을 지워도 합쳐진 채예요', async () => {
+    // given
+    const photos = [
+      ...BANGKOK_TRIP,
+      makePhoto('p_d1', 'danang', '2024-08-01T09:00:00'),
+      makePhoto('p_d2', 'danang', '2024-08-02T09:00:00'),
+    ];
+    const corrections = [
+      { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] },
+      { id: 'x', type: 'exclude', photoId: 'p_d1' },
+    ];
+
+    // when
+    const moved = await tripsAfterDelete(photos, corrections, 'p_d1', { move: true });
+
+    // then
+    expect(moved).toEqual([['p_b1', 'p_d2']]);
+  });
+
+  test('나눈 자리 뒤에 찍은 사진이 없거나 합치기가 효과가 없으면 옮기지 않아요', () => {
+    // given
+    const photos = [...BANGKOK_TRIP, makePhoto('p_d1', 'danang', '2024-08-01T09:00:00')];
+    const corrections = [
+      { id: 's', type: 'split', beforePhotoId: 'p_d1' },
+      { id: 'm', type: 'merge', photoIds: ['p_b2', 'p_d1'] },
+      { id: 'x', type: 'exclude', photoId: 'p_d1' },
+    ];
+
+    // when
+    const moves = buildAnchorMoves('p_d1', corrections, photos, excludedOf(corrections));
+
+    // then
+    expect(moves).toEqual([]);
   });
 });

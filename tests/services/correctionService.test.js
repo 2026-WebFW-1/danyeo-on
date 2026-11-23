@@ -1,6 +1,11 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-import { addCorrection, getCorrections, removeCorrection } from '@/services/correctionService';
+import {
+  addCorrection,
+  getCorrections,
+  moveCorrectionPhoto,
+  removeCorrection,
+} from '@/services/correctionService';
 import { getSupabase } from '@/services/getSupabase';
 import { getMyData } from '@/services/photoService';
 
@@ -135,5 +140,58 @@ test('removeCorrection이 서버에 닿지 못하면 status 0과 REMOVE_FAILED�
     status: 0,
     code: 'REMOVE_FAILED',
     message: '연결 실패',
+  });
+});
+
+/** correction_photos의 사진을 바꾸는 호출을 흉내 내요. 마지막 select가 응답을 돌려줘요. */
+function mockUpdate(response) {
+  const query = { update: vi.fn(), eq: vi.fn(), select: vi.fn().mockResolvedValue(response) };
+  query.update.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  const from = vi.fn(() => query);
+  vi.mocked(getSupabase).mockResolvedValue({ from });
+  return { from, query };
+}
+
+test('moveCorrectionPhoto는 그 보정의 그 사진 연결만 새 사진으로 바꾸고 true를 돌려줘요', async () => {
+  // given
+  const { from, query } = mockUpdate({ data: [{ id: 1 }], error: null });
+
+  // when
+  const moved = await moveCorrectionPhoto('c_split', 'p_old', 'p_new');
+
+  // then
+  expect(from).toHaveBeenCalledWith('correction_photos');
+  expect(query.update).toHaveBeenCalledWith({ photo_id: 'p_new' });
+  expect(query.eq.mock.calls).toEqual([
+    ['correction_id', 'c_split'],
+    ['photo_id', 'p_old'],
+  ]);
+  expect(moved).toBe(true);
+});
+
+test('moveCorrectionPhoto는 바꾼 연결이 없으면(이미 옮김) false를 돌려줘요', async () => {
+  // given
+  mockUpdate({ data: [], error: null });
+
+  // when
+  const moved = await moveCorrectionPhoto('c_split', 'p_old', 'p_new');
+
+  // then
+  expect(moved).toBe(false);
+});
+
+test('moveCorrectionPhoto가 거절되면 응답의 status와 SAVE_FAILED로 던져요', async () => {
+  // given
+  mockUpdate({ data: null, error: { message: '권한이 없어요' }, status: 403 });
+
+  // when
+  const moving = moveCorrectionPhoto('c_split', 'p_old', 'p_other');
+
+  // then
+  await expect(moving).rejects.toEqual({
+    status: 403,
+    code: 'SAVE_FAILED',
+    message: '권한이 없어요',
   });
 });

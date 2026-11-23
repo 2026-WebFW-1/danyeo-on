@@ -60,3 +60,32 @@ export async function removeCorrection(id) {
   if (response.error) throw toCorrectionError(response.error, 'REMOVE_FAILED', response.status);
   return response.data.length > 0;
 }
+
+/**
+ * 보정이 가리키는 사진 하나를 다른 사진으로 바꿔요. 보정 id · 만든 시각 · 순서는 그대로예요.
+ * 사진을 영구 삭제하기 전에 split · merge의 기준 사진을 옮길 때 써요(photoSort.buildAnchorMoves).
+ * 새로 가리킬 사진이 남의 사진이면 서버가 거절해요.
+ * 실패하면 { status, code, message }로 던져요. 서버에 닿지 못하면 status는 0이에요.
+ *
+ * @param {string} correctionId
+ * @param {string} fromPhotoId
+ * @param {string} toPhotoId
+ * @returns {Promise<boolean>} 바꾼 연결이 있으면 true. 이미 옮겼거나 없으면 false예요
+ */
+export async function moveCorrectionPhoto(correctionId, fromPhotoId, toPhotoId) {
+  let response;
+  try {
+    const supabase = await getSupabase();
+    // RLS에 막히면 오류 대신 0행이 바뀌어서, select로 바꾼 행을 돌려받아 확인합니다.
+    response = await supabase
+      .from('correction_photos')
+      .update({ photo_id: toPhotoId })
+      .eq('correction_id', correctionId)
+      .eq('photo_id', fromPhotoId)
+      .select('id');
+  } catch (error) {
+    throw toCorrectionError(error, 'SAVE_FAILED');
+  }
+  if (response.error) throw toCorrectionError(response.error, 'SAVE_FAILED', response.status);
+  return response.data.length > 0;
+}

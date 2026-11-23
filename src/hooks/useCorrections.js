@@ -11,6 +11,7 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  * await add({ type: 'exclude', photoId });              // 사진 빼기
  * await remove(correction.id);                          // 되돌리기 = 그 보정 지우기
  * await addMany([...]) · await removeMany([...])         // 여럿을 고치고 Journey 계산은 한 번만
+ * await moveAnchors((corrections) => moves)            // 영구 삭제할 사진의 split · merge 기준 옮기기
  *
  * 의도:
  *  - 여러 컴포넌트에서 불러도 돼요. 목록은 스토어 하나라 모두 같은 값을 보고, 불러오기도 한 번만 해요.
@@ -32,6 +33,7 @@ import { useCorrectionStore } from '@/stores/correctionStore';
  *   remove: (id: string) => Promise<void>,
  *   addMany: (inputs: import('@/types').CorrectionInput[]) => Promise<import('@/types').Correction[]>,
  *   removeMany: (ids: string[]) => Promise<void>,
+ *   moveAnchors: (buildMoves: (corrections: import('@/types').Correction[]) => import('@/utils/photoSort').AnchorMove[]) => Promise<import('@/utils/photoSort').AnchorMove[]>,
  *   hasPending: boolean,
  *   journeyStatus: 'idle' | 'building' | 'saved' | 'failed',
  *   refreshJourney: () => Promise<void>,
@@ -45,6 +47,7 @@ export function useCorrections() {
   const remove = useCorrectionStore((state) => state.remove);
   const addMany = useCorrectionStore((state) => state.addMany);
   const removeMany = useCorrectionStore((state) => state.removeMany);
+  const moveAnchors = useCorrectionStore((state) => state.moveAnchors);
   const fetchCorrections = useCorrectionStore((state) => state.fetch);
   const hasPending = useCorrectionStore((state) => Object.keys(state.pending).length > 0);
   const journeyStatus = useCorrectionStore((state) => state.journeyStatus);
@@ -66,6 +69,7 @@ export function useCorrections() {
     remove,
     addMany,
     removeMany,
+    moveAnchors,
     hasPending,
     journeyStatus,
     refreshJourney,

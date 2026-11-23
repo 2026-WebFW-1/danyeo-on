@@ -12,6 +12,7 @@ vi.mock('@/services/correctionService', () => ({
   getCorrections: vi.fn(),
   addCorrection: vi.fn(),
   removeCorrection: vi.fn(),
+  moveCorrectionPhoto: vi.fn(),
 }));
 vi.mock('@/services/journeyService', () => ({ refreshJourney: vi.fn() }));
 
