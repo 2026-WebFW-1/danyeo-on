@@ -589,15 +589,20 @@ describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
    * moves를 먼저 반영하고, 지운 사진을 가리키던 연결은 cascade로 빠진 모양(null · 짧아진 배열)이 돼요.
    */
   function deletePhoto(photos, corrections, photoId, moves) {
-    const moved = corrections.map((correction) => {
-      const move = moves.find((m) => m.correctionId === correction.id);
-      if (!move) return correction;
-      if (correction.type === 'split') return { ...correction, beforePhotoId: move.toPhotoId };
-      return {
-        ...correction,
-        photoIds: correction.photoIds.map((id) => (id === move.fromPhotoId ? move.toPhotoId : id)),
-      };
-    });
+    const moved = moves.reduce(
+      (current, move) =>
+        current.map((correction) => {
+          if (correction.id !== move.correctionId) return correction;
+          if (correction.type === 'split') return { ...correction, beforePhotoId: move.toPhotoId };
+          return {
+            ...correction,
+            photoIds: correction.photoIds.map((id) =>
+              id === move.fromPhotoId ? move.toPhotoId : id,
+            ),
+          };
+        }),
+      corrections,
+    );
     const cascaded = moved.map((correction) => {
       if (correction.type === 'exclude' && correction.photoId === photoId)
         return { ...correction, photoId: null };
@@ -686,6 +691,100 @@ describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
 
     // then
     expect(moved).toEqual([['p_b1', 'p_d2']]);
+  });
+
+  // #232: 방콕 a · p · b와 다낭 d를 합친 뒤(b → d) b와 p를 뺐어요. 지금은 p가 a와 b를 한 여행으로 이어 줘서
+  // merge가 b 대신 a를 써요. p가 없어지면 a와 b가 다른 여행이 되어 대신 쓸 사진을 못 찾아요.
+  const bridged = () => {
+    const homes = [
+      ['h1', '2024-06-25'],
+      ['h2', '2024-06-26'],
+      ['h3', '2024-08-01'],
+      ['h4', '2024-08-02'],
+      ['h5', '2024-08-28'],
+      ['h6', '2024-08-29'],
+    ].map(([id, day]) => makePhoto(id, 'seoul', `${day}T09:00:00`));
+    return [
+      ...homes.slice(0, 2),
+      makePhoto('a', 'bangkok', '2024-07-01T10:00:00'),
+      makePhoto('p', 'bangkok', '2024-07-12T10:00:00'),
+      makePhoto('b', 'bangkok', '2024-07-24T10:00:00'),
+      ...homes.slice(2, 4),
+      makePhoto('d', 'danang', '2024-08-20T10:00:00'),
+      ...homes.slice(4),
+    ];
+  };
+
+  test('기준이 아닌 뺀 사진을 지워도, 합친 여행이 합쳐진 채예요 (#232)', async () => {
+    // given
+    const photos = bridged();
+    const corrections = [
+      { id: 'm', type: 'merge', photoIds: ['b', 'd'] },
+      { id: 'xb', type: 'exclude', photoId: 'b' },
+      { id: 'xp', type: 'exclude', photoId: 'p' },
+    ];
+
+    // when
+    const before = await buildJourney(photos, corrections, findCity);
+    const moved = await tripsAfterDelete(photos, corrections, 'p', { move: true });
+    const notMoved = await tripsAfterDelete(photos, corrections, 'p', { move: false });
+
+    // then
+    expect(before.trips.map((trip) => trip.stopIds)).toEqual([['a', 'd']]);
+    expect(buildAnchorMoves('p', corrections, photos, excludedOf(corrections))).toEqual([
+      { correctionId: 'm', fromPhotoId: 'b', toPhotoId: 'a' },
+    ]);
+    expect(moved).toEqual([['a', 'd']]);
+    expect(notMoved).toEqual([['a'], ['d']]);
+  });
+
+  test('합치기가 여러 번 겹쳐도, 기준이 아닌 뺀 사진을 지운 뒤 여행이 그대로예요', async () => {
+    // given: 방콕(a · p · b)과 다낭(d)을 합치고, 그 여행과 도쿄(t)를 다시 합친 뒤 b · d · p를 뺐어요
+    const photos = [
+      ...bridged(),
+      makePhoto('h7', 'seoul', '2024-09-05T09:00:00'),
+      makePhoto('t', 'tokyo', '2024-09-20T10:00:00'),
+      makePhoto('t2', 'tokyo', '2024-09-21T10:00:00'),
+      makePhoto('h8', 'seoul', '2024-09-28T09:00:00'),
+    ];
+    const corrections = [
+      { id: 'm1', type: 'merge', photoIds: ['b', 'd'] },
+      { id: 'm2', type: 'merge', photoIds: ['d', 't'] },
+      { id: 'xb', type: 'exclude', photoId: 'b' },
+      { id: 'xd', type: 'exclude', photoId: 'd' },
+      { id: 'xp', type: 'exclude', photoId: 'p' },
+    ];
+
+    // when
+    const before = await buildJourney(photos, corrections, findCity);
+    const moved = await tripsAfterDelete(photos, corrections, 'p', { move: true });
+
+    // then
+    expect(moved).toEqual(before.trips.map((trip) => trip.stopIds));
+  });
+
+  test('지운 뒤에도 그대로인 합치기는 옮기지 않아서, 나중에 기준 사진을 복구해도 여행이 같아요', async () => {
+    // given: 합친 뒤(b → d) b와 p를 빼고, 상관없는 사진 x도 뺐어요
+    const photos = [...bridged(), makePhoto('x', 'tokyo', '2024-09-15T10:00:00')];
+    const corrections = [
+      { id: 'm', type: 'merge', photoIds: ['b', 'd'] },
+      { id: 'xb', type: 'exclude', photoId: 'b' },
+      { id: 'xp', type: 'exclude', photoId: 'p' },
+      { id: 'xx', type: 'exclude', photoId: 'x' },
+    ];
+    const moves = buildAnchorMoves('x', corrections, photos, excludedOf(corrections));
+    const restoreB = (cs) => cs.filter((c) => c.id !== 'xb');
+
+    // when: x를 지운 뒤 b만 복구해요
+    const [left, cs] = deletePhoto(photos, corrections, 'x', moves);
+    const restored = await buildJourney(left, restoreB(cs), findCity);
+    const notDeleted = await buildJourney(photos, restoreB(corrections), findCity);
+
+    // then
+    expect(moves).toEqual([]);
+    expect(restored.trips.map((trip) => trip.stopIds)).toEqual(
+      notDeleted.trips.map((trip) => trip.stopIds),
+    );
   });
 
   test('나눈 자리 뒤에 찍은 사진이 없거나 합치기가 효과가 없으면 옮기지 않아요', () => {
