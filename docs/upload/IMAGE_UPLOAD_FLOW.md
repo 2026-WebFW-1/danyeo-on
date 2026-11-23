@@ -1,4 +1,4 @@
-# 사진 저장·이미지 올리기·보기 흐름 (#26)
+# 사진 저장·이미지 올리기·보기·지우기 흐름 (#26)
 
 ## 한눈에
 
@@ -6,6 +6,7 @@
 저장:    [저장하기] → 촬영 정보 읽기 → DB에 저장 → 올릴 사진 골라 올리기 시작
 올리기:  보기용으로 줄임 → 버킷에 올림 (3장씩, 실패하면 다시)
 보기:    'photos:' 키는 서명 주소를 받아 와서 보여 줌 (받기 전엔 회색 칸)
+지우기:  DB에서 지움 → 버킷 파일도 지움
 키:      DB엔 'photos:내id/사진id' 하나만 적고, 실제 파일 경로는 필요할 때 계산
 ```
 
@@ -132,4 +133,35 @@ sequenceDiagram
         Svc-->>Hook: 서명 주소
         Hook-->>Cell: 서명 주소 (fileKey가 그대로일 때만)
     end
+```
+
+## 4. 지우기 (`deletePhotos`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as 호출자
+    participant Svc as photoService
+    participant Key as photoFileKey
+    participant DB as Supabase DB<br/>(photos 테이블)
+    participant S3 as Supabase Storage<br/>(photos 버킷)
+
+    Caller->>Svc: deletePhotos(ids)
+    Svc->>DB: delete().in('id', ids).select('id, file_key')
+    DB-->>Svc: 실제로 지워진 행들
+
+    loop 지워진 행마다
+        Svc->>Key: toUploadedImagePaths(file_key)
+        Key-->>Svc: { full, thumb } 또는 null (데모 사진)
+    end
+
+    opt 지울 경로가 1개 이상
+        Svc->>S3: remove(경로들)
+        S3-->>Svc: 결과
+        opt 실패
+            Svc->>Svc: console.error만 (throw 안 함)
+        end
+    end
+
+    Svc-->>Caller: 지운 id 목록
 ```

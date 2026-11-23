@@ -48,6 +48,39 @@ export async function savePhotos(photos) {
 }
 
 /**
+ * 사진을 지워요. 없는 사진이나 남의 사진은 오류 없이 빠지니, 돌려받은 ID로 확인해요.
+ * 직접 올린 사진은 photos 버킷의 이미지도 같이 지워요. 데모 사진의 이미지는 공용이라 두어요.
+ *
+ * @param {string[]} ids
+ * @returns {Promise<string[]>} 실제로 지운 사진 ID
+ */
+export async function deletePhotos(ids) {
+  if (ids.length === 0) return [];
+
+  const supabase = await getSupabase();
+
+  // RLS에 막히면 오류 대신 0행이 지워져서, select로 지운 행을 돌려받아 확인합니다.
+  const { data, error } = await supabase
+    .from('photos')
+    .delete()
+    .in('id', ids)
+    .select('id, file_key');
+  if (error) throw error;
+
+  const imagePaths = data.flatMap((row) => {
+    const paths = toUploadedImagePaths(row.file_key);
+    return paths ? [paths.full, paths.thumb] : [];
+  });
+  if (imagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage.from(PHOTO_BUCKET).remove(imagePaths);
+    // 사진 행은 이미 지워졌어요. 남은 파일은 어느 화면도 가리키지 않으니, 던져서 삭제가 실패한 것처럼 보이게 하지 않아요.
+    if (storageError) console.error(storageError);
+  }
+
+  return data.map((row) => row.id);
+}
+
+/**
  * 사진 이미지 두 벌(보기용·썸네일)을 photos 버킷에 올려요.
  * 같은 경로에 덮어써서, 실패한 뒤 다시 불러도 결과가 같아요.
  *
