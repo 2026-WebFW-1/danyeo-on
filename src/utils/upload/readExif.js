@@ -130,7 +130,34 @@ function toLocalTime(value) {
 
   const [, year, month, day, hour, minute, second] = match;
 
+  // '2026:13:45 25:61:00'처럼 없는 시각은 save_photos의 timestamp 변환에서 함께 올린 사진 전체를 막습니다.
+  if (!toUtcDate([year, month, day, hour, minute, second].map(Number))) {
+    return null;
+  }
+
   return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+}
+
+/**
+ * <p>칸마다 있을 수 있는 값인지 봅니다. 13월이나 2월 30일을 Date에 넣으면 다음 달로 넘어가므로,
+ * 넣은 값이 그대로 돌아오는지로 확인합니다.
+ *
+ * @param {number[]} parts [연, 월, 일, 시, 분, 초]. 월은 1부터. 예: [2024, 11, 24, 8, 30, 49]
+ * @returns {Date | null} 시간대를 섞지 않으려고 칸 그대로 UTC로 만든 Date. 없는 시각이면 null
+ */
+function toUtcDate(parts) {
+  const [year, month, day, hour, minute, second] = parts;
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const back = [
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+  ];
+
+  return back.every((value, i) => value === parts[i]) ? date : null;
 }
 
 /**

@@ -85,4 +85,29 @@ describe('불가능한 촬영 정보', () => {
     // then
     expect(photo).toMatchObject({ readable: true, lat: null, lng: null });
   });
+
+  test.each([
+    { why: '13월', value: '2026:13:01 10:00:00' },
+    { why: '2월 30일', value: '2025:02:30 10:00:00' },
+    { why: '25시', value: '2025:11:24 25:00:00' },
+    { why: 'BADDATE_0001', value: '2026:13:45 25:61:00' },
+  ])('$why → 시각 없음', async ({ value }) => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: value });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, takenAt: null });
+  });
+
+  test('윤년 2월 29일은 그대로', async () => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: '2024:02:29 10:00:00' });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo.takenAt).toBe('2024-02-29T10:00:00');
+  });
 });
