@@ -763,6 +763,30 @@ describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
     expect(moved).toEqual(before.trips.map((trip) => trip.stopIds));
   });
 
+  test('지운 뒤에도 그대로인 합치기는 옮기지 않아서, 나중에 기준 사진을 복구해도 여행이 같아요', async () => {
+    // given: 합친 뒤(b → d) b와 p를 빼고, 상관없는 사진 x도 뺐어요
+    const photos = [...bridged(), makePhoto('x', 'tokyo', '2024-09-15T10:00:00')];
+    const corrections = [
+      { id: 'm', type: 'merge', photoIds: ['b', 'd'] },
+      { id: 'xb', type: 'exclude', photoId: 'b' },
+      { id: 'xp', type: 'exclude', photoId: 'p' },
+      { id: 'xx', type: 'exclude', photoId: 'x' },
+    ];
+    const moves = buildAnchorMoves('x', corrections, photos, excludedOf(corrections));
+    const restoreB = (cs) => cs.filter((c) => c.id !== 'xb');
+
+    // when: x를 지운 뒤 b만 복구해요
+    const [left, cs] = deletePhoto(photos, corrections, 'x', moves);
+    const restored = await buildJourney(left, restoreB(cs), findCity);
+    const notDeleted = await buildJourney(photos, restoreB(corrections), findCity);
+
+    // then
+    expect(moves).toEqual([]);
+    expect(restored.trips.map((trip) => trip.stopIds)).toEqual(
+      notDeleted.trips.map((trip) => trip.stopIds),
+    );
+  });
+
   test('나눈 자리 뒤에 찍은 사진이 없거나 합치기가 효과가 없으면 옮기지 않아요', () => {
     // given
     const photos = [...BANGKOK_TRIP, makePhoto('p_d1', 'danang', '2024-08-01T09:00:00')];
