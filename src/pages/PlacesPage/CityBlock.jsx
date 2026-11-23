@@ -29,6 +29,8 @@ import StopPosts from './StopPosts';
  *    쓰던 글은 PostEditor가 임시본으로 남겨서, 같은 날을 다시 열면 [불러오기]로 이어 쓸 수 있어요.
  *  - 두 칸은 위에 붙여 둬요(items-start). 글 목록이나 편집기를 펼쳐 글 칸이 길어져도 옆 사진이 세로로 늘어나지 않게요
  *    (피그마 03의 사진은 500×360 그대로예요).
+ *  - 도시 이름은 여행 이름(TripSummary)과 같은 크기라 같은 규칙으로 줄을 바꿔요. 낱말 단위로 바꾸고(break-keep),
+ *    띄어쓰기 없이 칸보다 긴 이름만 칸에 맞춰 끊어요(wrap-anywhere, #243).
  *
  * @param {object} props
  * @param {import('@/utils/cityBlocks').CityBlock} props.block
@@ -76,7 +78,9 @@ export default function CityBlock({ block, index, outWidth, onOpenPhoto }) {
     <div className="flex w-full max-w-105 flex-col gap-3 pt-10">
       <p className="font-serif text-md font-bold text-muted">{block.dateRange}</p>
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <h3 className="text-6xl font-bold tracking-[-0.02em] text-ink">{stop.city}</h3>
+        <h3 className="text-6xl font-bold tracking-[-0.02em] wrap-anywhere break-keep text-ink">
+          {stop.city}
+        </h3>
         <span className="font-serif text-lg font-bold text-muted uppercase">
           {block.countryLabel}
         </span>

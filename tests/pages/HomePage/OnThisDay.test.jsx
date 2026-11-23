@@ -80,6 +80,9 @@ async function render(path, journey = JOURNEY) {
 const section = () => container.querySelector('section');
 const title = () => container.querySelector('h2')?.textContent;
 const button = (label) => container.querySelector(`button[aria-label="${label}"]`);
+// 장면의 링크([그날의 글 보기 →] 또는 [그날의 기록 보기 →])예요. 화살표는 빼고 글자만 봐요.
+const sceneLink = () => container.querySelector('section a');
+const linkLabel = () => sceneLink().firstElementChild.textContent;
 const textOf = (selector) => [...container.querySelectorAll(selector)].map((el) => el.textContent);
 
 async function click(element) {
@@ -139,6 +142,39 @@ describe('OnThisDay', () => {
       a.textContent.includes('그날의 글 보기'),
     );
     expect(link.getAttribute('href')).toBe(getStopPath(STOPS[2]));
+  });
+
+  describe('링크 글자 (#243)', () => {
+    test('글을 다 받았는데 그 지점 글이 없으면 [그날의 기록 보기 →]예요. 가는 곳은 같아요', async () => {
+      await render('/?today=2026-11-19');
+      expect(linkLabel()).toBe('그날의 글 보기');
+
+      // 2년 전 후쿠오카에는 글이 없어요
+      await click(button('더 오래된 해 보기'));
+
+      expect(linkLabel()).toBe('그날의 기록 보기');
+      expect(sceneLink().getAttribute('href')).toBe(getStopPath(STOPS[1]));
+    });
+
+    test('글을 받는 중이면 글이 있을 수도 있어서 [그날의 글 보기 →] 그대로예요', async () => {
+      vi.mocked(getPosts).mockReturnValue(new Promise(() => {}));
+
+      await render('/?today=2026-11-19');
+      await click(button('더 오래된 해 보기'));
+
+      expect(usePostStore.getState().status).toBe('loading');
+      expect(linkLabel()).toBe('그날의 글 보기');
+    });
+
+    test('글을 못 받았어도 [그날의 글 보기 →] 그대로예요', async () => {
+      vi.mocked(getPosts).mockRejectedValue({ message: '실패' });
+
+      await render('/?today=2026-11-19');
+      await click(button('더 오래된 해 보기'));
+
+      expect(usePostStore.getState().status).toBe('error');
+      expect(linkLabel()).toBe('그날의 글 보기');
+    });
   });
 
   test('그 지점의 글이 없으면 한 줄 글을 빼요', async () => {
