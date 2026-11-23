@@ -382,9 +382,9 @@
   {
    "file": "/photos/full/toronto-3.webp",
    "title": "CN Tower",
-   "artist": "Unknown author",
-   "license": "Public domain",
-   "source": "https://commons.wikimedia.org/wiki/File:CN_Tower_logo.png"
+   "artist": "Scott Webb",
+   "license": "CC0",
+   "source": "https://commons.wikimedia.org/wiki/File:CN_Tower,_Toronto,_Canada_(Unsplash_DJ_kOgH5u0o).jpg"
   },
   {
    "file": "/photos/full/toronto-4.webp",
@@ -554,7 +554,10 @@
   },
   {
    "file": "/photos/full/istanbul-4.webp",
-   "title": "Galata Tower"
+   "title": "Galata Tower",
+   "artist": "Jorge Franganillo",
+   "license": "CC BY 4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Istanbul_view_at_evening.jpg"
   }
  ],
  "sydney": [
