@@ -121,6 +121,83 @@ describe('PlacesPage 주소의 ?trip=', () => {
   });
 });
 
+describe('PlacesPage 여행이 바뀌면 보이는 자리 (#238)', () => {
+  let scrollIntoView;
+
+  beforeEach(() => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const tabRow = () => container.querySelector('nav[aria-label="여행 고르기"]');
+  // scrollIntoView를 부른 요소예요. 여행 탭 줄이어야 해요.
+  const scrolledTo = () => scrollIntoView.mock.contexts.at(-1);
+
+  async function click(element) {
+    await act(async () => element.click());
+  }
+
+  test('?trip= 없이 들어오면(위쪽 메뉴 Places) 맨 위 큰 제목부터 보여요', async () => {
+    await render('/places');
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0 });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  test('?trip=으로 들어오면(다른 화면의 "이 여행 보기" 링크) 여행 탭 줄이 화면 맨 위에 와요', async () => {
+    await render(`/places?trip=${tripIdOf('밴쿠버 · 밴프')}`);
+
+    expect(scrolledTo()).toBe(tabRow());
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'start' });
+  });
+
+  test('탭을 누르면 여행 탭 줄이 화면 맨 위에 와요', async () => {
+    await render('/places');
+    window.scrollTo.mockClear();
+
+    await click(tabs().find((tab) => tab.textContent.includes('졸업 여행')));
+
+    expect(headline()).toBe('졸업 여행');
+    expect(scrolledTo()).toBe(tabRow());
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  test('맨 아래 [NEXT TRIP →] · [← PREV]를 눌러도 여행 탭 줄이 화면 맨 위에 와요', async () => {
+    await render('/places');
+    const pagerButton = (label) =>
+      [...container.querySelectorAll('nav[aria-label="여행 이동"] button')].find((b) =>
+        b.textContent.includes(label),
+      );
+
+    await click(pagerButton('NEXT TRIP'));
+    expect(headline()).toBe(seojin.trips[1].name);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrolledTo()).toBe(tabRow());
+
+    await click(pagerButton('PREV'));
+    expect(headline()).toBe(seojin.trips[0].name);
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(scrolledTo()).toBe(tabRow());
+  });
+
+  test('받는 중에는 탭 줄이 없어서 맨 위로 가고, 다 받으면 탭 줄로 가요', async () => {
+    vi.mocked(useJourney).mockReturnValue({ journey: null, status: 'loading', error: null });
+    const path = `/places?trip=${tripIdOf('밴쿠버 · 밴프')}`;
+
+    await render(path);
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0 });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    vi.mocked(useJourney).mockReturnValue({ journey: seojin, status: 'ready', error: null });
+    await render(path);
+    expect(scrolledTo()).toBe(tabRow());
+  });
+});
+
 describe('PlacesPage 로딩과 오류', () => {
   test('여행 기록을 받는 중이면 안내만 보여 줘요(첫 여행을 고르지 않아요)', async () => {
     vi.mocked(useJourney).mockReturnValue({ journey: null, status: 'loading', error: null });

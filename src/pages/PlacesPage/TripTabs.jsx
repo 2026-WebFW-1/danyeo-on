@@ -20,8 +20,9 @@ import { SECTION_CLASS } from './sectionClass';
  * @param {string} props.currentId
  * @param {string[]} props.newTripIds
  * @param {(tripId: string) => void} props.onSelect
+ * @param {import('react').Ref<HTMLElement>} [props.ref] 탭 줄(nav). 여행이 바뀌면 PlacesPage가 이 줄을 화면 맨 위로 올려요(#238)
  */
-export default function TripTabs({ trips, currentId, newTripIds, onSelect }) {
+export default function TripTabs({ trips, currentId, newTripIds, onSelect, ref }) {
   const scrollerRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function TripTabs({ trips, currentId, newTripIds, onSelect }) {
   }, [currentId]);
 
   return (
-    <nav aria-label="여행 고르기" className={`${SECTION_CLASS} pt-14`}>
+    <nav ref={ref} aria-label="여행 고르기" className={`${SECTION_CLASS} pt-14`}>
       <div className="relative">
         <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-line" />
         <div ref={scrollerRef} className="relative overflow-x-auto">

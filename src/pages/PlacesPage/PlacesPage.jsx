@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { TRIP_PARAM } from '@/constants/journey';
@@ -28,7 +28,10 @@ import PlacesView from './PlacesView';
  *    글 자리는 비고 사진 칸은 대표 사진만(없으면 회색)이에요.
  *  - [+ 글 쓰기](#216)는 사진 목록을 다 받은 뒤에만 보여요. 그 전에 새 글을 쓰기 시작하면 그날 사진 없이 저장돼서요.
  *  - 글은 화면에 들어올 때 불러요(error로 남아 있으면 한 번 더 불러요. useLoadPosts).
- *  - 탭을 누르면 주소가 바뀌고(뒤로 가기로 앞 탭에 돌아와요), 아래 이전·다음 여행을 눌러도 맨 위로 올라가요.
+ *  - 탭이나 아래 이전·다음 여행을 누르면 주소가 바뀌어요(뒤로 가기로 앞 여행에 돌아와요).
+ *  - 여행이 바뀌면 그 여행부터 보이게 스크롤해요(#238). 주소에 ?trip=이 있으면 여행 탭 줄이 화면 맨 위에 와요.
+ *    탭 · 이전·다음 여행과 다른 화면의 "이 여행 보기" 링크(02 · 01 도착 카드 · 00b · 사진 올린 뒤)가 여기에 해당해요.
+ *    ?trip=이 없으면(위쪽 메뉴 Places 등) 맨 위 큰 제목부터 보여요. 뒤로·앞으로 가기는 브라우저가 전에 보던 자리로 돌려놔요.
  *
  * @see PlacesView
  */
@@ -38,6 +41,8 @@ export default function PlacesPage() {
   const postsByDate = usePostStore((state) => state.byDate);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTripId = searchParams.get(TRIP_PARAM);
+  // 여행 탭 줄이에요. 여행이 바뀌면 이 줄이 화면 맨 위에 오게 스크롤해요.
+  const tabsRef = useRef(null);
 
   useLoadPosts();
 
@@ -63,10 +68,16 @@ export default function PlacesPage() {
     [journey, currentId],
   );
 
-  // 다른 여행으로 바뀌면 맨 위부터 보여요. 아래의 이전·다음 여행을 눌렀을 때 그대로 아래에 머물지 않게요.
+  // 여행이 바뀌면 ?trip=이 있을 때 여행 탭 줄부터, 없을 때 맨 위부터 보여요(#238).
+  // 맨 위로만 올리면 [NEXT TRIP →]을 누를 때마다 큰 제목을 지나 다시 내려와야 새 여행이 보여서요.
+  // 받는 중이거나 여행이 없으면 탭 줄이 없어서 맨 위로 가요.
   useEffect(() => {
+    if (requestedTripId && tabsRef.current) {
+      tabsRef.current.scrollIntoView({ block: 'start' });
+      return;
+    }
     window.scrollTo({ top: 0 });
-  }, [currentId]);
+  }, [currentId, requestedTripId]);
 
   if (status === 'loading') {
     return (
@@ -103,6 +114,7 @@ export default function PlacesPage() {
       blocks={blocks}
       daysUntilNext={daysUntilNext}
       onSelectTrip={handleSelectTrip}
+      tabsRef={tabsRef}
     />
   );
 }

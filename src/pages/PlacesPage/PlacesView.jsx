@@ -32,6 +32,7 @@ const NO_NEW_TRIPS = [];
  * @param {number | null} props.daysUntilNext 다음 여행까지 며칠
  * @param {string[]} [props.newTripIds] 새로 생긴 여행의 id. NEW 칩을 달아요
  * @param {(tripId: string) => void} props.onSelectTrip
+ * @param {import('react').Ref<HTMLElement>} [props.tabsRef] 여행 탭 줄. 여행이 바뀌면 PlacesPage가 이 줄로 스크롤해요(#238)
  */
 export default function PlacesView({
   totals,
@@ -44,6 +45,7 @@ export default function PlacesView({
   daysUntilNext,
   newTripIds = NO_NEW_TRIPS,
   onSelectTrip,
+  tabsRef,
 }) {
   if (!current || !stats) {
     return (
@@ -60,6 +62,7 @@ export default function PlacesView({
     <main className="flex-1 bg-canvas">
       <PlacesIntro intro={formatJourneyIntro(totals)} />
       <TripTabs
+        ref={tabsRef}
         trips={trips}
         currentId={current.id}
         newTripIds={newTripIds}
