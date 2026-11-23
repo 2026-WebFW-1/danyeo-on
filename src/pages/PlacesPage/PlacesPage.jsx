@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigationType, useSearchParams } from 'react-router';
 
 import { TRIP_PARAM } from '@/constants/journey';
 import { useJourney } from '@/hooks/useJourney';
@@ -43,6 +43,9 @@ export default function PlacesPage() {
   const requestedTripId = searchParams.get(TRIP_PARAM);
   // 여행 탭 줄이에요. 여행이 바뀌면 이 줄이 화면 맨 위에 오게 스크롤해요.
   const tabsRef = useRef(null);
+  // 뒤로·앞으로 가기는 POP이에요. 주소를 새로 열거나 새로고침해도 POP이라, 이 화면에서 여행을 그렸는지도 기억해요.
+  const navigationType = useNavigationType();
+  const hasShownTripRef = useRef(false);
 
   useLoadPosts();
 
@@ -71,13 +74,17 @@ export default function PlacesPage() {
   // 여행이 바뀌면 ?trip=이 있을 때 여행 탭 줄부터, 없을 때 맨 위부터 보여요(#238).
   // 맨 위로만 올리면 [NEXT TRIP →]을 누를 때마다 큰 제목을 지나 다시 내려와야 새 여행이 보여서요.
   // 받는 중이거나 여행이 없으면 탭 줄이 없어서 맨 위로 가요.
+  // 이 화면에서 여행을 그린 뒤의 뒤로·앞으로 가기는 건너뛰어요. 브라우저가 전에 보던 자리로 돌려놓는 걸 덮어쓰지 않게요.
   useEffect(() => {
+    if (navigationType === 'POP' && hasShownTripRef.current) return;
+    if (currentId) hasShownTripRef.current = true;
+
     if (requestedTripId && tabsRef.current) {
       tabsRef.current.scrollIntoView({ block: 'start' });
       return;
     }
     window.scrollTo({ top: 0 });
-  }, [currentId, requestedTripId]);
+  }, [currentId, requestedTripId, navigationType]);
 
   if (status === 'loading') {
     return (

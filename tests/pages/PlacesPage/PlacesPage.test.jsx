@@ -1,6 +1,6 @@
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import empty from '@/data/fixtures/empty.journey.json';
@@ -25,11 +25,21 @@ const tripIdOf = (name) => seojin.trips.find((trip) => trip.name === name).id;
 let container;
 let root;
 let location;
+let navigate;
 
 // 렌더 중에 바깥 변수를 바꾸면 안 돼서, 주소는 effect에서 테스트로 내보내요.
 function LocationProbe({ onChange }) {
   const current = useLocation();
   useEffect(() => onChange(`${current.pathname}${current.search}`));
+  return null;
+}
+
+// 뒤로·앞으로 가기(navigate(-1) · navigate(1))를 테스트에서 부를 수 있게 내보내요.
+function NavigateProbe() {
+  const go = useNavigate();
+  useEffect(() => {
+    navigate = go;
+  });
   return null;
 }
 
@@ -42,6 +52,7 @@ async function render(path) {
             location = path;
           }}
         />
+        <NavigateProbe />
         <PlacesPage />
       </MemoryRouter>,
     ),
@@ -182,6 +193,40 @@ describe('PlacesPage 여행이 바뀌면 보이는 자리 (#238)', () => {
     expect(headline()).toBe(seojin.trips[0].name);
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
     expect(scrolledTo()).toBe(tabRow());
+  });
+
+  test('뒤로 · 앞으로 가기로 바뀌면 스크롤하지 않아요(브라우저가 전에 보던 자리로 돌려놔요)', async () => {
+    await render('/places');
+    const current = tabs().find((tab) => tab.getAttribute('aria-current') === 'true');
+
+    // 지금 고른 탭을 다시 누르면 여행은 같고 주소에 ?trip=만 붙은 기록이 하나 더 생겨요
+    await click(current);
+    expect(location).toBe(`/places?trip=${seojin.trips[0].id}`);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    window.scrollTo.mockClear();
+    scrollIntoView.mockClear();
+
+    await act(async () => navigate(-1));
+    expect(location).toBe('/places');
+    await act(async () => navigate(1));
+    expect(location).toBe(`/places?trip=${seojin.trips[0].id}`);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    // 다른 여행으로 갔다가 뒤로 가도 같아요
+    await click(
+      [...container.querySelectorAll('nav[aria-label="여행 이동"] button')].find((b) =>
+        b.textContent.includes('NEXT TRIP'),
+      ),
+    );
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    window.scrollTo.mockClear();
+    scrollIntoView.mockClear();
+    await act(async () => navigate(-1));
+    expect(headline()).toBe(seojin.trips[0].name);
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
   test('받는 중에는 탭 줄이 없어서 맨 위로 가고, 다 받으면 탭 줄로 가요', async () => {
