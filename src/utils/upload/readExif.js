@@ -150,6 +150,11 @@ function toLatLng(lat, lng) {
     return { lat: null, lng: null };
   }
 
+  // 지구에 없는 좌표입니다. 그대로 두면 DB 제약(photos_lat_check 등)에 걸려 함께 올린 사진 전체가 저장되지 않습니다.
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return { lat: null, lng: null };
+  }
+
   return { lat, lng };
 }
 

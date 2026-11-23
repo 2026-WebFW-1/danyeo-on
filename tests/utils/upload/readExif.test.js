@@ -1,9 +1,17 @@
-import { expect, test } from 'vitest';
+import exifr from 'exifr';
+import { describe, expect, test, vi } from 'vitest';
 
 import uploadEdge from '@/data/fixtures/upload-edge.json';
 import { readExif } from '@/utils/upload/readExif';
 
 import { loadFixture } from '../../helpers/loadFixture';
+
+// 브라우저 모드에서는 exifr.parse를 spyOn으로 바꿀 수 없어서 모듈째 감쌉니다.
+// 기본은 진짜 parse이고, 불가능한 값 테스트에서만 mockResolvedValueOnce로 태그를 바꿔 넣습니다.
+vi.mock('exifr', async (importOriginal) => {
+  const { default: real } = await importOriginal();
+  return { default: { ...real, parse: vi.fn(real.parse) } };
+});
 
 const FIELDS = ['readable', 'takenAt', 'offset', 'timeUncertain', 'lat', 'lng', 'camera'];
 
@@ -59,4 +67,22 @@ test.each(uploadEdge.cases)('$file: $why', async ({ file, expect: expected }) =>
   const actual = { ...photo, camera };
 
   expect(actual).toEqual(Object.fromEntries(FIELDS.map((key) => [key, approx(expected[key])])));
+});
+
+// 불가능한 값은 사진 파일로 만들기보다 exifr가 읽은 태그를 바꿔 넣어 확인합니다.
+describe('불가능한 촬영 정보', () => {
+  const fixture = new File([], 'fake.jpg');
+
+  test.each([
+    { why: '위도 95', latitude: 95, longitude: 10 },
+    { why: '경도 200', latitude: 10, longitude: 200 },
+  ])('$why → 위치 없음', async ({ latitude, longitude }) => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ latitude, longitude });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, lat: null, lng: null });
+  });
 });
