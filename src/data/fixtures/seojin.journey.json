@@ -591,12 +591,12 @@
         33.572,
         130.43458
       ],
-      "departAt": "2024-10-03T08:47:56+09:00",
+      "departAt": "2024-10-03T12:09:34+09:00",
       "arriveAt": "2024-10-03T13:20:27+09:00",
-      "hours": 4.5,
+      "hours": 1.2,
       "timing": "estimated",
       "km": 545,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -615,11 +615,11 @@
         126.91827
       ],
       "departAt": "2024-10-05T11:00:20+09:00",
-      "arriveAt": "2024-10-05T15:32:13+09:00",
-      "hours": 4.5,
+      "arriveAt": "2024-10-05T12:11:06+09:00",
+      "hours": 1.2,
       "timing": "estimated",
       "km": 544,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },

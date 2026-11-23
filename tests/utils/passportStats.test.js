@@ -10,8 +10,8 @@ describe('selectPassportStats', () => {
   test('seojin의 통계 6칸 숫자를 세요', () => {
     expect(selectPassportStats(seojin)).toEqual({
       km: 72492,
-      flights: 18,
-      flightHours: 94,
+      flights: 20,
+      flightHours: 97,
       nightsAway: 98,
       countries: 9,
       cities: 19,
@@ -84,8 +84,8 @@ describe('formatPassportStats', () => {
   test('피그마 순서로 이름 · 숫자 · 설명 줄을 만들어요', () => {
     expect(formatPassportStats(selectPassportStats(seojin))).toEqual([
       { label: 'KM', value: '72,492', note: '지구 1.8바퀴' },
-      { label: 'FLIGHTS', value: '18', note: '편도 기준' },
-      { label: 'HOURS', value: '94', note: '기내에서' },
+      { label: 'FLIGHTS', value: '20', note: '편도 기준' },
+      { label: 'HOURS', value: '97', note: '기내에서' },
       { label: 'DAYS AWAY', value: '98', note: '집 밖에서 잔 날' },
       { label: 'COUNTRIES', value: '9', note: '19개 도시' },
       { label: 'PHOTOS', value: '90', note: '위치 기록된 사진' },

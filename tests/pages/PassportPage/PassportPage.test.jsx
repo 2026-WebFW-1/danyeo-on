@@ -75,8 +75,8 @@ describe('PassportPage', () => {
 
     expect(stats()).toEqual([
       ['KM', '72,492', '지구 1.8바퀴'],
-      ['FLIGHTS', '18', '편도 기준'],
-      ['HOURS', '94', '기내에서'],
+      ['FLIGHTS', '20', '편도 기준'],
+      ['HOURS', '97', '기내에서'],
       ['DAYS AWAY', '98', '집 밖에서 잔 날'],
       ['COUNTRIES', '9', '19개 도시'],
       ['PHOTOS', '90', '위치 기록된 사진'],

@@ -374,7 +374,7 @@
  * @property {string} from 지점 ID
  * @property {string} to 지점 ID
  * @property {number} km 반올림한 정수
- * @property {'flight' | 'train' | 'car'} mode legMode(km)
+ * @property {'flight' | 'train' | 'car'} mode legMode(km). 나라는 보지 않고 거리로만 정해요
  */
 
 /**
