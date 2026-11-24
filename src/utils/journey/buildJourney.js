@@ -262,6 +262,7 @@ function buildStops(groupStops, placeByStopId, transitPhotoIds, lookup) {
 /**
  * 선을 그을 점을 고릅니다. 이웃한 점끼리 이으면 구간이 됩니다.
  * 경유 지점은 건너뛰고(사진은 지점에 남습니다), 집 지점이 연달아 있으면 집 하나로 합칩니다.
+ * 합친 집은 사진 목록도 합칩니다. 앞쪽 집 사진에 걸린 이동 수단 보정이 합친 뒤에도 그 집에서 나가는 구간을 찾게요.
  *
  * @param {import('@/types').GroupStop[]} groupStops 집 포함, 시각 순
  * @param {Map<string, import('@/types').Stop>} stopById 집이 아닌 지점
@@ -278,6 +279,8 @@ function pickLinePoints(groupStops, stopById) {
     if (stop.isHome && prev?.isHome) {
       // 합친 집에서 다음 여행으로 떠나는 사진은 뒤쪽 집 지점의 마지막 사진입니다.
       prev.lastPhotoId = stop.photoIds.at(-1);
+      // group의 지점을 건드리지 않게 새 배열로 바꿉니다.
+      prev.photoIds = [...prev.photoIds, ...stop.photoIds];
       continue;
     }
 
@@ -301,14 +304,15 @@ function getLegKind(from, to, tripIdByStopId) {
 
 /**
  * 사용자가 고친 이동 수단을 찾습니다. 출발 지점의 사진 중에 fromPhotoId가 있으면 이 구간입니다.
- * 같은 구간을 여러 번 고쳤으면 마지막 보정이 이깁니다. 집에서 나가는 구간은 고칠 수 없습니다.
+ * 같은 구간을 여러 번 고쳤으면 마지막 보정이 이깁니다.
+ * 집에서 나가는 구간도 같습니다. 집에 머문 동안의 사진은 그때마다 다른 집 지점에 들어 있어서,
+ * 집 사진 하나가 그 뒤에 떠난 구간 하나만 가리킵니다(#249).
  *
- * @param {{ isHome: boolean, photoIds: string[] }} from
+ * @param {{ photoIds: string[] }} from
  * @param {import('@/types').Correction[]} modeCorrections
  * @returns {import('@/types').Leg['mode'] | null}
  */
 function findUserMode(from, modeCorrections) {
-  if (from.isHome) return null;
   const correction = modeCorrections.findLast((c) => from.photoIds.includes(c.fromPhotoId));
   return correction?.mode ?? null;
 }
@@ -405,6 +409,9 @@ function buildLeg(from, to, index, modeCorrections, lookup) {
     kind,
     from: from.isHome ? HOME : from.id,
     to: to.isHome ? HOME : to.id,
+    // 집은 지점(Stop)으로 나가지 않아서, 화면이 이 구간의 이동 수단 보정을 만들 사진을 여기서 받습니다.
+    // 좌표가 아니라 사진 ID라서 집 위치를 더 드러내지 않습니다.
+    ...(from.isHome && { fromPhotoId: from.lastPhotoId }),
     fromLatLng: [from.lat, from.lng],
     toLatLng: [to.lat, to.lng],
     ...times,

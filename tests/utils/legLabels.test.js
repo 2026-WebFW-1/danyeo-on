@@ -81,6 +81,39 @@ describe('selectVisibleLegLabels', () => {
     expect(visible.length).toBeLessThan(groundLegs.length);
   });
 
+  describe('왕복(서울 ↔ 여수)은 가는 선과 오는 선이 겹쳐 라벨 자리가 하나예요', () => {
+    const yeosuTrip = seojin.trips.find((trip) => trip.name === '여수 · 순천');
+    const roundTrip = seojin.legs.filter((leg) => leg.tripId === yeosuTrip.id);
+    const [outbound, back] = roundTrip;
+
+    test('둘 다 고칠 수 있으면 먼저 지나온 가는 구간이 자리를 가져가요', () => {
+      const visible = selectVisibleLegLabels(roundTrip, seojin.home, seojin.stops);
+
+      expect(roundTrip.map((leg) => leg.kind)).toEqual(['outbound', 'return']);
+      expect(visible.map(({ leg }) => leg)).toEqual([outbound]);
+    });
+
+    test('재생 중에는 가는 선을 다 그리자마자 라벨이 보여요. 집에 돌아올 때까지 기다리지 않아요', () => {
+      const labels = {
+        all: selectVisibleLegLabels(roundTrip, seojin.home, seojin.stops),
+        byTripId: selectLegLabelsByTrip(roundTrip, seojin.home, seojin.stops),
+      };
+
+      const onTheWayBack = { done: [outbound], current: { leg: back, t: 0.5 } };
+
+      const visible = selectLabelsAtProgress(labels, onTheWayBack, seojin.stops);
+      expect(visible.map(({ leg }) => leg)).toEqual([outbound]);
+    });
+
+    test('3판 전에 저장돼 가는 구간을 못 고치면 고칠 수 있는 오는 구간이 먼저예요', () => {
+      const { fromPhotoId: _fromPhotoId, ...oldOutbound } = outbound;
+
+      const visible = selectVisibleLegLabels([oldOutbound, back], seojin.home, seojin.stops);
+
+      expect(visible.map(({ leg }) => leg)).toEqual([back]);
+    });
+  });
+
   test('가운데 위가 자기 양 끝 점에 걸리면 점 바깥으로 비켜요', () => {
     const visible = selectVisibleLegLabels(seojin.legs, seojin.home, seojin.stops);
     const moved = visible.find(({ leg, rect }) => rect.top !== calcLegLabelRect(leg).top);

@@ -88,6 +88,7 @@ src/data/
     id: 'leg_1', tripId,                     // gap이면 tripId null
     kind: 'outbound' | 'between' | 'gap' | 'return',   // 집→첫 지점 | 여행 안 | 집 안 들르고 다음 여행 | →집
     from: 'home' | stopId, to,
+    fromPhotoId,                             // from이 'home'일 때만. 집을 떠나기 직전 사진(이동 수단 보정이 가리킬 사진)
     fromLatLng: [lat, lng], toLatLng,
     departAt, arriveAt, hours,
     timing: 'photos' | 'estimated',          // 사진 시각 | 거리로 추정

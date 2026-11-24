@@ -2,7 +2,7 @@
   "personaId": "edge",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
-  "rulesVersion": 2,
+  "rulesVersion": 3,
   "home": {
     "lat": 35.18056,
     "lng": 129.07421,
@@ -345,6 +345,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_3e3110",
+      "fromPhotoId": "p_6d9dd7",
       "fromLatLng": [
         35.18056,
         129.07421
@@ -414,6 +415,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_79fbec",
+      "fromPhotoId": "p_bab086",
       "fromLatLng": [
         35.17932,
         129.07503
@@ -460,6 +462,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_3ec040",
+      "fromPhotoId": "p_9868ea",
       "fromLatLng": [
         35.17736,
         129.06713
@@ -506,6 +509,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_a85c11",
+      "fromPhotoId": "p_77272a",
       "fromLatLng": [
         35.17651,
         129.08743
@@ -552,6 +556,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_73f510",
+      "fromPhotoId": "p_2bf830",
       "fromLatLng": [
         35.18289,
         129.06267
@@ -598,6 +603,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_dabafe",
+      "fromPhotoId": "p_8b7ebc",
       "fromLatLng": [
         35.17448,
         129.07771
@@ -644,6 +650,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_110d32",
+      "fromPhotoId": "p_8b9532",
       "fromLatLng": [
         35.1796,
         129.0756
@@ -690,6 +697,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_97d0f0",
+      "fromPhotoId": "p_6390ec",
       "fromLatLng": [
         35.1724,
         129.05748
@@ -736,6 +744,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_0b4ad7",
+      "fromPhotoId": "p_852be8",
       "fromLatLng": [
         35.1862,
         129.07933
@@ -782,6 +791,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_d3b7fd",
+      "fromPhotoId": "p_eb356e",
       "fromLatLng": [
         35.18146,
         129.07886

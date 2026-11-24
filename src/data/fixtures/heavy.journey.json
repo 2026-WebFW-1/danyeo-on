@@ -2,7 +2,7 @@
   "personaId": "heavy",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
-  "rulesVersion": 2,
+  "rulesVersion": 3,
   "home": {
     "lat": 37.56712,
     "lng": 126.98176,
@@ -7306,6 +7306,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_5f1e96",
+      "fromPhotoId": "p_87f9fc",
       "fromLatLng": [
         37.56712,
         126.98176
@@ -7352,6 +7353,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_3da96f",
+      "fromPhotoId": "p_bc0530",
       "fromLatLng": [
         37.55897,
         126.97501
@@ -7444,6 +7446,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_2f6476",
+      "fromPhotoId": "p_951518",
       "fromLatLng": [
         37.56575,
         126.96522
@@ -7513,6 +7516,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_e179a3",
+      "fromPhotoId": "p_a986e9",
       "fromLatLng": [
         37.56533,
         126.9767
@@ -7559,6 +7563,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_953733",
+      "fromPhotoId": "p_c97265",
       "fromLatLng": [
         37.57167,
         126.96744
@@ -7628,6 +7633,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_35a42e",
+      "fromPhotoId": "p_e79ecf",
       "fromLatLng": [
         37.56669,
         126.98078
@@ -7697,6 +7703,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_462ca4",
+      "fromPhotoId": "p_88e372",
       "fromLatLng": [
         37.56729,
         126.97634
@@ -7743,6 +7750,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_dbef1b",
+      "fromPhotoId": "p_f348b0",
       "fromLatLng": [
         37.5704,
         126.9669
@@ -7789,6 +7797,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_07aa8f",
+      "fromPhotoId": "p_71ff50",
       "fromLatLng": [
         37.56629,
         126.97529
@@ -7858,6 +7867,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_72ba50",
+      "fromPhotoId": "p_2d1c2f",
       "fromLatLng": [
         37.57358,
         126.9842
@@ -7950,6 +7960,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_0b7883",
+      "fromPhotoId": "p_fe4127",
       "fromLatLng": [
         37.56911,
         126.96995
@@ -8042,6 +8053,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_f6a162",
+      "fromPhotoId": "p_413c06",
       "fromLatLng": [
         37.56742,
         126.96562
@@ -8111,6 +8123,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_e58bf8",
+      "fromPhotoId": "p_518ccc",
       "fromLatLng": [
         37.56711,
         126.99272
@@ -8203,6 +8216,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_282356",
+      "fromPhotoId": "p_58ac49",
       "fromLatLng": [
         37.56662,
         126.9636
@@ -8272,6 +8286,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_40f014",
+      "fromPhotoId": "p_5c1572",
       "fromLatLng": [
         37.55453,
         126.96792
@@ -8364,6 +8379,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_864714",
+      "fromPhotoId": "p_e8efe5",
       "fromLatLng": [
         37.56971,
         126.97533
@@ -8410,6 +8426,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_a76685",
+      "fromPhotoId": "p_6812d2",
       "fromLatLng": [
         37.56146,
         126.97402
@@ -8479,6 +8496,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_49c8b0",
+      "fromPhotoId": "p_e51203",
       "fromLatLng": [
         37.55983,
         126.96878
@@ -8525,6 +8543,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_91e321",
+      "fromPhotoId": "p_7187bc",
       "fromLatLng": [
         37.55937,
         126.99518
@@ -8571,6 +8590,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_e93f9e",
+      "fromPhotoId": "p_74ba4f",
       "fromLatLng": [
         37.56488,
         126.9869
@@ -8663,6 +8683,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_c0afcb",
+      "fromPhotoId": "p_b24d53",
       "fromLatLng": [
         37.56685,
         126.97863
@@ -8732,6 +8753,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_87197e",
+      "fromPhotoId": "p_d6f02b",
       "fromLatLng": [
         37.56677,
         126.99328
@@ -8778,6 +8800,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_eb909c",
+      "fromPhotoId": "p_62d41d",
       "fromLatLng": [
         37.56554,
         126.97736
@@ -8824,6 +8847,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_704fdd",
+      "fromPhotoId": "p_6524f9",
       "fromLatLng": [
         37.57393,
         126.98198
@@ -8916,6 +8940,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_19e051",
+      "fromPhotoId": "p_0c01f2",
       "fromLatLng": [
         37.57287,
         126.98166
@@ -8985,6 +9010,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_20b25f",
+      "fromPhotoId": "p_24245d",
       "fromLatLng": [
         37.56633,
         126.9767
@@ -9031,6 +9057,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_bed546",
+      "fromPhotoId": "p_dc5814",
       "fromLatLng": [
         37.56351,
         126.97917
@@ -9100,6 +9127,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_164f95",
+      "fromPhotoId": "p_24b724",
       "fromLatLng": [
         37.55967,
         126.97236
@@ -9169,6 +9197,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_4a43ac",
+      "fromPhotoId": "p_a39ba9",
       "fromLatLng": [
         37.56573,
         126.97552
@@ -9215,6 +9244,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_6a4c16",
+      "fromPhotoId": "p_48da18",
       "fromLatLng": [
         37.56987,
         126.97561
@@ -9261,6 +9291,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_7f0691",
+      "fromPhotoId": "p_e2df11",
       "fromLatLng": [
         37.57674,
         126.97078
@@ -9353,6 +9384,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_423a14",
+      "fromPhotoId": "p_c8e509",
       "fromLatLng": [
         37.56344,
         126.99212
@@ -9445,6 +9477,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_0c904a",
+      "fromPhotoId": "p_144806",
       "fromLatLng": [
         37.562,
         126.97994
@@ -9491,6 +9524,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_3ac619",
+      "fromPhotoId": "p_5d9ca8",
       "fromLatLng": [
         37.56603,
         126.97491
@@ -9560,6 +9594,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_a9f3f5",
+      "fromPhotoId": "p_27bb68",
       "fromLatLng": [
         37.56729,
         126.97647
@@ -9606,6 +9641,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_6ff198",
+      "fromPhotoId": "p_0e7076",
       "fromLatLng": [
         37.56643,
         126.97455
@@ -9652,6 +9688,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_fea60d",
+      "fromPhotoId": "p_9ae1d4",
       "fromLatLng": [
         37.57144,
         126.98036
@@ -9744,6 +9781,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_950aba",
+      "fromPhotoId": "p_858272",
       "fromLatLng": [
         37.56276,
         126.98282
@@ -9790,6 +9828,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_184e68",
+      "fromPhotoId": "p_30d332",
       "fromLatLng": [
         37.56928,
         126.97886
@@ -9882,6 +9921,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_976356",
+      "fromPhotoId": "p_f688e1",
       "fromLatLng": [
         37.56964,
         126.98351
@@ -9974,6 +10014,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_d1ac67",
+      "fromPhotoId": "p_c8379f",
       "fromLatLng": [
         37.56977,
         126.99061
@@ -10020,6 +10061,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_448d14",
+      "fromPhotoId": "p_7802f6",
       "fromLatLng": [
         37.56966,
         126.9725
@@ -10089,6 +10131,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_7cc308",
+      "fromPhotoId": "p_1e2b3a",
       "fromLatLng": [
         37.56979,
         126.97449
@@ -10181,6 +10224,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_c7659a",
+      "fromPhotoId": "p_b5de13",
       "fromLatLng": [
         37.57205,
         126.97684
@@ -10227,6 +10271,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_89a35f",
+      "fromPhotoId": "p_fe77e6",
       "fromLatLng": [
         37.58132,
         126.97864
@@ -10273,6 +10318,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_9f2e6c",
+      "fromPhotoId": "p_855a88",
       "fromLatLng": [
         37.5664,
         126.97343
@@ -10342,6 +10388,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_5b9117",
+      "fromPhotoId": "p_9b6906",
       "fromLatLng": [
         37.57415,
         126.98296
@@ -10388,6 +10435,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_f3170d",
+      "fromPhotoId": "p_cb3126",
       "fromLatLng": [
         37.55983,
         126.98958
@@ -10434,6 +10482,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_73cc72",
+      "fromPhotoId": "p_dd6b7a",
       "fromLatLng": [
         37.57786,
         126.98384
@@ -10526,6 +10575,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_625259",
+      "fromPhotoId": "p_3cef12",
       "fromLatLng": [
         37.56997,
         126.96486
@@ -10572,6 +10622,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_6790fc",
+      "fromPhotoId": "p_f6c047",
       "fromLatLng": [
         37.56865,
         126.98514
@@ -10641,6 +10692,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_4a296a",
+      "fromPhotoId": "p_298259",
       "fromLatLng": [
         37.56328,
         126.97712
@@ -10710,6 +10762,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_28d11d",
+      "fromPhotoId": "p_4387d4",
       "fromLatLng": [
         37.57212,
         126.97131
@@ -10779,6 +10832,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_269c70",
+      "fromPhotoId": "p_78e2f0",
       "fromLatLng": [
         37.56568,
         126.98286
@@ -10825,6 +10879,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_266791",
+      "fromPhotoId": "p_3858ef",
       "fromLatLng": [
         37.56396,
         126.97471
@@ -10871,6 +10926,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_dbc7f0",
+      "fromPhotoId": "p_68c5c1",
       "fromLatLng": [
         37.56863,
         126.98384
@@ -10917,6 +10973,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_e8594e",
+      "fromPhotoId": "p_3721dc",
       "fromLatLng": [
         37.56435,
         126.98478
@@ -11009,6 +11066,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_465005",
+      "fromPhotoId": "p_7edaff",
       "fromLatLng": [
         37.5614,
         127.0064
@@ -11101,6 +11159,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_161cea",
+      "fromPhotoId": "p_217d42",
       "fromLatLng": [
         37.56499,
         126.97451
