@@ -7,6 +7,7 @@ import {
   calcAxisRatio,
   calcYearTicks,
   countLegsByMode,
+  filterTicksClearOfLabel,
   formatDotDate,
   formatPeriodRange,
   formatTripRange,
@@ -171,5 +172,78 @@ describe('calcYearTicks', () => {
   test('한 해 안이면 눈금은 하나예요', () => {
     const ticks = calcYearTicks('2025-03-01T00:00:00+09:00', Date.UTC(2025, 8, 1));
     expect(ticks).toEqual([{ year: 2025, ratio: 0 }]);
+  });
+
+  test('15년이면 해마다 눈금을 둬요', () => {
+    const ticks = calcYearTicks('2011-06-01T00:00:00+09:00', Date.UTC(2026, 5, 1));
+    expect(ticks.map((tick) => tick.year)).toEqual(
+      Array.from({ length: 15 }, (_, index) => 2012 + index),
+    );
+  });
+
+  test('27년이면 2년 간격의 짝수 해에 눈금을 둬요', () => {
+    const ticks = calcYearTicks('1999-12-31T00:00:00+09:00', Date.UTC(2026, 10, 20));
+    expect(ticks.map((tick) => tick.year)).toEqual([
+      2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022, 2024, 2026,
+    ]);
+  });
+
+  test('아주 길면 5년 · 10년 간격으로 건너뛰어요', () => {
+    const fiveYears = calcYearTicks('1980-03-01T00:00:00+09:00', Date.UTC(2026, 10, 20));
+    expect(fiveYears.map((tick) => tick.year)).toEqual([
+      1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025,
+    ]);
+    const tenYears = calcYearTicks('1900-03-01T00:00:00+09:00', Date.UTC(2026, 10, 20));
+    expect(tenYears.map((tick) => tick.year)).toEqual([
+      1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020,
+    ]);
+  });
+
+  test('건너뛰어도 이웃 눈금 사이는 최소 간격 이상이에요', () => {
+    for (const startYear of [1999, 1990, 1980, 1950, 1900]) {
+      const ticks = calcYearTicks(`${startYear}-12-31T00:00:00+09:00`, Date.UTC(2026, 10, 20));
+      for (let index = 1; index < ticks.length; index += 1) {
+        expect(ticks[index].ratio - ticks[index - 1].ratio).toBeGreaterThanOrEqual(0.06);
+      }
+    }
+  });
+});
+
+describe('filterTicksClearOfLabel', () => {
+  const ticks = [
+    { year: 2000, ratio: 0 },
+    { year: 2010, ratio: 0.5 },
+    { year: 2020, ratio: 0.9 },
+  ];
+  const size = { railWidth: 1000, labelWidth: 200, edgePx: 90 };
+
+  test('아직 폭을 못 쟀으면 그대로 둬요', () => {
+    expect(filterTicksClearOfLabel(ticks, 0.5, { ...size, railWidth: 0 })).toEqual(ticks);
+  });
+
+  test('글자와 겹치는 눈금만 빼요', () => {
+    expect(filterTicksClearOfLabel(ticks, 0.5, size).map((tick) => tick.year)).toEqual([
+      2000, 2020,
+    ]);
+  });
+
+  test('글자가 길수록 더 먼 눈금까지 빼요', () => {
+    expect(filterTicksClearOfLabel(ticks, 0.8, size).map((tick) => tick.year)).toEqual([
+      2000, 2010,
+    ]);
+    expect(
+      filterTicksClearOfLabel(ticks, 0.8, { ...size, labelWidth: 600 }).map((tick) => tick.year),
+    ).toEqual([2000]);
+  });
+
+  test('왼쪽 끝에서 안쪽으로 밀린 글자와 겹치는 눈금도 빼요', () => {
+    const near = [{ year: 2001, ratio: 0.15 }];
+    // 손잡이는 0이지만 글자 중심은 90px로 밀려서 글자는 이 눈금까지 닿아요.
+    expect(filterTicksClearOfLabel(near, 0, size)).toEqual([]);
+    expect(filterTicksClearOfLabel(near, 0, { ...size, labelWidth: 60 })).toEqual(near);
+  });
+
+  test('오른쪽 끝에서도 같아요', () => {
+    expect(filterTicksClearOfLabel(ticks, 1, size).map((tick) => tick.year)).toEqual([2000, 2010]);
   });
 });
