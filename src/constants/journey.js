@@ -1,3 +1,9 @@
+// Journey를 계산하는 규칙의 판이에요. buildJourney가 Journey.rulesVersion에 적어요.
+// 저장된 Journey의 판이 이 값과 다르면 journeyService가 읽을 때 한 번 다시 계산해요(#247).
+// 같은 사진 · 보정으로도 결과가 달라지게 규칙을 바꾸면 1 올려요. 예: 이동 수단 추정, 여행 묶기
+// 1: 판을 적기 전 / 2: 이동 수단에 바다 · 섬 · 필요 속도 규칙 추가(#247)
+export const JOURNEY_RULES_VERSION = 2;
+
 // 집을 가리키는 값이에요. 구간(leg)의 from·to에 지점 ID 대신 들어가요.
 export const HOME_ID = 'home';
 

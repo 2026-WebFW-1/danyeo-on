@@ -72,6 +72,7 @@
  * 여행이 0개면 배열은 전부 비고 home·periods는 null이에요.
  *
  * @typedef {object} Journey
+ * @property {number} [rulesVersion] 계산한 규칙의 판(JOURNEY_RULES_VERSION). #247 전에 저장된 Journey와 빈 Journey에는 없어요
  * @property {{ lat: number, lng: number, city: string, cc?: string } | null} home
  *   cc: 집이 있는 나라 코드. 예: 'KR'. 못 찾았으면 빈 글자이고, #179 전에 저장된 Journey에는 없어요
  * @property {Stop[]} stops
@@ -374,7 +375,7 @@
  * @property {string} from 지점 ID
  * @property {string} to 지점 ID
  * @property {number} km 반올림한 정수
- * @property {'flight' | 'train' | 'car'} mode legMode(km)
+ * @property {'flight' | 'train' | 'car'} mode legMode(km). 나라는 보지 않고 거리로만 정해요
  */
 
 /**

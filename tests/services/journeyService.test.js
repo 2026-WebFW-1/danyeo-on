@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { UNKNOWN_PLACE } from '@/constants/geocode';
+import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { getSupabase } from '@/services/getSupabase';
 import {
   getJourney,
@@ -645,5 +646,110 @@ describe('refreshJourney', () => {
       expect(place).toEqual(SEOUL_PLACE);
       expect(reverseCity).toHaveBeenCalledWith(SEOUL.lat, SEOUL.lng);
     });
+  });
+});
+
+describe('옛 규칙으로 저장된 Journey 다시 계산하기(#247)', () => {
+  const LEG = { id: 'leg_1', mode: 'train' };
+  const oldJourney = () => ({ ...journeyOf('old'), legs: [LEG] });
+  const newJourney = () => ({
+    ...journeyOf('new'),
+    legs: [{ ...LEG, mode: 'flight' }],
+    rulesVersion: JOURNEY_RULES_VERSION,
+  });
+  // 뒤에서 도는 계산이 끝날 때까지 기다려요.
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  test('판이 없는 Journey를 읽으면 그대로 돌려주고, 뒤에서 다시 계산해 저장해요', async () => {
+    // given
+    const userId = newUserId();
+    let saved = oldJourney();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(newJourney());
+    const calls = fakeWritableSupabase(
+      (row) => {
+        saved = row.payload;
+        return savedRow(row);
+      },
+      () => saved,
+    );
+
+    // when
+    const first = await getJourney(userId);
+    await settle();
+
+    // then: 화면은 기다리지 않고 저장된 Journey를 먼저 받아요
+    expect(first).toEqual(oldJourney());
+    expect(writesOf(calls)).toHaveLength(1);
+    expect(writesOf(calls)[0].row.payload).toEqual(newJourney());
+    // 저장하면 기억이 지워져서 다음에는 새 Journey를 읽고, 판이 같아서 또 계산하지 않아요
+    expect(await getJourney(userId)).toEqual(newJourney());
+    await settle();
+    expect(buildJourney).toHaveBeenCalledOnce();
+  });
+
+  test('판이 다른 Journey도 다시 계산해요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(newJourney());
+    fakeWritableSupabase(savedRow, () => ({
+      ...oldJourney(),
+      rulesVersion: JOURNEY_RULES_VERSION - 1,
+    }));
+
+    // when
+    await getJourney(userId);
+    await settle();
+
+    // then
+    expect(buildJourney).toHaveBeenCalledOnce();
+  });
+
+  test.each([
+    ['판이 같으면', () => newJourney()],
+    ['구간이 없으면(규칙이 바뀌어도 달라질 게 없어요)', () => journeyOf('no-legs')],
+  ])('%s 다시 계산하지 않아요', async (_, readPayload) => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(savedRow, readPayload);
+
+    // when
+    await getJourney(userId);
+    await settle();
+
+    // then
+    expect(getMyData).not.toHaveBeenCalled();
+    expect(writesOf(calls)).toHaveLength(0);
+  });
+
+  test('다시 계산하다 실패해도 저장된 Journey는 그대로 받아요', async () => {
+    // given
+    const userId = newUserId();
+    vi.mocked(getMyData).mockRejectedValue(new Error('offline'));
+    const calls = fakeWritableSupabase(savedRow, oldJourney);
+
+    // when
+    const journey = await getJourney(userId);
+    await settle();
+
+    // then
+    expect(journey).toEqual(oldJourney());
+    expect(writesOf(calls)).toHaveLength(0);
+  });
+
+  test('사진 저장처럼 이미 다시 계산을 시작한 계정은 읽을 때 또 시작하지 않아요', async () => {
+    // given: refreshJourney가 저장된 Journey(옛 판)를 읽어요
+    const userId = newUserId();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(newJourney());
+    fakeWritableSupabase(savedRow, oldJourney);
+
+    // when
+    await refreshJourney(userId);
+    await settle();
+
+    // then
+    expect(buildJourney).toHaveBeenCalledOnce();
   });
 });

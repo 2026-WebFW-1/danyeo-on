@@ -343,6 +343,7 @@ function toTrip(run) {
 
 /**
  * 참고 구현과 같게, 거리는 반올림한 지점 좌표로 재고 이동 수단은 반올림 전 km로 정해요.
+ * 나라 이름을 찾기 전이라 이동 수단은 거리로만 정해요. 화면이 쓰는 구간은 buildJourney가 나라 · 섬 · 속도까지 보고 다시 만들어요.
  *
  * @param {import('@/types').GroupStop} from
  * @param {import('@/types').GroupStop} to

@@ -1,3 +1,4 @@
+import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
@@ -346,27 +347,56 @@ function calcLegTimes(kind, departPhoto, arrivePhoto, travelHours) {
 }
 
 /**
+ * 앞 점을 떠난 사진과 뒤 점에 닿은 사진 사이 시간입니다. 이동 수단을 정할 때 속도를 재는 데 씁니다.
+ * 집 쪽 시각은 사진으로 알 수 없어서(ESTIMATED_END) 집을 낀 구간은 undefined입니다.
+ * 시간대가 없는 사진은 +09:00으로 읽어서(withOffset) 다른 시간대에서 찍었으면 간격이 몇 시간씩 틀립니다.
+ * 그 간격으로 속도를 재면 육로 이동이 비행으로 나올 수 있어서, 한쪽이라도 시간대가 없으면 undefined입니다.
+ *
+ * @param {import('@/types').Leg['kind']} kind
+ * @param {import('@/types').Photo} departPhoto
+ * @param {import('@/types').Photo} arrivePhoto
+ * @returns {number | undefined} 시간
+ */
+function calcPhotoGapHours(kind, departPhoto, arrivePhoto) {
+  if (ESTIMATED_END[kind]) return undefined;
+  if (!departPhoto.offset || !arrivePhoto.offset) return undefined;
+  return (toInstant(arrivePhoto) - toInstant(departPhoto)) / MS_PER_HOUR;
+}
+
+/**
+ * 구간을 만들 때 찾아보는 것들입니다.
+ *
+ * @typedef {object} LegLookup
+ * @property {Map<string, import('@/types').Photo>} photoById
+ * @property {Map<string, string>} tripIdByStopId
+ * @property {(point: import('@/types').GroupStop) => string} ccOf 점이 있는 나라 코드. 못 찾았으면 빈 글자
+ */
+
+/**
  * 이웃한 두 점을 구간 하나로 만듭니다.
  *
  * @param {ReturnType<typeof pickLinePoints>[number]} from
  * @param {ReturnType<typeof pickLinePoints>[number]} to
  * @param {number} index 0부터
  * @param {import('@/types').Correction[]} modeCorrections
- * @param {{ photoById: Map<string, import('@/types').Photo>, tripIdByStopId: Map<string, string> }} lookup
+ * @param {LegLookup} lookup
  * @returns {import('@/types').Leg}
  */
 function buildLeg(from, to, index, modeCorrections, lookup) {
   const kind = getLegKind(from, to, lookup.tripIdByStopId);
   const km = calcDistanceKm(from, to);
   const userMode = findUserMode(from, modeCorrections);
+  const departPhoto = lookup.photoById.get(from.lastPhotoId);
+  const arrivePhoto = lookup.photoById.get(to.firstPhotoId);
   // 이동 수단은 반올림 전 거리로 정합니다(group과 같게).
-  const mode = userMode ?? legMode(km);
-  const times = calcLegTimes(
-    kind,
-    lookup.photoById.get(from.lastPhotoId),
-    lookup.photoById.get(to.firstPhotoId),
-    calcTravelHours(km, mode),
-  );
+  const mode =
+    userMode ??
+    legMode(km, {
+      from: { cc: lookup.ccOf(from), lat: from.lat, lng: from.lng },
+      to: { cc: lookup.ccOf(to), lat: to.lat, lng: to.lng },
+      maxHours: calcPhotoGapHours(kind, departPhoto, arrivePhoto),
+    });
+  const times = calcLegTimes(kind, departPhoto, arrivePhoto, calcTravelHours(km, mode));
 
   return {
     id: `leg_${index + 1}`,
@@ -391,7 +421,7 @@ function buildLeg(from, to, index, modeCorrections, lookup) {
  *
  * @param {ReturnType<typeof pickLinePoints>} points
  * @param {import('@/types').Correction[]} modeCorrections
- * @param {{ photoById: Map<string, import('@/types').Photo>, tripIdByStopId: Map<string, string> }} lookup
+ * @param {LegLookup} lookup
  * @returns {import('@/types').Leg[]}
  */
 const buildLegs = (points, modeCorrections, lookup) =>
@@ -514,7 +544,9 @@ export async function buildJourney(photos, corrections, findPlace) {
   const stopById = indexById(stops);
 
   const points = pickLinePoints(grouped.stops, stopById);
-  const legs = buildLegs(points, filterByType(corrections, 'mode'), lookup);
+  // 집은 지점(Stop)이 아니라서 나라 코드를 집 이름에서 가져옵니다.
+  const ccOf = (point) => (point.isHome ? places.home.cc : stopById.get(point.id).cc);
+  const legs = buildLegs(points, filterByType(corrections, 'mode'), { ...lookup, ccOf });
 
   const trips = buildTrips(
     grouped.trips,
@@ -525,6 +557,7 @@ export async function buildJourney(photos, corrections, findPlace) {
   );
 
   return {
+    rulesVersion: JOURNEY_RULES_VERSION,
     home: buildHome(grouped.home, places.home),
     stops,
     legs,

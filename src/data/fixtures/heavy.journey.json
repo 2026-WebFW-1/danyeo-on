@@ -2,6 +2,7 @@
   "personaId": "heavy",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
+  "rulesVersion": 2,
   "home": {
     "lat": 37.56712,
     "lng": 126.98176,
@@ -7682,11 +7683,11 @@
         126.97634
       ],
       "departAt": "2021-07-28T22:13:22+09:00",
-      "arriveAt": "2021-07-29T02:00:25+09:00",
-      "hours": 3.8,
+      "arriveAt": "2021-07-28T23:17:25+09:00",
+      "hours": 1.1,
       "timing": "estimated",
       "km": 454,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -8464,11 +8465,11 @@
         126.96878
       ],
       "departAt": "2022-08-28T22:48:07+09:00",
-      "arriveAt": "2022-08-29T02:34:28+09:00",
-      "hours": 3.8,
+      "arriveAt": "2022-08-28T23:52:04+09:00",
+      "hours": 1.1,
       "timing": "estimated",
       "km": 453,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -8785,12 +8786,12 @@
         33.4949,
         126.52697
       ],
-      "departAt": "2023-02-28T03:29:13+09:00",
+      "departAt": "2023-02-28T06:12:21+09:00",
       "arriveAt": "2023-02-28T07:16:27+09:00",
-      "hours": 3.8,
+      "hours": 1.1,
       "timing": "estimated",
       "km": 454,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -8809,11 +8810,11 @@
         126.98198
       ],
       "departAt": "2023-03-02T22:55:10+09:00",
-      "arriveAt": "2023-03-03T02:42:52+09:00",
-      "hours": 3.8,
+      "arriveAt": "2023-03-02T23:59:19+09:00",
+      "hours": 1.1,
       "timing": "estimated",
       "km": 455,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -8831,12 +8832,12 @@
         33.58997,
         130.40114
       ],
-      "departAt": "2023-03-18T02:32:29+09:00",
+      "departAt": "2023-03-18T05:52:03+09:00",
       "arriveAt": "2023-03-18T07:02:34+09:00",
-      "hours": 4.5,
+      "hours": 1.2,
       "timing": "estimated",
       "km": 540,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -9319,7 +9320,7 @@
       "hours": 36.6,
       "timing": "photos",
       "km": 517,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -9360,12 +9361,12 @@
         33.49945,
         126.52807
       ],
-      "departAt": "2024-01-01T03:40:57+09:00",
+      "departAt": "2024-01-01T06:23:50+09:00",
       "arriveAt": "2024-01-01T07:27:53+09:00",
-      "hours": 3.8,
+      "hours": 1.1,
       "timing": "estimated",
       "km": 454,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -10764,11 +10765,11 @@
         126.98286
       ],
       "departAt": "2026-03-12T22:16:48+09:00",
-      "arriveAt": "2026-03-13T02:46:17+09:00",
-      "hours": 4.5,
+      "arriveAt": "2026-03-12T23:27:13+09:00",
+      "hours": 1.2,
       "timing": "estimated",
       "km": 539,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -11108,12 +11109,12 @@
         33.58477,
         130.40212
       ],
-      "departAt": "2026-09-10T02:49:34+09:00",
+      "departAt": "2026-09-10T06:09:10+09:00",
       "arriveAt": "2026-09-10T07:19:42+09:00",
-      "hours": 4.5,
+      "hours": 1.2,
       "timing": "estimated",
       "km": 540,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },

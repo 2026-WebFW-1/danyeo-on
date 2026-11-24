@@ -14,12 +14,12 @@ import { usePlaybackStore } from '@/stores/playbackStore';
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useCorrections', () => ({ useCorrections: vi.fn() }));
 
-// 2Y(처음 화면)에서 고칠 수 있는 라벨: 후쿠오카 → 집(기차 544km) · 밴쿠버 → 밴프(차 552km) · 졸업 여행 안 기차(343km)
+// 2Y(처음 화면)에서 고칠 수 있는 라벨: 밴쿠버 → 밴프(차 552km) · 졸업 여행 안 기차(343km)
 const GRAD_TRIP = seojin.trips.find((trip) => trip.name === '졸업 여행');
 const GRAD_TRAIN = seojin.legs.find(
   (leg) => leg.tripId === GRAD_TRIP.id && leg.kind === 'between' && leg.mode === 'train',
 );
-const FUKUOKA_TRIP = seojin.trips.find((trip) => trip.name === '후쿠오카');
+const YEOSU_TRIP = seojin.trips.find((trip) => trip.name === '여수 · 순천');
 
 let container;
 let root;
@@ -308,25 +308,24 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
   test('지점에서 출발하는 구간의 라벨은 눌러서 고칠 수 있어요', async () => {
     await openEditing();
 
-    expect(getLabelButton('기차 · 544km')).toBeDefined();
     expect(getLabelButton('차 · 552km')).toBeDefined();
     expect(getLabelButton('기차 · 343km')).toBeDefined();
   });
 
   test('집에서 나가는 구간은 고칠 수 없어서 라벨을 누를 수 없어요', async () => {
-    // 후쿠오카 → 집이 비행이면 라벨 자리가 비어 집 → 후쿠오카(기차 545km) 라벨이 보여요.
+    // 여수 → 집이 비행이면 라벨 자리가 비어 집 → 여수(기차 308km) 라벨이 보여요.
     const returnLeg = seojin.legs.find(
-      (leg) => leg.tripId === FUKUOKA_TRIP.id && leg.kind === 'return',
+      (leg) => leg.tripId === YEOSU_TRIP.id && leg.kind === 'return',
     );
     vi.mocked(useJourney).mockReturnValue({
       journey: withLeg(returnLeg.id, { mode: 'flight' }),
       status: 'ready',
       error: null,
     });
-    await openEditing(`/map?trip=${FUKUOKA_TRIP.id}`);
+    await openEditing(`/map?trip=${YEOSU_TRIP.id}`);
 
-    expect(getLabel('기차 · 545km').tagName).toBe('P');
-    expect(getLabelButton('기차 · 545km')).toBeUndefined();
+    expect(getLabel('기차 · 308km').tagName).toBe('P');
+    expect(getLabelButton('기차 · 308km')).toBeUndefined();
   });
 
   test('라벨을 누르면 메뉴가 열리고 지금 이동 수단에 표시가 있어요', async () => {

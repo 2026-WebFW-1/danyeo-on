@@ -1,10 +1,13 @@
 import { HOME_ID } from '@/constants/journey';
+import { hasNoLandRoute } from '@/utils/landRoute';
 
-// 사진에는 위치와 시각만 있고 무엇을 타고 갔는지는 없어서, 구간 거리로 이동 수단을 정해요.
+// 사진에는 위치와 시각만 있고 무엇을 타고 갔는지는 없어서, 구간의 거리 · 양 끝 · 사진 사이 시간으로 이동 수단을 정해요.
 // 이 거리보다 길면 비행기예요. 딱 700km는 기차예요.
 const FLIGHT_OVER_KM = 700;
 // 이 거리 이상이면 기차예요. 딱 150km도 기차예요.
 const TRAIN_FROM_KM = 150;
+// 사진 사이 시간으로 잰 속도가 이보다 빠르면 비행기예요. 딱 150km/h는 아니에요.
+const FLIGHT_OVER_KMH = 150;
 
 // 이동 수단마다 속도와 더 드는 시간이에요. 집 <> 첫, 마지막 지점의 이동 시간과 05 Passport의 비행 시간을 추정할 때 써요.
 // 집 사진 시각을 쓰면 서울 -> 방콕이 100시간이 되어버리니 거리 ÷ 속도로 추정해요.
@@ -16,14 +19,31 @@ const TRAVEL_MODES = {
 };
 
 /**
- * 구간 거리로 이동 수단을 정해요. buildJourney가 구간의 mode를 채울 때 써요(modeSource: 'auto').
+ * 구간의 이동 수단을 정해요(기능 명세 §7). buildJourney가 구간의 mode를 채울 때 써요(modeSource: 'auto').
  * 사용자가 고친 이동 수단(modeSource: 'user')은 여기서 다루지 않아요.
+ * 위에서부터 먼저 맞는 규칙을 써요.
+ *  1. 700km 초과 → 비행
+ *  2. 육로로 갈 수 없음(hasNoLandRoute) → 비행. 예: 서울 → 후쿠오카 545km, 서울 → 제주
+ *  3. 거리 ÷ 사진 사이 시간이 150km/h 초과 → 비행
+ *  4. 150km 이상 → 기차
+ *  5. 나머지 → 차
+ *
+ * route를 넘기지 않으면 거리만 봐요(1 · 4 · 5번). 나라 이름을 찾기 전인 group이 그렇게 써요.
+ * route에서 모르는 칸은 비워 두면 그 규칙만 건너뛰어요.
  *
  * @param {number} km 구간 거리. buildJourney가 계산한 0 이상의 숫자라 따로 검사하지 않아요
- * @returns {import('@/types').Leg['mode']} 700km 초과 'flight', 150km 이상 'train', 나머지 'car'
+ * @param {object} [route]
+ * @param {{ cc?: string, lat?: number, lng?: number }} [route.from] 출발한 곳
+ * @param {{ cc?: string, lat?: number, lng?: number }} [route.to] 도착한 곳
+ * @param {number} [route.maxHours] 출발한 곳의 마지막 사진과 도착한 곳의 첫 사진 사이 시간.
+ *   실제 이동보다 길 수 있어요. 집 쪽은 사진으로 시각을 알 수 없어서 넘기지 않아요
+ * @returns {import('@/types').Leg['mode']}
  */
-export function legMode(km) {
+export function legMode(km, { from, to, maxHours } = {}) {
   if (km > FLIGHT_OVER_KM) return 'flight';
+  if (from && to && hasNoLandRoute(from, to)) return 'flight';
+  // 시간대를 모르는 사진 때문에 시간이 0 이하로 나오면 속도를 잴 수 없어요.
+  if (maxHours > 0 && km / maxHours > FLIGHT_OVER_KMH) return 'flight';
   if (km >= TRAIN_FROM_KM) return 'train';
   return 'car';
 }

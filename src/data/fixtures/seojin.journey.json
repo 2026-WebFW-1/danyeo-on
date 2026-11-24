@@ -2,6 +2,7 @@
   "personaId": "seojin",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
+  "rulesVersion": 2,
   "home": {
     "lat": 37.55789,
     "lng": 126.92071,
@@ -591,12 +592,12 @@
         33.572,
         130.43458
       ],
-      "departAt": "2024-10-03T08:47:56+09:00",
+      "departAt": "2024-10-03T12:09:34+09:00",
       "arriveAt": "2024-10-03T13:20:27+09:00",
-      "hours": 4.5,
+      "hours": 1.2,
       "timing": "estimated",
       "km": 545,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
@@ -615,11 +616,11 @@
         126.91827
       ],
       "departAt": "2024-10-05T11:00:20+09:00",
-      "arriveAt": "2024-10-05T15:32:13+09:00",
-      "hours": 4.5,
+      "arriveAt": "2024-10-05T12:11:06+09:00",
+      "hours": 1.2,
       "timing": "estimated",
       "km": 544,
-      "mode": "train",
+      "mode": "flight",
       "modeSource": "auto",
       "crossesAntimeridian": false
     },
