@@ -101,30 +101,39 @@ function calcLabelCandidates(leg) {
 }
 
 /**
- * 재생 범위 전체에서 구간 라벨의 자리를 정해요. 비행은 라벨이 없어요.
+ * 라벨이 가리면 안 되는 집 표시와 지점 점의 자리예요. 경유지는 점이 없어서 빼요.
+ *
+ * @param {import('@/types').Leg[]} legs 이 구간들이 지나는 지점만 봐요
+ * @param {import('@/types').Journey['home']} home
+ * @param {import('@/types').Stop[]} stops
+ * @returns {MapRect[]}
+ */
+function calcMarkerRects(legs, home, stops) {
+  const routeStopIds = new Set(legs.flatMap((leg) => [leg.from, leg.to]));
+  const rects = stops
+    .filter((stop) => !stop.transit && routeStopIds.has(stop.id))
+    .map((stop) => calcPointRect(mapProjection([stop.lng, stop.lat]), STOP_DOT_RADIUS));
+  if (home) {
+    rects.push(calcPointRect(mapProjection([home.lng, home.lat]), HOME_RING_RADIUS));
+  }
+  return rects;
+}
+
+/**
+ * 구간들의 라벨 자리를 정해요. 비행은 라벨이 없어요.
  * 다만 사용자가 비행으로 고친 구간은 라벨을 남겨요. 라벨이 이동 수단을 다시 고치는 입구라서요.
- * 라벨은 집 표시와 지점 점을 가리지 않고, 놓을 자리가 없으면 숨겨요.
  * 자리는 이동 수단을 고칠 수 있는 구간(canEditLegMode)이 먼저, 그 안에서는 먼저 지나온 구간이 먼저 차지해요.
  * 왕복은 가는 선과 오는 선이 겹쳐서 라벨 자리가 하나뿐일 때가 많아요. 둘 다 고칠 수 있으니(#249) 먼저 지나온 가는 구간이 가져가요.
  * 재생할 때 가는 선을 그리자마자 라벨이 보이고, 오는 구간은 고치기 목록(LegModePanel)에서 고칠 수 있어요.
  * 3판 전에 저장된 Journey는 가는 구간을 못 고쳐서, 다시 계산되기 전까지는 오는 구간이 먼저예요.
- * 아직 도착하지 않은 지점의 점도 미리 피해요. 범위 전체로 정해 두고 지나온 구간만 그리면
- * 재생이 진행돼도 보이던 라벨이 옮겨 가거나 사라지지 않아요.
+ * 놓을 자리가 없으면 숨겨요.
  *
- * @param {import('@/types').Leg[]} legs 재생 범위의 구간, 시간 순서
- * @param {import('@/types').Journey['home']} home
- * @param {import('@/types').Stop[]} stops
+ * @param {import('@/types').Leg[]} legs 시간 순서
+ * @param {MapRect[]} markerRects 라벨이 가리면 안 되는 자리(calcMarkerRects)
  * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]} 시간 순서
  */
-export function selectVisibleLegLabels(legs, home, stops) {
-  const routeStopIds = new Set(legs.flatMap((leg) => [leg.from, leg.to]));
-  const occupied = stops
-    .filter((stop) => !stop.transit && routeStopIds.has(stop.id))
-    .map((stop) => calcPointRect(mapProjection([stop.lng, stop.lat]), STOP_DOT_RADIUS));
-  if (home) {
-    occupied.push(calcPointRect(mapProjection([home.lng, home.lat]), HOME_RING_RADIUS));
-  }
-
+function placeLegLabels(legs, markerRects) {
+  const occupied = [...markerRects];
   const labelLegs = legs.filter((leg) => leg.mode !== 'flight' || leg.modeSource === 'user');
   const placingOrder = [
     ...labelLegs.filter((leg) => canEditLegMode(leg)),
@@ -143,4 +152,79 @@ export function selectVisibleLegLabels(legs, home, stops) {
   return labelLegs
     .filter((leg) => rectByLegId.has(leg.id))
     .map((leg) => ({ leg, rect: rectByLegId.get(leg.id) }));
+}
+
+/**
+ * 재생 범위 전체에서 구간 라벨의 자리를 정해요. 다 그린 상태(끝까지 재생 · 고치기 모드)에서 보여 줄 라벨이에요.
+ * 라벨은 서로 겹치지 않고 집 표시와 지점 점을 가리지 않아요. 자리를 정하는 순서는 placeLegLabels에 있어요.
+ * 재생 중에는 여행별로 따로 정한 자리를 써요(selectLegLabelsByTrip).
+ *
+ * @param {import('@/types').Leg[]} legs 재생 범위의 구간, 시간 순서
+ * @param {import('@/types').Journey['home']} home
+ * @param {import('@/types').Stop[]} stops
+ * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]} 시간 순서
+ */
+export function selectVisibleLegLabels(legs, home, stops) {
+  return placeLegLabels(legs, calcMarkerRects(legs, home, stops));
+}
+
+/**
+ * 구간이 속한 여행이에요. 집을 안 들르고 온 구간(gap)은 tripId가 없어서 도착한 지점의 여행으로 봐요.
+ * selectLegsByTrip과 같은 기준이에요.
+ *
+ * @param {import('@/types').Leg} leg
+ * @param {import('@/types').Stop[]} stops
+ * @returns {string | null}
+ */
+function findLegTripId(leg, stops) {
+  return leg.tripId ?? stops.find((stop) => stop.id === leg.to)?.tripId ?? null;
+}
+
+/**
+ * 재생 중에 보여 줄 라벨의 자리를 여행별로 정해요. 재생 중에는 지금 여행의 라벨만 보여서(selectLabelsAtProgress),
+ * 화면에 없는 다른 여행의 라벨에 자리를 내주지 않아요. 범위 전체로 정한 자리를 그대로 쓰면
+ * 앞선 여행의 라벨이 차지한 곳에서 지금 여행의 라벨이 안 나와요(#256 리뷰).
+ * 지점 점은 그 여행이 끝날 때까지 찍히는 것만 피해요. 그 여행에서 아직 도착하지 않은 지점의 점도 미리 피해서,
+ * 그 여행을 재생하는 동안에는 보이던 라벨이 옮겨 가거나 사라지지 않아요.
+ * 그래서 범위의 첫 여행은 그 여행만 재생(?trip=)할 때와 자리가 같아요.
+ *
+ * @param {import('@/types').Leg[]} legs 재생 범위의 구간, 시간 순서
+ * @param {import('@/types').Journey['home']} home
+ * @param {import('@/types').Stop[]} stops
+ * @returns {Map<string | null, { leg: import('@/types').Leg, rect: MapRect }[]>} 여행 ID → 그 여행의 라벨, 시간 순서
+ */
+export function selectLegLabelsByTrip(legs, home, stops) {
+  const tripIds = legs.map((leg) => findLegTripId(leg, stops));
+  const labelsByTripId = new Map();
+  for (const tripId of new Set(tripIds)) {
+    const tripLegs = legs.filter((_leg, index) => tripIds[index] === tripId);
+    const legsUntilTripEnd = legs.slice(0, tripIds.lastIndexOf(tripId) + 1);
+    labelsByTripId.set(
+      tripId,
+      placeLegLabels(tripLegs, calcMarkerRects(legsUntilTripEnd, home, stops)),
+    );
+  }
+  return labelsByTripId;
+}
+
+/**
+ * 재생 위치에서 보여 줄 라벨을 골라요.
+ * 재생 중이면 지금 여행의 라벨 가운데 도착한 구간만이에요. 기간 재생(1Y · 2Y · ALL)에서
+ * 앞선 여행의 라벨이 끝까지 남으면 지금 구간의 라벨처럼 보여서요(#256).
+ * 끝까지 재생했거나 고치기 모드처럼 다 그린 상태(current: null)면 범위 전체의 라벨을 모두 돌려줘요.
+ *
+ * @param {object} labels
+ * @param {{ leg: import('@/types').Leg, rect: MapRect }[]} labels.all selectVisibleLegLabels의 결과
+ * @param {Map<string | null, { leg: import('@/types').Leg, rect: MapRect }[]>} labels.byTripId selectLegLabelsByTrip의 결과
+ * @param {import('@/utils/routeMap').SplitLegs} split splitByProgress의 결과
+ * @param {import('@/types').Stop[]} stops
+ * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]}
+ */
+export function selectLabelsAtProgress({ all, byTripId }, { done, current }, stops) {
+  const arrivedLegIds = new Set(done.map((leg) => leg.id));
+  if (!current) return all.filter(({ leg }) => arrivedLegIds.has(leg.id));
+
+  if (current.t === 1) arrivedLegIds.add(current.leg.id);
+  const tripLabels = byTripId.get(findLegTripId(current.leg, stops)) ?? [];
+  return tripLabels.filter(({ leg }) => arrivedLegIds.has(leg.id));
 }
