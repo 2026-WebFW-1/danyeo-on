@@ -75,23 +75,25 @@ function PhotoSortStub() {
 
 /**
  * 로그인해서 사진을 다 모으고, [다음]을 눌러 정리 화면으로 넘어가요.
- * 다 저장하면 넘어가는 /places · /edit/photos 자리에는 PlacesStub · PhotoSortStub을 둬요.
  */
 async function openPass(files) {
   useAuthStore.setState({ user, status: 'authenticated' });
   await useUploadStore.getState().start(files);
-  await act(() =>
-    root.render(
-      <MemoryRouter initialEntries={['/upload']}>
-        <Routes>
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/places" element={<PlacesStub />} />
-          <Route path="/edit/photos" element={<PhotoSortStub />} />
-        </Routes>
-      </MemoryRouter>,
-    ),
-  );
+  await act(() => root.render(<UploadRoutes />));
   await act(() => findButton('다음').click());
+}
+
+/** /upload에서 시작해요. 다 저장하면 넘어가는 /places · /edit/photos 자리에는 PlacesStub · PhotoSortStub을 둬요. */
+function UploadRoutes() {
+  return (
+    <MemoryRouter initialEntries={['/upload']}>
+      <Routes>
+        <Route path="/upload" element={<UploadPage />} />
+        <Route path="/places" element={<PlacesStub />} />
+        <Route path="/edit/photos" element={<PhotoSortStub />} />
+      </Routes>
+    </MemoryRouter>
+  );
 }
 
 /**
@@ -477,6 +479,44 @@ test('[사진 정리하기]로 저장한 뒤 화면이 새로 그려져도 07로
 
   // then
   expect(container.textContent).toBe('사진 정리?tab=unlocated');
+});
+
+test('저장이 다 끝난 뒤 다시 들어오면 고르기 화면부터 시작해요', async () => {
+  // given: [여행 보기]로 저장을 끝내고 전체 기록으로 넘어감
+  await openPass([numbered]);
+  savesAndUploads();
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('여행 보기').click());
+  await vi.waitFor(() => expect(container.textContent).toBe('전체 기록'));
+  const { src } = useUploadStore.getState().photos[0];
+  const revoke = vi.spyOn(URL, 'revokeObjectURL');
+  await act(() => root.render(null));
+
+  // when: 사진 올리기에 다시 들어오면
+  await act(() => root.render(<UploadRoutes />));
+
+  // then: 지난 사진을 비우고 고르기 화면을 보여 줌
+  expect(container.textContent).toContain('폴더 고르기');
+  expect(useUploadStore.getState().files).toEqual([]);
+  expect(useUploadStore.getState().saveStatus).toBe('idle');
+  expect(revoke).toHaveBeenCalledWith(src);
+});
+
+test('저장하는 중에 나갔다가 다시 들어오면 모은 사진을 이어서 보여 줘요', async () => {
+  // given: 저장이 끝나기 전에 페이지를 나감
+  await openPass([numbered]);
+  vi.mocked(savePhotos).mockReturnValue(new Promise(() => {}));
+  await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('여행 보기').click());
+  await act(() => root.render(null));
+
+  // when: 사진 올리기에 다시 들어오면
+  await act(() => root.render(<UploadRoutes />));
+
+  // then
+  expect(container.textContent).toContain('사진을 다 모았어요');
+  expect(useUploadStore.getState().files).toEqual([numbered]);
+  expect(useUploadStore.getState().saveStatus).toBe('saving');
 });
 
 test('사진이 하나도 없으면 넘어가지 않고 사진이 없다고 알려요', async () => {
