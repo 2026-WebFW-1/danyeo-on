@@ -208,14 +208,19 @@ export function calcElapsedAtTime(track, time) {
 
 /**
  * 지점에 도착한 순간의 진행 위치예요. 지도에서 지점을 눌렀을 때 seek에 넘겨요.
+ * 도착하는 구간 없이 떠나는 구간만 있는 지점(계정의 첫 사진이 여행지일 때의 첫 지점)은
+ * 가장 먼저 떠나는 구간의 시작(t: 0)이에요.
  *
  * @param {import('@/types').Leg[]} legs
  * @param {string} stopId
- * @returns {import('@/utils/routeMap').RouteProgress | null} 이 구간들로 도착하는 지점이 아니면 null
+ * @returns {import('@/utils/routeMap').RouteProgress | null} 이 구간들에 나오지 않는 지점이면 null
  */
 export function calcPositionAtStop(legs, stopId) {
-  const legIndex = legs.findIndex((leg) => leg.to === stopId);
-  return legIndex === -1 ? null : { legIndex, t: 1 };
+  const arriveIndex = legs.findIndex((leg) => leg.to === stopId);
+  if (arriveIndex !== -1) return { legIndex: arriveIndex, t: 1 };
+
+  const departIndex = legs.findIndex((leg) => leg.from === stopId);
+  return departIndex === -1 ? null : { legIndex: departIndex, t: 0 };
 }
 
 /**

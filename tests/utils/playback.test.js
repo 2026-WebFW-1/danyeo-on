@@ -322,8 +322,25 @@ describe('calcPositionAtStop', () => {
     expect(calcPositionAtStop(legs, legs[0].to)).toEqual({ legIndex: 0, t: 1 });
   });
 
-  test('도착하는 구간이 없으면 null이에요', () => {
+  test('이 구간들에 나오지 않는 지점이면 null이에요', () => {
     expect(calcPositionAtStop(legs, 'none')).toBeNull();
+    expect(calcPositionAtStop([], legs[0].to)).toBeNull();
+  });
+
+  // 계정의 첫 사진이 여행지면 집 → 첫 지점 구간이 없어서 첫 지점은 구간의 from으로만 나와요(#265).
+  test('도착하는 구간이 없으면 그 지점을 떠나는 구간의 시작(t: 0)이에요', () => {
+    const firstStop = legs[0].to;
+    expect(calcPositionAtStop(legs.slice(1), firstStop)).toEqual({ legIndex: 0, t: 0 });
+  });
+
+  test('여러 구간이 떠나면 가장 먼저 떠나는 구간이에요', () => {
+    const departing = { ...legs[1], from: 'p_first', to: 'p_a' };
+    const again = { ...legs[2], from: 'p_first', to: 'home' };
+    expect(calcPositionAtStop([departing, again], 'p_first')).toEqual({ legIndex: 0, t: 0 });
+    expect(calcPositionAtStop([{ ...departing, from: 'home' }, again], 'p_first')).toEqual({
+      legIndex: 1,
+      t: 0,
+    });
   });
 });
 
