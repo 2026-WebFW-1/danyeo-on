@@ -1,9 +1,17 @@
-import { expect, test } from 'vitest';
+import exifr from 'exifr';
+import { describe, expect, test, vi } from 'vitest';
 
 import uploadEdge from '@/data/fixtures/upload-edge.json';
 import { readExif } from '@/utils/upload/readExif';
 
 import { loadFixture } from '../../helpers/loadFixture';
+
+// 브라우저 모드에서는 exifr.parse를 spyOn으로 바꿀 수 없어서 모듈째 감쌉니다.
+// 기본은 진짜 parse이고, 불가능한 값 테스트에서만 mockResolvedValueOnce로 태그를 바꿔 넣습니다.
+vi.mock('exifr', async (importOriginal) => {
+  const { default: real } = await importOriginal();
+  return { default: { ...real, parse: vi.fn(real.parse) } };
+});
 
 const FIELDS = ['readable', 'takenAt', 'offset', 'timeUncertain', 'lat', 'lng', 'camera'];
 
@@ -59,4 +67,72 @@ test.each(uploadEdge.cases)('$file: $why', async ({ file, expect: expected }) =>
   const actual = { ...photo, camera };
 
   expect(actual).toEqual(Object.fromEntries(FIELDS.map((key) => [key, approx(expected[key])])));
+});
+
+// 불가능한 값은 사진 파일로 만들기보다 exifr가 읽은 태그를 바꿔 넣어 확인합니다.
+describe('불가능한 촬영 정보', () => {
+  const fixture = new File([], 'fake.jpg');
+
+  test.each([
+    { why: '위도 95', latitude: 95, longitude: 10 },
+    { why: '경도 200', latitude: 10, longitude: 200 },
+  ])('$why → 위치 없음', async ({ latitude, longitude }) => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ latitude, longitude });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, lat: null, lng: null });
+  });
+
+  test.each([
+    { why: '13월', value: '2026:13:01 10:00:00' },
+    { why: '2월 30일', value: '2025:02:30 10:00:00' },
+    { why: '25시', value: '2025:11:24 25:00:00' },
+    { why: 'BADDATE_0001', value: '2026:13:45 25:61:00' },
+  ])('$why → 시각 없음', async ({ value }) => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: value });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, takenAt: null });
+  });
+
+  test('5년 뒤 날짜 → 시각 없음', async () => {
+    const value = `${new Date().getFullYear() + 5}:01:01 00:00:00`;
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: value });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo).toMatchObject({ readable: true, takenAt: null });
+  });
+
+  test('방금 찍은 현지 시각은 그대로', async () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const date = `${now.getFullYear()}:${pad(now.getMonth() + 1)}:${pad(now.getDate())}`;
+    const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: `${date} ${time}` });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo.takenAt).toBe(`${date.replaceAll(':', '-')}T${time}`);
+  });
+
+  test('윤년 2월 29일은 그대로', async () => {
+    vi.mocked(exifr.parse).mockResolvedValueOnce({ DateTimeOriginal: '2024:02:29 10:00:00' });
+
+    // when
+    const photo = await readExif(fixture);
+
+    // then
+    expect(photo.takenAt).toBe('2024-02-29T10:00:00');
+  });
 });

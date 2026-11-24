@@ -22,6 +22,8 @@ const TAGS = [
 const EXIF_DATE = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/;
 // '+09:00', '-07:00' 처럼 부호 + 시 두 자리 + : + 분 두 자리
 const OFFSET = /^[+-]\d{2}:\d{2}$/;
+// takenAt은 시간대 없는 현지 시각이라, 지금(UTC)과 비교할 때 시간대 차이(최대 14시간)를 하루로 덮습니다.
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // 읽지 못한 파일. 받는 쪽이 키를 따로 확인하지 않도록 성공했을 때와 같은 모양으로 둡니다.
 const UNREADABLE = {
@@ -98,7 +100,36 @@ function toLocalTime(value) {
 
   const [, year, month, day, hour, minute, second] = match;
 
+  const date = toUtcDate([year, month, day, hour, minute, second].map(Number));
+  // '2026:13:45 25:61:00'처럼 없는 시각은 save_photos의 timestamp 변환에서 함께 올린 사진 전체를 막습니다.
+  // 미래 시각은 시계가 틀린 카메라라서, 두면 01 지도 기본 범위가 사진 없는 해로 끌려갑니다. 시각 없음으로 두고 묻습니다.
+  if (!date || date.getTime() > Date.now() + DAY_MS) {
+    return null;
+  }
+
   return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+}
+
+/**
+ * <p>칸마다 있을 수 있는 값인지 봅니다. 13월이나 2월 30일을 Date에 넣으면 다음 달로 넘어가므로,
+ * 넣은 값이 그대로 돌아오는지로 확인합니다.
+ *
+ * @param {number[]} parts [연, 월, 일, 시, 분, 초]. 월은 1부터. 예: [2024, 11, 24, 8, 30, 49]
+ * @returns {Date | null} 시간대를 섞지 않으려고 칸 그대로 UTC로 만든 Date. 없는 시각이면 null
+ */
+function toUtcDate(parts) {
+  const [year, month, day, hour, minute, second] = parts;
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const back = [
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+  ];
+
+  return back.every((value, i) => value === parts[i]) ? date : null;
 }
 
 /**
@@ -115,6 +146,11 @@ function toLatLng(lat, lng) {
 
   // 0,0은 GPS가 위치를 못 잡았을 때 적히는 값이라 위치 없음으로 봅니다.
   if (lat === 0 && lng === 0) {
+    return { lat: null, lng: null };
+  }
+
+  // 지구에 없는 좌표입니다. 그대로 두면 DB 제약(photos_lat_check 등)에 걸려 함께 올린 사진 전체가 저장되지 않습니다.
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return { lat: null, lng: null };
   }
 
