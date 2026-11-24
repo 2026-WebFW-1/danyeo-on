@@ -142,3 +142,26 @@ export function selectVisibleLegLabels(legs, home, stops) {
     .filter((leg) => rectByLegId.has(leg.id))
     .map((leg) => ({ leg, rect: rectByLegId.get(leg.id) }));
 }
+
+/**
+ * 재생 위치에서 보여 줄 라벨만 골라요. 지나온 구간 가운데 지금 재생 중인 여행의 라벨이에요.
+ * 기간 재생(1Y · 2Y · ALL)에서 앞선 여행의 라벨이 끝까지 남으면 지금 구간의 라벨처럼 보여서요(#256).
+ * 끝까지 재생했거나 고치기 모드처럼 다 그린 상태(current: null)면 모든 라벨을 돌려줘요.
+ * 집을 안 들르고 온 구간(gap)은 tripId가 없어서 도착한 지점의 여행으로 봐요(selectLegsByTrip과 같은 기준).
+ * 그래서 기간 재생 중인 여행의 라벨이 그 여행만 재생(?trip=)할 때와 같아요.
+ *
+ * @param {{ leg: import('@/types').Leg, rect: MapRect }[]} labels selectVisibleLegLabels의 결과
+ * @param {import('@/utils/routeMap').SplitLegs} split splitByProgress의 결과
+ * @param {import('@/types').Stop[]} stops
+ * @returns {{ leg: import('@/types').Leg, rect: MapRect }[]}
+ */
+export function selectLabelsAtProgress(labels, { done, current }, stops) {
+  const arrivedLegIds = new Set(done.map((leg) => leg.id));
+  if (!current) return labels.filter(({ leg }) => arrivedLegIds.has(leg.id));
+  if (current.t === 1) arrivedLegIds.add(current.leg.id);
+
+  const findTripId = (leg) =>
+    leg.tripId ?? stops.find((stop) => stop.id === leg.to)?.tripId ?? null;
+  const currentTripId = findTripId(current.leg);
+  return labels.filter(({ leg }) => arrivedLegIds.has(leg.id) && findTripId(leg) === currentTripId);
+}

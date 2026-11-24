@@ -3,8 +3,13 @@ import { describe, expect, test } from 'vitest';
 import edge from '@/data/fixtures/edge.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
-import { calcLegLabelRect, selectVisibleLegLabels } from '@/utils/legLabels';
-import { mapProjection } from '@/utils/routeMap';
+import {
+  calcLegLabelRect,
+  selectLabelsAtProgress,
+  selectVisibleLegLabels,
+} from '@/utils/legLabels';
+import { selectLegsByPeriod } from '@/utils/periodLegs';
+import { mapProjection, splitByProgress } from '@/utils/routeMap';
 
 /** 두 자리가 겹치는지 봐요. 코드의 틈(LABEL_GAP)은 빼고 진짜 겹침만 봐요. */
 function overlaps(a, b) {
@@ -104,5 +109,72 @@ describe('selectVisibleLegLabels', () => {
   test('구간이 없으면 빈 배열이에요', () => {
     expect(selectVisibleLegLabels([], seojin.home, seojin.stops)).toEqual([]);
     expect(selectVisibleLegLabels([], null, [])).toEqual([]);
+  });
+});
+
+describe('selectLabelsAtProgress (#256)', () => {
+  // seojin 2Y에서 자리를 얻는 라벨은 밴쿠버 → 밴프(차 552km)와 그 뒤 졸업 여행의 파리 → 런던(기차 343km)이에요.
+  const legs = selectLegsByPeriod(seojin, '2y');
+  const labels = selectVisibleLegLabels(legs, seojin.home, seojin.stops);
+  const banffIndex = legs.findIndex((leg) => Math.round(leg.km) === 552 && leg.mode === 'car');
+  const londonIndex = legs.findIndex((leg) => Math.round(leg.km) === 343 && leg.mode === 'train');
+
+  function selectAt(progress, journey = seojin, journeyLegs = legs, journeyLabels = labels) {
+    return selectLabelsAtProgress(
+      journeyLabels,
+      splitByProgress(journeyLegs, progress),
+      journey.stops,
+    ).map(({ leg }) => leg.id);
+  }
+
+  test('fixture에 두 여행의 라벨이 차례로 있어요', () => {
+    expect(labels.map(({ leg }) => leg.id)).toEqual([legs[banffIndex].id, legs[londonIndex].id]);
+    expect(legs[banffIndex].tripId).not.toBe(legs[londonIndex].tripId);
+  });
+
+  test('구간에 도착해야 라벨이 나와요', () => {
+    expect(selectAt({ legIndex: banffIndex, t: 0.5 })).toEqual([]);
+    expect(selectAt({ legIndex: banffIndex, t: 1 })).toEqual([legs[banffIndex].id]);
+  });
+
+  test('같은 여행을 재생하는 동안에는 지나온 라벨이 남아요', () => {
+    expect(legs[banffIndex + 1].tripId).toBe(legs[banffIndex].tripId);
+    expect(selectAt({ legIndex: banffIndex + 1, t: 0.5 })).toEqual([legs[banffIndex].id]);
+  });
+
+  test('다음 여행으로 넘어가면 앞선 여행의 라벨은 사라져요', () => {
+    const nextTripIndex = legs.findIndex(
+      (leg, index) => index > banffIndex && leg.tripId !== legs[banffIndex].tripId,
+    );
+    expect(selectAt({ legIndex: nextTripIndex, t: 0 })).toEqual([]);
+    expect(selectAt({ legIndex: londonIndex, t: 1 })).toEqual([legs[londonIndex].id]);
+  });
+
+  test('다 그린 상태(progress null)면 모든 라벨을 돌려줘요', () => {
+    expect(selectAt(null)).toEqual(labels.map(({ leg }) => leg.id));
+  });
+
+  describe('집을 안 들르고 온 구간(gap)', () => {
+    // edge: 방콕 → 치앙마이(기차 586km)가 gap이고, 치앙마이 여행은 이 구간으로 시작해요.
+    const edgeLegs = selectLegsByPeriod(edge, 'all');
+    const edgeLabels = selectVisibleLegLabels(edgeLegs, edge.home, edge.stops);
+    const gapIndex = edgeLegs.findIndex((leg) => leg.kind === 'gap');
+    const gapLeg = edgeLegs[gapIndex];
+    const selectEdgeAt = (progress) => selectAt(progress, edge, edgeLegs, edgeLabels);
+
+    test('도착한 여행의 라벨로 봐서, 그 여행을 재생하는 동안 남아요', () => {
+      expect(gapLeg.tripId).toBeNull();
+      expect(edgeLegs[gapIndex + 1].tripId).not.toBeNull();
+      expect(selectEdgeAt({ legIndex: gapIndex, t: 1 })).toEqual([gapLeg.id]);
+      expect(selectEdgeAt({ legIndex: gapIndex + 1, t: 0.5 })).toEqual([gapLeg.id]);
+    });
+
+    test('그 여행이 끝나고 다음 여행을 재생하면 사라져요', () => {
+      const arrivedTripId = edgeLegs[gapIndex + 1].tripId;
+      const nextTripIndex = edgeLegs.findIndex(
+        (leg, index) => index > gapIndex + 1 && leg.tripId !== arrivedTripId,
+      );
+      expect(selectEdgeAt({ legIndex: nextTripIndex, t: 0.5 })).not.toContain(gapLeg.id);
+    });
   });
 });

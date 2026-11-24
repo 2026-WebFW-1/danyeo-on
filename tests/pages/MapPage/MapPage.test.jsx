@@ -278,6 +278,34 @@ describe('MapPage 지점에서 02 · 03으로 가기 (#206)', () => {
   });
 });
 
+describe('MapPage 구간 라벨 (#256)', () => {
+  // seojin 2Y: 밴쿠버 → 밴프(차 552km) 여행이 먼저, 졸업 여행의 파리 → 런던(기차 343km)이 뒤예요.
+  const legs = selectLegsByPeriod(seojin, '2y');
+  const londonIndex = legs.findIndex((leg) => Math.round(leg.km) === 343 && leg.mode === 'train');
+
+  function hasLabel(text) {
+    return [...container.querySelectorAll('foreignObject p')].some((label) =>
+      label.textContent.includes(text),
+    );
+  }
+
+  test('다 그린 상태에서는 모든 여행의 라벨이 보여요', async () => {
+    await openMap('/map?period=2y');
+
+    expect(hasLabel('차 · 552km')).toBe(true);
+    expect(hasLabel('기차 · 343km')).toBe(true);
+  });
+
+  test('기간 재생 중에는 지금 여행의 라벨만 보이고 지난 여행의 라벨은 남지 않아요', async () => {
+    await openMap('/map?period=2y');
+
+    await act(async () => usePlaybackStore.getState().seek({ legIndex: londonIndex, t: 1 }));
+
+    expect(hasLabel('기차 · 343km')).toBe(true);
+    expect(hasLabel('차 · 552km')).toBe(false);
+  });
+});
+
 describe('MapPage 여행 0개(15a)', () => {
   beforeEach(() => {
     vi.mocked(useJourney).mockReturnValue({ journey: empty, status: 'ready', error: null });
