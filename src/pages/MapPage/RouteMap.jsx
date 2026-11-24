@@ -4,7 +4,11 @@ import { feature, mesh } from 'topojson-client';
 import world from 'world-atlas/countries-110m.json';
 
 import { cn } from '@/utils/cn';
-import { selectLabelsAtProgress, selectVisibleLegLabels } from '@/utils/legLabels';
+import {
+  selectLabelsAtProgress,
+  selectLegLabelsByTrip,
+  selectVisibleLegLabels,
+} from '@/utils/legLabels';
 import { getPlaceName } from '@/utils/mapScreen';
 import { IDENTITY_ZOOM, unscaleAt } from '@/utils/mapZoom';
 import {
@@ -41,7 +45,8 @@ const MODE_DASH = { flight: undefined, train: '5.6 3.7', car: '1.5 4.1' };
  *       라벨은 지금 재생 중인 여행의 도착한 구간에만 남깁니다. 앞선 여행의 라벨이 남으면 지금 구간의 라벨처럼 보여서요(#256).
  *       다 그린 상태(progress null)면 모든 라벨을 보여 줍니다(selectLabelsAtProgress).
  *       라벨이 앞 라벨·집 표시·지점 점을 가리면 비켜 놓고 자리가 없으면 숨깁니다.
- *       자리는 재생 범위 전체로 한 번 정해서 재생 중에 옮겨 가지 않습니다(selectVisibleLegLabels).
+ *       자리는 여행별로 한 번 정해서 그 여행을 재생하는 동안 옮겨 가지 않습니다(selectLegLabelsByTrip).
+ *       화면에 없는 다른 여행의 라벨에 자리를 내주지 않으려고요. 다 그린 상태의 자리는 범위 전체로 정합니다(selectVisibleLegLabels).
  *       isLegModeEditing을 켜면(01 고치기 모드) 라벨을 눌러 이동 수단을 고칩니다(기능 명세 M107, LegLabelLayer).
  *       highlightedLegId 구간은 진하게 덧그려서 고치기 목록에서 고르는 구간이 지도 어디인지 보여 줍니다.
  *       확대(zoom, #184)는 땅 · 국경 · 경로를 한 그룹으로 키우고, 선 굵기는 non-scaling-stroke로 화면 굵기 그대로 둡니다.
@@ -79,7 +84,13 @@ export default function RouteMap({
 }) {
   const glowFilterId = useId();
   // 재생 중에는 매 프레임 그려져서, 범위가 바뀔 때만 다시 계산해요.
-  const legLabels = useMemo(() => selectVisibleLegLabels(legs, home, stops), [legs, home, stops]);
+  const legLabels = useMemo(
+    () => ({
+      all: selectVisibleLegLabels(legs, home, stops),
+      byTripId: selectLegLabelsByTrip(legs, home, stops),
+    }),
+    [legs, home, stops],
+  );
   const hasRoute = home !== null;
   const split = splitByProgress(hasRoute ? legs : [], progress);
   const reachedStopIds = calcReachedStopIds(split);
