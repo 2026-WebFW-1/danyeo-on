@@ -4,13 +4,24 @@ import { cn } from '@/utils/cn';
 
 // 버튼을 누르면 사진이 어떻게 되는지예요. 버튼 순서와 같게 둬요.
 const ANSWER_RESULTS = [
-  { label: '빼 두기', result: '이번 기록에 넣지 않아요.' },
-  { label: '나중에', result: '고른 순서 자리에 그대로 두고, 사진 정리에서 바꿀 수 있어요.' },
+  { answer: 'exclude', label: '빼 두기', result: '이번 기록에 넣지 않아요.' },
+  {
+    answer: 'later',
+    label: '나중에',
+    result: '고른 순서 자리에 그대로 두고, 사진 정리에서 바꿀 수 있어요.',
+  },
 ];
+
+// 열리지 않는 파일은 나중에 두어도 저장할 때 빠져서(savePicked) 빼 두기만 받아요.
+function getAnswerResults(photo) {
+  return photo.readable
+    ? ANSWER_RESULTS
+    : ANSWER_RESULTS.filter(({ answer }) => answer === 'exclude');
+}
 
 /**
  * 줄 위로 띄운 사진 옆에서 자리를 못 찾은 이유를 알려 주고 답을 받는 카드예요(13k″ ②를 13i″ 모양으로).
- * 두 버튼 모두 답으로 쳐서, 누르면 다음 질문으로 넘어가요.
+ * 두 버튼 모두 답으로 쳐서, 누르면 다음 질문으로 넘어가요. 열리지 않는 파일은 빼 두기만 보여요.
  * 크기는 부르는 쪽이 정해요. 버튼은 카드 아래쪽에 붙어요.
  *
  * 호출: PassPhotosStep이 줄이 끝난 뒤 물어볼 사진이 남아 있으면 사진 줄 옆에 그려요.
@@ -24,6 +35,8 @@ const ANSWER_RESULTS = [
  * @param {string} [props.className]
  */
 export default function PassAskCard({ photo, step, total, onAnswer, className }) {
+  const answerResults = getAnswerResults(photo);
+
   return (
     <section
       aria-label={`질문 ${step} / ${total}`}
@@ -37,10 +50,14 @@ export default function PassAskCard({ photo, step, total, onAnswer, className })
           {step} / {total}
         </span>
       </p>
-      <p className="mt-3 text-xl break-keep text-muted">촬영 시각이 없어서 자리를 못 찾았어요.</p>
+      <p className="mt-3 text-xl break-keep text-muted">
+        {photo.readable
+          ? '촬영 시각이 없어서 자리를 못 찾았어요.'
+          : '열리지 않는 파일이라 기록에 넣을 수 없어요.'}
+      </p>
       {/* 누르기 전에 결과를 알 수 있게 버튼마다 어떻게 되는지 적어 둬요 */}
       <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-lg">
-        {ANSWER_RESULTS.map(({ label, result }) => (
+        {answerResults.map(({ label, result }) => (
           <Fragment key={label}>
             <dt className="font-bold text-ink">{label}</dt>
             <dd className="break-keep text-muted">{result}</dd>
@@ -55,13 +72,15 @@ export default function PassAskCard({ photo, step, total, onAnswer, className })
         >
           빼 두기
         </button>
-        <button
-          type="button"
-          onClick={() => onAnswer('later')}
-          className="inline-flex h-14 items-center border border-ink px-8 text-xl font-medium text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-        >
-          나중에
-        </button>
+        {photo.readable && (
+          <button
+            type="button"
+            onClick={() => onAnswer('later')}
+            className="inline-flex h-14 items-center border border-ink px-8 text-xl font-medium text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          >
+            나중에
+          </button>
+        )}
       </div>
     </section>
   );

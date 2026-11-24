@@ -597,13 +597,13 @@ test('열어 보니 사진이 아닌 파일은 저장한 뒤 뺐다고 알려요
   vi.mocked(savePhotoImage).mockReturnValue(new Promise(() => {}));
   vi.mocked(refreshJourney).mockReturnValue(new Promise(() => {}));
 
-  // when: 촬영 시각이 없어 끝에서 묻는 열리지 않는 파일을 나중에로 두고 저장하면
-  await vi.waitFor(() => expect(findButton('나중에')).toBeDefined(), PASS_TIMEOUT);
-  await act(() => findButton('나중에').click());
+  // when: 끝에서 묻는 열리지 않는 파일을 빼 두고 저장하면
+  await vi.waitFor(() => expect(findButton('빼 두기')).toBeDefined(), PASS_TIMEOUT);
+  await act(() => findButton('빼 두기').click());
   await vi.waitFor(() => expect(findButton('여행 보기')).toBeDefined());
   await act(() => findButton('여행 보기').click());
 
-  // then: 나중에로 뒀어도 열리지 않는 파일은 저장하지 않아요
+  // then: 열리지 않는 파일은 저장하지 않고 뺐다고 알려요
   await vi.waitFor(() =>
     expect(container.textContent).toContain('1장 저장했어요 · 열리지 않는 파일 1개는 뺐어요'),
   );
