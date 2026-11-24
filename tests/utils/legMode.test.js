@@ -137,13 +137,19 @@ describe('legMode', () => {
 });
 
 describe('canEditLegMode', () => {
-  test('집에서 나가는 구간은 고칠 수 없어요(buildJourney가 집 출발 구간의 보정을 보지 않아서)', () => {
-    expect(canEditLegMode(findLeg(seojin, 'home', '부산'))).toBe(false);
+  test('집에서 나가는 구간도 고칠 수 있어요. buildJourney가 집을 떠난 사진을 실어 줘서요', () => {
+    expect(canEditLegMode(findLeg(seojin, 'home', '부산'))).toBe(true);
   });
 
   test('지점에서 출발하는 구간은 고칠 수 있어요. 집으로 돌아오는 구간도요', () => {
     expect(canEditLegMode(findLeg(seojin, '부산', '경주'))).toBe(true);
     expect(canEditLegMode(findLeg(seojin, '경주', 'home'))).toBe(true);
+  });
+
+  test('3판 전에 저장돼 집을 떠난 사진이 없는 구간은 고칠 수 없어요. 보정이 가리킬 사진이 없어서요', () => {
+    const { fromPhotoId: _fromPhotoId, ...oldLeg } = findLeg(seojin, 'home', '부산');
+
+    expect(canEditLegMode(oldLeg)).toBe(false);
   });
 });
 
@@ -156,5 +162,14 @@ describe('toModeCorrection', () => {
 
     expect(correction).toEqual({ type: 'mode', fromPhotoId: leg.from, mode: 'train' });
     expect(from.photoIds).toContain(correction.fromPhotoId);
+  });
+
+  test("집에서 나가는 구간은 'home' 대신 집을 떠난 사진을 fromPhotoId로 써요", () => {
+    const leg = findLeg(seojin, 'home', '부산');
+
+    const correction = toModeCorrection(leg, 'car');
+
+    expect(correction).toEqual({ type: 'mode', fromPhotoId: leg.fromPhotoId, mode: 'car' });
+    expect(correction.fromPhotoId).toMatch(/^p_/);
   });
 });

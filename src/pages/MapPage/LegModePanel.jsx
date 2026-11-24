@@ -18,7 +18,8 @@ import { PANEL_STYLE } from './panelStyle';
  *
  * 의도:
  *  - 지도 라벨은 자리가 없으면 숨고(부산 → 경주처럼 짧은 구간) 자동으로 정한 비행은 라벨이 없어서,
- *    목록으로 모든 구간을 고칠 수 있게 해요. 집에서 나가는 구간은 보정을 받지 않아서 빼요(canEditLegMode).
+ *    목록으로 모든 구간을 고칠 수 있게 해요. 왕복은 가는 선과 오는 선이 겹쳐 라벨이 하나만 보여도 여기엔 둘 다 나와요.
+ *    옛 판으로 저장돼 집을 떠난 사진을 모르는 구간만 빼요(canEditLegMode).
  *  - 한꺼번에 저장하면(addMany) Journey를 한 번만 다시 계산해요. 하나씩 저장하면 고를 때마다 다시 계산해요.
  *  - 보정 목록은 무거운 my_data를 읽어서, 지도를 열 때가 아니라 이 목록을 펼칠 때 불러요(useCorrections).
  *    불러오는 동안에도 고를 수는 있고, 완료만 막아요.
@@ -112,7 +113,7 @@ export default function LegModePanel({
       <p className="px-4 pt-2 text-2xs text-muted">
         {changes.length > 0
           ? `${changes.length}개 바꿨어요. 완료를 눌러야 저장돼요.`
-          : '틀린 구간의 이동 수단을 골라 주세요. 집에서 나가는 구간은 고칠 수 없어요.'}
+          : '틀린 구간의 이동 수단을 골라 주세요.'}
       </p>
       {status === 'error' && (
         <p role="alert" className="px-4 pt-2 text-2xs text-accent">

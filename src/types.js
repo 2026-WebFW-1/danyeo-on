@@ -39,6 +39,8 @@
  * @property {'outbound' | 'between' | 'gap' | 'return'} kind 집→첫 지점 | 여행 안 | 집 안 들르고 다음 여행 | →집
  * @property {string} from 'home' 또는 지점 ID
  * @property {string} to 'home' 또는 지점 ID
+ * @property {string} [fromPhotoId] 집에서 나가는 구간(from이 'home')에만 있어요. 집을 떠나기 직전에 찍은 사진 ID예요.
+ *   이동 수단 보정이 출발 지점의 사진으로 구간을 가리키는데, 집은 지점(Stop)이 아니라 화면이 사진을 알 길이 없어서 실어요(#249)
  * @property {[number, number]} fromLatLng
  * @property {[number, number]} toLatLng
  * @property {string} departAt 출발 시각(시간대 포함)

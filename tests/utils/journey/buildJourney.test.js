@@ -821,6 +821,116 @@ describe('영구 삭제 전에 split · merge 기준 옮기기', () => {
   });
 });
 
+describe('buildJourney 집에서 나가는 구간의 이동 수단 보정(#249)', () => {
+  // 서울(집) → 후쿠오카 → 서울(집) → 도쿄 → 서울(집). 두 여행 모두 자동으로는 비행이에요.
+  const TWO_TRIPS = [
+    makePhoto('p_s1', 'seoul', '2024-07-01T09:00:00'),
+    makePhoto('p_s2', 'seoul', '2024-07-05T09:00:00'),
+    makePhoto('p_s3', 'seoul', '2024-07-06T09:00:00'),
+    makePhoto('p_f1', 'fukuoka', '2024-07-11T13:00:00'),
+    makePhoto('p_s4', 'seoul', '2024-07-20T09:00:00'),
+    makePhoto('p_s5', 'seoul', '2024-07-21T09:00:00'),
+    makePhoto('p_t1', 'tokyo', '2024-08-01T13:00:00'),
+    makePhoto('p_s6', 'seoul', '2024-08-10T09:00:00'),
+  ];
+  const modesOf = (journey) => journey.legs.map((leg) => [leg.kind, leg.mode, leg.modeSource]);
+
+  test('집에서 나가는 구간에만 집을 떠나기 직전 사진 ID를 실어요', async () => {
+    // when
+    const journey = await buildJourney(TWO_TRIPS, [], findCity);
+
+    // then
+    expect(journey.legs.map((leg) => [leg.kind, leg.fromPhotoId])).toEqual([
+      ['outbound', 'p_s3'],
+      ['return', undefined],
+      ['outbound', 'p_s5'],
+      ['return', undefined],
+    ]);
+    expect(Object.hasOwn(journey.legs[1], 'fromPhotoId')).toBe(false);
+  });
+
+  test('집을 떠난 사진을 가리키는 보정은 그 집에서 나가는 구간만 바꾸고, 집 쪽 시각도 그 수단으로 추정해요', async () => {
+    // given: 두 번째 여행 앞의 집 사진
+    const corrections = [{ id: 'c_1', type: 'mode', fromPhotoId: 'p_s5', mode: 'train' }];
+
+    // when
+    const journey = await buildJourney(TWO_TRIPS, corrections, findCity);
+
+    // then
+    expect(modesOf(journey)).toEqual([
+      ['outbound', 'flight', 'auto'],
+      ['return', 'flight', 'auto'],
+      ['outbound', 'train', 'user'],
+      ['return', 'flight', 'auto'],
+    ]);
+    // 도쿄 도착은 사진 시각 그대로이고, 집을 나선 시각만 기차 속도(120km/h)로 다시 추정해요.
+    const [, , outbound, back] = journey.legs;
+    expect(outbound.km).toBe(back.km);
+    expect(outbound.hours).toBeCloseTo(outbound.km / 120, 0);
+    expect(outbound.hours).toBeGreaterThan(back.hours);
+    expect(outbound.arriveAt).toBe('2024-08-01T13:00:00+09:00');
+  });
+
+  test('집을 떠난 사진이 아니어도 그 집에 머문 동안의 사진이면 찾아요. 집 사진을 더 올려도 보정이 남게요', async () => {
+    // given: 보정을 저장한 뒤 더 늦게 찍은 집 사진(p_s3b)을 올려서, 집을 떠난 사진이 바뀌어요
+    const photos = [...TWO_TRIPS, makePhoto('p_s3b', 'seoul', '2024-07-07T09:00:00')];
+    const corrections = [{ id: 'c_1', type: 'mode', fromPhotoId: 'p_s3', mode: 'train' }];
+
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then
+    expect(journey.legs[0]).toMatchObject({
+      fromPhotoId: 'p_s3b',
+      mode: 'train',
+      modeSource: 'user',
+    });
+    expect(journey.legs[2]).toMatchObject({ mode: 'flight', modeSource: 'auto' });
+  });
+
+  test.each([
+    ['화면이 보내는 뒤쪽 지점의 마지막 사진', 'p_s3'],
+    ['앞쪽 지점의 사진', 'p_s1'],
+  ])('집 지점이 연달아 있어 하나로 합쳐도 보정을 찾아요: %s', async (_, fromPhotoId) => {
+    // given: 서울 사진 사이가 21일 넘게 비어서 서울 지점이 둘로 나뉘어요
+    const photos = [
+      makePhoto('p_s1', 'seoul', '2024-01-01T09:00:00'),
+      makePhoto('p_s2', 'seoul', '2024-03-01T09:00:00'),
+      makePhoto('p_s3', 'seoul', '2024-03-02T09:00:00'),
+      makePhoto('p_f1', 'fukuoka', '2024-03-10T09:00:00'),
+      makePhoto('p_s4', 'seoul', '2024-03-20T09:00:00'),
+    ];
+    const corrections = [{ id: 'c_1', type: 'mode', fromPhotoId, mode: 'car' }];
+
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then: 실어 보내는 사진은 뒤쪽 지점의 마지막 사진이에요
+    expect(journey.legs.map((leg) => [leg.kind, leg.mode, leg.fromPhotoId])).toEqual([
+      ['outbound', 'car', 'p_s3'],
+      ['return', 'flight', undefined],
+    ]);
+  });
+
+  test('보정이 가리키는 집 사진을 빼면 자동 추정으로 돌아가요', async () => {
+    // given
+    const corrections = [
+      { id: 'c_1', type: 'mode', fromPhotoId: 'p_s5', mode: 'train' },
+      { id: 'c_2', type: 'exclude', photoId: 'p_s5' },
+    ];
+
+    // when
+    const journey = await buildJourney(TWO_TRIPS, corrections, findCity);
+
+    // then
+    expect(journey.legs[2]).toMatchObject({
+      fromPhotoId: 'p_s4',
+      mode: 'flight',
+      modeSource: 'auto',
+    });
+  });
+});
+
 describe('buildJourney 이동 수단 추정(#247)', () => {
   // 서울(집)에서 사진을 많이 찍고, 한 번 다녀와요.
   const tripTo = (...awayPhotos) => [

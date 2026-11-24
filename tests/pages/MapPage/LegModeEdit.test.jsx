@@ -148,11 +148,12 @@ describe('01 이동 수단 고치기 모드', () => {
     expect(getLabelButton('기차 · 343km')).toBeDefined();
   });
 
-  test('목록에는 집에서 나가는 구간을 빼고 모든 구간이 있어요', async () => {
+  test('목록에는 모든 구간이 있어요. 집에서 나가는 구간도요', async () => {
     await openEditing();
 
-    const editableLegs = usePlaybackStore.getState().legs.filter((leg) => leg.from !== 'home');
+    const editableLegs = usePlaybackStore.getState().legs;
     const flightCount = editableLegs.filter((leg) => leg.mode === 'flight').length;
+    expect(editableLegs.some((leg) => leg.from === 'home')).toBe(true);
     expect(getPanel().querySelectorAll('li')).toHaveLength(editableLegs.length);
     // 지도에 라벨이 없는 자동 비행 구간도 목록에서는 고칠 수 있어요.
     expect(flightCount).toBeGreaterThan(0);
@@ -312,20 +313,64 @@ describe('01 고치기 모드의 라벨 메뉴', () => {
     expect(getLabelButton('기차 · 343km')).toBeDefined();
   });
 
-  test('집에서 나가는 구간은 고칠 수 없어서 라벨을 누를 수 없어요', async () => {
-    // 여수 → 집이 비행이면 라벨 자리가 비어 집 → 여수(기차 308km) 라벨이 보여요.
-    const returnLeg = seojin.legs.find(
+  describe('집에서 나가는 구간(서울 → 여수 기차 308km)', () => {
+    const YEOSU_OUTBOUND = seojin.legs.find(
+      (leg) => leg.tripId === YEOSU_TRIP.id && leg.kind === 'outbound',
+    );
+    const YEOSU_RETURN = seojin.legs.find(
       (leg) => leg.tripId === YEOSU_TRIP.id && leg.kind === 'return',
     );
-    vi.mocked(useJourney).mockReturnValue({
-      journey: withLeg(returnLeg.id, { mode: 'flight' }),
-      status: 'ready',
-      error: null,
-    });
-    await openEditing(`/map?trip=${YEOSU_TRIP.id}`);
 
-    expect(getLabel('기차 · 308km').tagName).toBe('P');
-    expect(getLabelButton('기차 · 308km')).toBeUndefined();
+    test('라벨을 눌러 고치면 집을 떠난 사진을 가리키는 보정으로 저장해요', async () => {
+      // 여수 → 집이 비행이면 라벨이 집 → 여수 하나뿐이에요.
+      vi.mocked(useJourney).mockReturnValue({
+        journey: withLeg(YEOSU_RETURN.id, { mode: 'flight' }),
+        status: 'ready',
+        error: null,
+      });
+      await openEditing(`/map?trip=${YEOSU_TRIP.id}`);
+
+      await click(getLabelButton('기차 · 308km'));
+      await click(getMenuItem('차'));
+      await click(getPanelButton('완료'));
+
+      expect(addMany).toHaveBeenCalledWith([
+        { type: 'mode', fromPhotoId: YEOSU_OUTBOUND.fromPhotoId, mode: 'car' },
+      ]);
+    });
+
+    test('왕복은 가는 선과 오는 선이 겹쳐 라벨이 하나만 보이고, 가는 구간의 라벨이에요', async () => {
+      await openEditing(`/map?trip=${YEOSU_TRIP.id}`);
+      const labels = [...container.querySelectorAll('button[aria-haspopup="menu"]')];
+      expect(labels.map((label) => label.textContent)).toEqual(['🚆기차 · 308km']);
+
+      await click(labels[0]);
+      await click(getMenuItem('차'));
+
+      // 목록에는 둘 다 있고, 라벨로 바꾼 쪽은 가는 구간이에요.
+      expect(getPanelRow('서울 → 여수').textContent).toContain('바꿈');
+      expect(getPanelRow('여수 → 서울').textContent).not.toContain('바꿈');
+    });
+
+    test('3판 전에 저장돼 집을 떠난 사진이 없으면 라벨을 누를 수 없고 목록에도 없어요', async () => {
+      const { fromPhotoId: _fromPhotoId, ...oldOutbound } = YEOSU_OUTBOUND;
+      vi.mocked(useJourney).mockReturnValue({
+        journey: {
+          ...seojin,
+          legs: seojin.legs.map((leg) => {
+            if (leg.id === YEOSU_OUTBOUND.id) return oldOutbound;
+            return leg.id === YEOSU_RETURN.id ? { ...leg, mode: 'flight' } : leg;
+          }),
+        },
+        status: 'ready',
+        error: null,
+      });
+      await openEditing(`/map?trip=${YEOSU_TRIP.id}`);
+
+      expect(getLabel('기차 · 308km').tagName).toBe('P');
+      expect(getLabelButton('기차 · 308km')).toBeUndefined();
+      expect(getPanel().querySelector('[aria-label="서울 → 여수 이동 수단"]')).toBeNull();
+    });
   });
 
   test('라벨을 누르면 메뉴가 열리고 지금 이동 수단에 표시가 있어요', async () => {

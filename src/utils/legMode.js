@@ -62,20 +62,20 @@ export function calcTravelHours(km, mode) {
 
 /**
  * 사용자가 이 구간의 이동 수단을 고칠 수 있는지예요.
- * 보정은 출발 지점의 사진(fromPhotoId)으로 구간을 찾아요. 집에도 사진은 있지만,
- * buildJourney가 집에서 나가는 구간의 보정은 보지 않아요(findUserMode).
- * Journey에서도 집은 지점(Stop)이 아니라 구간의 from이 'home'뿐이라, 화면에는 보낼 사진 ID가 없어요.
+ * 보정은 출발 지점의 사진(fromPhotoId)으로 구간을 찾아요. 지점에서 출발하면 지점 ID가 그 지점의 첫 사진이라 늘 고칠 수 있어요.
+ * 집은 Journey에서 지점(Stop)이 아니라 구간의 from이 'home'뿐이라, buildJourney가 실어 준 사진 ID(leg.fromPhotoId)가 있어야 해요.
+ * 3판(#249) 전에 저장된 Journey에는 그 값이 없어요. 읽을 때 뒤에서 다시 계산하니(journeyService) 그동안만 못 고쳐요.
  *
  * @param {import('@/types').Leg} leg
  * @returns {boolean}
  */
 export function canEditLegMode(leg) {
-  return leg.from !== HOME_ID;
+  return leg.from !== HOME_ID || Boolean(leg.fromPhotoId);
 }
 
 /**
  * 구간의 이동 수단을 고치는 보정이에요. useCorrections의 add에 넘겨요.
- * 지점 ID가 그 지점의 첫 사진 ID라서 그대로 fromPhotoId로 써요.
+ * 지점 ID가 그 지점의 첫 사진 ID라서 그대로 fromPhotoId로 써요. 집에서 나가는 구간은 집을 떠난 사진(leg.fromPhotoId)을 써요.
  * buildJourney는 출발 지점의 사진 중 하나면 그 구간으로 찾아요.
  *
  * @param {import('@/types').Leg} leg canEditLegMode가 true인 구간
@@ -83,5 +83,5 @@ export function canEditLegMode(leg) {
  * @returns {import('@/types').CorrectionInput}
  */
 export function toModeCorrection(leg, mode) {
-  return { type: 'mode', fromPhotoId: leg.from, mode };
+  return { type: 'mode', fromPhotoId: leg.from === HOME_ID ? leg.fromPhotoId : leg.from, mode };
 }

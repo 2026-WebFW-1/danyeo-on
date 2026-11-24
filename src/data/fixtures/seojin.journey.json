@@ -2,7 +2,7 @@
   "personaId": "seojin",
   "generatedBy": "mock/journey-fixture.mjs",
   "about": "Journey: 앱 전체가 받는 모양(docs/인터페이스.md). 보정(exclude·transit·rename·mode)을 반영한 결과. 지점 이름은 인물 파일 값(앱에선 C의 reverseCity)",
-  "rulesVersion": 2,
+  "rulesVersion": 3,
   "home": {
     "lat": 37.55789,
     "lng": 126.92071,
@@ -469,6 +469,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_356b49",
+      "fromPhotoId": "p_160b76",
       "fromLatLng": [
         37.55789,
         126.92071
@@ -538,6 +539,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_8e704b",
+      "fromPhotoId": "p_f990d8",
       "fromLatLng": [
         37.54703,
         126.92967
@@ -584,6 +586,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_0c434a",
+      "fromPhotoId": "p_b0a6e6",
       "fromLatLng": [
         37.55951,
         126.92846
@@ -630,6 +633,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_6dd203",
+      "fromPhotoId": "p_7f5238",
       "fromLatLng": [
         37.53941,
         126.91827
@@ -676,6 +680,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_70c91e",
+      "fromPhotoId": "p_d2e5c1",
       "fromLatLng": [
         37.55482,
         126.92923
@@ -722,6 +727,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_c55a2f",
+      "fromPhotoId": "p_5eed04",
       "fromLatLng": [
         37.55418,
         126.92663
@@ -768,6 +774,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_aeecfe",
+      "fromPhotoId": "p_4ddb9d",
       "fromLatLng": [
         37.5536,
         126.9306
@@ -837,6 +844,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_3c1060",
+      "fromPhotoId": "p_894344",
       "fromLatLng": [
         37.55117,
         126.9262
@@ -906,6 +914,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_8a6ac3",
+      "fromPhotoId": "p_18ae40",
       "fromLatLng": [
         37.55372,
         126.92069
@@ -952,6 +961,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_f309fe",
+      "fromPhotoId": "p_070cdd",
       "fromLatLng": [
         37.54731,
         126.91395
@@ -998,6 +1008,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_c60246",
+      "fromPhotoId": "p_e80cbd",
       "fromLatLng": [
         37.55644,
         126.91608
@@ -1090,6 +1101,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_c1e96f",
+      "fromPhotoId": "p_8fce4e",
       "fromLatLng": [
         37.55835,
         126.92938
@@ -1136,6 +1148,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_1eb564",
+      "fromPhotoId": "p_336680",
       "fromLatLng": [
         37.5553,
         126.90923
@@ -1182,6 +1195,7 @@
       "kind": "outbound",
       "from": "home",
       "to": "p_412fd8",
+      "fromPhotoId": "p_7bd463",
       "fromLatLng": [
         37.56202,
         126.93406
