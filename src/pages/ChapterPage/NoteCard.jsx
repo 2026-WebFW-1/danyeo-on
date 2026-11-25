@@ -17,6 +17,8 @@ import EditCardButton from './EditCardButton';
  *  - 피그마의 글 상자는 카드보다 52px 좁아서(300px 카드에 248px), 오른쪽 여백만 22px로 줄여요(PostCard와 같아요).
  *  - 글(posts)에서 온 메모는 date가 있어서 눌러서 고칠 수 있어요. 사진별 글(photo_notes)은 글이 아니라서 date가 없고,
  *    눌러도 아무 일이 없어요(버튼을 덮지 않아요).
+ *  - 카드 바탕은 화살표 커서예요(#278). 누를 수 없는 메모에서 브라우저 기본인 글자 선택 커서("I")가 나와 고칠 수 있는
+ *    것처럼 보였어요. 글에서 온 메모는 위에 덮인 [고치기] 버튼(EditCardButton)이 손가락 커서라 그대로예요.
  *
  * @param {object} props
  * @param {string} props.text
@@ -25,7 +27,7 @@ import EditCardButton from './EditCardButton';
  */
 export default function NoteCard({ text, date, onEdit }) {
   return (
-    <div className={cn(CARD_CLASS, 'relative p-7 pr-5.5')}>
+    <div className={cn(CARD_CLASS, 'relative cursor-default p-7 pr-5.5')}>
       <p className="line-clamp-4 text-lg leading-body-lg break-words text-body">{text}</p>
       {date !== undefined && onEdit && <EditCardButton date={date} onEdit={onEdit} />}
     </div>
