@@ -75,7 +75,8 @@
  *
  * @typedef {object} Journey
  * @property {number} [rulesVersion] 계산한 규칙의 판(JOURNEY_RULES_VERSION). #247 전에 저장된 Journey와 빈 Journey에는 없어요
- * @property {{ lat: number, lng: number, city: string, cc?: string } | null} home
+ * @property {{ lat: number, lng: number, city: string, cc?: string, source?: 'user' } | null} home
+ *   source: 사용자가 집으로 지정했을 때만 'user'로 있고, 자동 판단이면 칸이 없어요
  *   cc: 집이 있는 나라 코드. 예: 'KR'. 못 찾았으면 빈 글자이고, #179 전에 저장된 Journey에는 없어요
  * @property {Stop[]} stops
  * @property {Leg[]} legs
@@ -249,7 +250,7 @@
  * @typedef {object} Correction
  * @property {string} id
  * @property {string} ownerId
- * @property {'rename' | 'exclude' | 'transit' | 'mode' | 'split' | 'merge'} type
+ * @property {'rename' | 'exclude' | 'transit' | 'mode' | 'split' | 'merge' | 'home'} type
  * @property {string} createdAt
  * @property {string | null} [anchorPhotoId] rename: 이 사진이 든 여행의 이름을 바꿔요
  * @property {string} [name] rename: 새 이름
@@ -257,13 +258,13 @@
  * @property {string | null} [fromPhotoId] mode: 이 사진에서 출발하는 구간
  * @property {'flight' | 'train' | 'car'} [mode] mode: 고친 이동 수단
  * @property {string | null} [beforePhotoId] split: 이 사진 앞에서 여행을 나눠요
- * @property {string[]} [photoIds] transit: 경유 지점의 사진들 · merge: 합칠 두 여행의 사진 [a, b]
+ * @property {string[]} [photoIds] transit: 경유 지점의 사진들 · merge: 합칠 두 여행의 사진 [a, b] · home: 집으로 지정한 사진 한 장
  */
 
 /**
  * 새로 저장할 보정이에요(useCorrectionStore의 add). type과 그 type의 칸만 넘겨요.
  * id는 스토어가 만들고, ownerId · createdAt은 서버가 정해요.
- * 예: { type: 'rename', anchorPhotoId: 'p_c60246', name: '졸업 여행' } · { type: 'exclude', photoId: 'p_c2a066' }
+ * 예: { type: 'rename', anchorPhotoId: 'p_c60246', name: '졸업 여행' } · { type: 'exclude', photoId: 'p_c2a066' } · { type: 'home', photoIds: ['p_c2a066'] }
  *
  * @typedef {Omit<Correction, 'id' | 'ownerId' | 'createdAt'>} CorrectionInput
  */
@@ -394,7 +395,8 @@
  * group(photos)의 결과예요.
  *
  * @typedef {object} GroupResult
- * @property {{ lat: number, lng: number } | null} home 지역이 하나뿐이면 null
+ * @property {{ lat: number, lng: number, source?: 'user' } | null} home 자동 판단은 지역이 하나뿐이면 null
+ *   source: 사용자가 집으로 지정했을 때만 'user'로 있고, 자동 판단이면 칸이 없어요
  * @property {GroupStop[]} stops 시각 순서
  * @property {GroupTrip[]} trips
  * @property {string[]} unlocated 시각이나 위치가 없어 지점에 못 넣은 사진 ID. 받은 순서 그대로예요

@@ -6,6 +6,7 @@ import seojinGroup from '@/data/fixtures/seojin.group.json';
 import edgeSeed from '@/data/seed/edge.json';
 import emptySeed from '@/data/seed/empty.json';
 import seojinSeed from '@/data/seed/seojin.json';
+import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
 
 /** 이름 붙이기(place·autoName)는 buildJourney 몫이고, personaId 등은 설명용이라 비교에서 빼요. */
@@ -614,5 +615,100 @@ describe('group', () => {
       // then
       expect(result.trips.map((trip) => trip.stopIds)).toEqual([['seoul'], ['busan']]);
     });
+  });
+});
+
+describe('group 집 직접 지정', () => {
+  const SEOUL = { lat: 37.5, lng: 127 };
+  const BANGKOK = { lat: 13.75, lng: 100.5 };
+  const photo = (id, takenAt, place) => ({ id, takenAt, offset: '+09:00', ...place });
+  const pin = (photoId, place) => ({ photoId, ...place });
+  // 서울 2장, 방콕 3장이라 자동 판단은 방콕이 집이에요.
+  const photos = [
+    photo('s1', '2025-01-01T10:00:00', SEOUL),
+    photo('s2', '2025-01-02T10:00:00', SEOUL),
+    photo('b1', '2025-02-01T10:00:00', BANGKOK),
+    photo('b2', '2025-02-02T10:00:00', BANGKOK),
+    photo('b3', '2025-02-03T10:00:00', BANGKOK),
+  ];
+
+  test('지정 좌표가 있으면 사진 수 1등 대신 그 지역이 집이에요', () => {
+    // when
+    const result = group(photos, [], [], pin('s1', SEOUL));
+
+    // then
+    expect(result.home).toEqual({ ...SEOUL, source: 'user' });
+    expect(findStopOf(result, 's1').isHome).toBe(true);
+    expect(findStopOf(result, 'b1').isHome).toBe(false);
+  });
+
+  test('지정 좌표 근처에 지점이 없어도(뺀 사진) 그 좌표가 집이고, 지역이 하나뿐이어도 집이 생겨요', () => {
+    // given: 서울 사진은 group이 받는 사진에 없어요
+    const onlyBangkok = photos.filter((p) => p.id.startsWith('b'));
+
+    // when
+    const result = group(onlyBangkok, [], [], pin('s1', SEOUL));
+
+    // then
+    expect(result.home).toEqual({ ...SEOUL, source: 'user' });
+    expect(result.stops.every((stop) => !stop.isHome)).toBe(true);
+    expect(group(onlyBangkok).home).toBeNull();
+  });
+
+  test('집 사진이 들어 있는 지역은 그 지역의 좌표를 집으로 써요', () => {
+    // given: 지정한 사진이 지역 중심에서 조금 떨어져 있어요
+    const nearBangkok = { lat: 13.8, lng: 100.55 };
+
+    // when
+    const result = group(photos, [], [], pin('b1', nearBangkok));
+
+    // then
+    expect(result.home).toEqual({ ...BANGKOK, source: 'user' });
+  });
+
+  test('자동 판단과 같은 지역을 지정하면 좌표가 같고 source만 붙어요', () => {
+    // when
+    const auto = group(photos);
+    const pinned = group(photos, [], [], pin('b1', BANGKOK));
+
+    // then
+    expect(auto.home).toEqual(BANGKOK);
+    expect(pinned.home).toEqual({ ...auto.home, source: 'user' });
+    expect({ ...pinned, home: auto.home }).toEqual(auto);
+  });
+
+  test('지정하지 않으면 source 칸이 없어요', () => {
+    // when
+    const result = group(photos);
+
+    // then
+    expect('source' in result.home).toBe(false);
+  });
+
+  test('지점 중심이 지정한 사진에서 60km 넘게 떨어져도 그 사진이 든 지점이 집이에요', () => {
+    // given: 사진마다 직전 중심에서 59km 떨어진 곳으로 이어 가면 이동 평균 중심이 첫 사진에서 멀어져요
+    const kmPerDegree = calcDistanceKm({ lat: 0, lng: 127 }, { lat: 1, lng: 127 });
+    const drift = [{ lat: 30, lng: 127 }];
+    let center = drift[0].lat;
+    for (let i = 1; i < 8; i += 1) {
+      const next = { lat: center + 59 / kmPerDegree, lng: 127 };
+      expect(calcDistanceKm({ lat: center, lng: 127 }, next)).toBeLessThanOrEqual(60);
+      drift.push(next);
+      center += (next.lat - center) / (i + 1);
+    }
+    const driftPhotos = drift.map((place, i) =>
+      photo(`m${i}`, `2025-03-0${i + 1}T10:00:00`, place),
+    );
+    const first = driftPhotos[0];
+
+    // when
+    const result = group(driftPhotos, [], [], pin('m0', first));
+
+    // then: 최종 중심은 첫 사진에서 60km 밖이지만 한 지점이에요
+    expect(result.stops).toHaveLength(1);
+    const [stop] = result.stops;
+    expect(calcDistanceKm(stop, first)).toBeGreaterThan(60);
+    expect(stop.isHome).toBe(true);
+    expect(result.home).toEqual({ lat: stop.lat, lng: stop.lng, source: 'user' });
   });
 });
