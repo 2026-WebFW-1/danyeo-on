@@ -8,6 +8,7 @@ import {
   buildTripExcludeInputs,
   buildTripMergeInput,
   buildTripRenameInput,
+  cascadeDeletedPhoto,
   selectExcludedIds,
   selectExcludedPhotos,
   selectPhotoSummary,
@@ -515,5 +516,32 @@ describe('경유 지점', () => {
     );
 
     expect(chipOf(rows, doha.id)).toMatchObject({ isTransit: false, isTransitCandidate: false });
+  });
+});
+
+describe('cascadeDeletedPhoto', () => {
+  test('지운 사진을 집으로 지정한 home 보정은 photoIds에서 그 사진이 빠져요', () => {
+    // given: 지정한 사진을 영구 삭제하면 서버는 연결을 지워 빈 배열로 돌려줘요(자동 판단으로 돌아가요)
+    const corrections = [{ id: 'c_h', type: 'home', photoIds: ['p_a'] }];
+
+    // when
+    const [home] = cascadeDeletedPhoto(corrections, 'p_a');
+
+    // then
+    expect(home).toEqual({ id: 'c_h', type: 'home', photoIds: [] });
+  });
+
+  test('다른 사진을 지우면 home 보정은 그대로예요', () => {
+    const corrections = [{ id: 'c_h', type: 'home', photoIds: ['p_a'] }];
+
+    expect(cascadeDeletedPhoto(corrections, 'p_b')).toEqual(corrections);
+  });
+
+  test('받은 보정은 바꾸지 않아요', () => {
+    const corrections = Object.freeze([
+      Object.freeze({ id: 'c_h', type: 'home', photoIds: Object.freeze(['p_a']) }),
+    ]);
+
+    expect(() => cascadeDeletedPhoto(corrections, 'p_a')).not.toThrow();
   });
 });

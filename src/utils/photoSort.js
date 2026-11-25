@@ -467,7 +467,7 @@ function applyAnchorMoves(corrections, moves) {
  * @param {string} photoId
  * @returns {import('@/types').Correction[]}
  */
-function cascadeDeletedPhoto(corrections, photoId) {
+export function cascadeDeletedPhoto(corrections, photoId) {
   return corrections.map((correction) => {
     if (correction.type === 'exclude' && correction.photoId === photoId) {
       return { ...correction, photoId: null };
@@ -475,7 +475,11 @@ function cascadeDeletedPhoto(corrections, photoId) {
     if (isSplit(correction) && correction.beforePhotoId === photoId) {
       return { ...correction, beforePhotoId: null };
     }
-    if (correction.type === 'merge' && Array.isArray(correction.photoIds)) {
+    // home은 merge처럼 지운 사진만 빠져요. 빈 photoIds는 자동 판단으로 돌아가요(findPinnedHome).
+    if (
+      (correction.type === 'merge' || correction.type === 'home') &&
+      Array.isArray(correction.photoIds)
+    ) {
       return { ...correction, photoIds: correction.photoIds.filter((id) => id !== photoId) };
     }
     return correction;
