@@ -10,7 +10,7 @@ import { legMode } from '@/utils/legMode';
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
-const SAME_PLACE_KM = 60;
+export const SAME_PLACE_KM = 60;
 const STOP_BREAK_MS = 21 * MS_PER_DAY;
 const MAX_TRIP_GAP_MS = 14 * MS_PER_DAY;
 const MAX_FILL_GAP_MS = 12 * MS_PER_HOUR;

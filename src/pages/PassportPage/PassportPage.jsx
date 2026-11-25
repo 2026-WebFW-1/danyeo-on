@@ -14,12 +14,13 @@ import PassportView from './PassportView';
  * 책임: 로그인한 사람의 Journey를 읽어 통계와 입국 스탬프로 계산하고 PassportView에 넘겨요.
  * 호출: App의 Routes가 /passport 주소에서 그려요. 보호 화면이라 RequireAuth 안에 있어요.
  *
- * 의도: 이 화면은 Journey만 봐요(사진 파일·글은 안 읽어요). 숫자는 00·03과 같은 selectJourneyTotals에서 나와요.
+ * 의도: 이 화면은 Journey만 읽어요(사진 파일·글은 안 읽어요). 숫자는 00·03과 같은 selectJourneyTotals에서 나와요.
+ *  집 칸은 예외로 보정을 저장하고, 집을 고르려고 펼쳤을 때만 내 사진을 읽어요(HomeSection · HomePicker).
  *
  * @see PassportView
  */
 export default function PassportPage() {
-  const { journey, status } = useJourney();
+  const { journey, status, isRefreshing } = useJourney();
 
   const stats = useMemo(() => selectPassportStats(journey), [journey]);
   const stamps = useMemo(() => selectPassportStamps(journey), [journey]);
@@ -51,6 +52,7 @@ export default function PassportPage() {
   return (
     <PassportView
       journey={journey}
+      isRefreshing={isRefreshing}
       stats={stats}
       stamps={stamps}
       calendar={calendar}
