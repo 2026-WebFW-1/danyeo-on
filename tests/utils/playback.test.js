@@ -5,6 +5,7 @@ import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { selectLegsByPeriod } from '@/utils/periodLegs';
+import { selectLegsByTrip } from '@/utils/tripLegs';
 import {
   buildDateTrack,
   buildTimeline,
@@ -521,5 +522,36 @@ describe('처음에 머무는 구간(hasLeadingStay)', () => {
     test('집에서 떠나는 일정은 그대로예요', () => {
       expect(calcRefreshedElapsedMs(timeline, timeline, 0)).toBe(0);
     });
+  });
+});
+
+// ?trip=으로 한 여행만 재생하면 앞 여행에서 이어지는 gap 구간이 첫 구간으로 들어와요.
+// 그 구간의 출발 지점(앞 여행의 마지막 지점)은 첫 지점이 아니에요(#265).
+describe('gap 구간으로 시작하는 여행', () => {
+  const tripLegs = selectLegsByTrip(edge, 'p_6e3edd');
+  const previousStopId = 'p_3e3110';
+
+  test('재현 조건: 첫 구간이 gap이고 그 출발 지점에 도착하는 구간이 없어요', () => {
+    expect(tripLegs[0].kind).toBe('gap');
+    expect(tripLegs[0].from).toBe(previousStopId);
+    expect(tripLegs.some((leg) => leg.to === previousStopId)).toBe(false);
+  });
+
+  test('hasLeadingStay는 아니에요', () => {
+    expect(hasLeadingStay(tripLegs)).toBe(false);
+  });
+
+  test('buildTimeline은 처음에 머물지 않아요', () => {
+    expect(buildTimeline(tripLegs).steps[0].startMs).toBe(0);
+  });
+
+  test('calcPositionAtStop은 앞 여행의 지점이면 null이에요', () => {
+    expect(calcPositionAtStop(tripLegs, previousStopId)).toBeNull();
+  });
+
+  test('gap이 아닌 구간으로 떠나면 그 지점은 첫 지점이에요', () => {
+    const plain = tripLegs.map((leg, index) => (index === 0 ? { ...leg, kind: undefined } : leg));
+    expect(hasLeadingStay(plain)).toBe(true);
+    expect(calcPositionAtStop(plain, previousStopId)).toEqual({ legIndex: 0, t: 0 });
   });
 });

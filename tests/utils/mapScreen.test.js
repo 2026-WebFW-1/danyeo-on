@@ -16,6 +16,7 @@ import {
   selectChapterSpans,
 } from '@/utils/mapScreen';
 import { buildTimeline, calcPosition } from '@/utils/playback';
+import { selectLegsByTrip } from '@/utils/tripLegs';
 
 describe('parsePeriod', () => {
   test('아는 기간은 그대로예요', () => {
@@ -180,6 +181,20 @@ describe('selectArrivalStops', () => {
       expect(result.map((stop) => stop.id)).toEqual([third.id, second.id, first.id]);
       expect(selectArrivalStops(twice, stops, { legIndex: 1, t: 0 })).toEqual([]);
     });
+  });
+});
+
+describe('selectArrivalStops (gap 구간으로 시작하는 여행)', () => {
+  const tripLegs = selectLegsByTrip(edge, 'p_6e3edd');
+
+  test('앞 여행의 마지막 지점은 카드에 넣지 않아요', () => {
+    expect(tripLegs[0].kind).toBe('gap');
+    const result = selectArrivalStops(tripLegs, edge.stops, { legIndex: 0, t: 1 });
+    expect(result.map((stop) => stop.id)).toEqual([tripLegs[0].to]);
+  });
+
+  test('이동을 시작하는 순간(t: 0)에는 카드가 없어요', () => {
+    expect(selectArrivalStops(tripLegs, edge.stops, { legIndex: 0, t: 0 })).toEqual([]);
   });
 });
 

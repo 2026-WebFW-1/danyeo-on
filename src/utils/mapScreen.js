@@ -2,7 +2,7 @@
 
 import { DEFAULT_PERIOD, HOME_ID, PERIODS } from '@/constants/journey';
 import { toLocalDate, toLocalYear } from '@/utils/localDate';
-import { hasLeadingStay } from '@/utils/playback';
+import { hasLeadingStay, isDepartureOnly } from '@/utils/playback';
 
 // 카드는 지금 지점과 앞 지점 둘까지 겹쳐요. 피그마 01 Arrival stack이 3장이에요.
 const ARRIVAL_STACK_SIZE = 3;
@@ -86,7 +86,7 @@ export function getPlaceName(home, stops, placeId) {
 /**
  * 지금 머무는 지점과 앞 지점들을 도착 카드로 골라요. 맨 앞이 지금 지점이에요.
  * 지점에 도착해 머무는 동안(t: 1)만 있고, 집에 돌아왔거나 경유지면 빈 배열이에요.
- * 도착하는 구간이 없는 지점(계정의 첫 사진이 여행지일 때의 첫 지점)은
+ * 도착하는 구간이 없는 지점(isDepartureOnly, 계정의 첫 사진이 여행지일 때의 첫 지점. gap 구간의 출발 지점은 아니에요)은
  * 그 지점을 떠나는 첫 구간의 시작(t: 0)에서 도착한 것으로 봐요.
  *
  * @param {import('@/types').Leg[]} legs
@@ -105,7 +105,7 @@ export function selectArrivalStops(legs, stops, position) {
   const ids = [];
   const isFirstStay = position.legIndex === 0 && hasLeadingStay(legs);
   for (const item of legs.slice(0, position.legIndex + 1)) {
-    if (item.from !== HOME_ID && !arrivedIds.has(item.from) && !ids.includes(item.from)) {
+    if (isDepartureOnly(item, arrivedIds) && !ids.includes(item.from)) {
       ids.push(item.from);
     }
     if (item !== leg || position.t === 1) ids.push(item.to);

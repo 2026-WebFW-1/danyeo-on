@@ -62,17 +62,31 @@ export function calcMoveMs(km) {
 }
 
 /**
- * 재생을 시작할 때 첫 지점에 먼저 머무는지예요. 첫 구간이 집이 아닌 지점에서 떠나고,
- * 그 지점에 도착하는 구간이 없을 때예요(계정의 첫 사진이 여행지). 도착 카드를 보여 줄 구간이 없어서
- * 그 지점이 도착한 것처럼 처음에 STAY_MS만큼 머물러요(#265). selectArrivalStops의 t: 0 카드와 같은 조건이에요.
+ * 이 구간이 "도착하는 구간 없이 떠나기만 하는 지점"에서 떠나는지예요(계정의 첫 사진이 여행지일 때의 첫 지점, #265).
+ * 집에서 떠나거나, 그 지점에 도착하는 구간이 있거나, 여행 사이를 잇는 gap 구간이면 아니에요.
+ * gap 구간의 출발 지점은 앞 여행의 마지막 지점이라 ?trip= 으로 이 여행만 재생해도 첫 구간으로 들어와요.
+ * 그 지점은 첫 지점이 아니라서 gap 구간은 빼요.
+ * 알려진 한계: 계정의 첫 여행이 지점 하나뿐이고 바로 gap이 이어지면 첫 구간이 gap이라 그 지점은 계속 눌러도 반응이 없어요.
+ * 가리려면 "여정의 첫 구간인지"를 재생 계산에 넘겨야 해서 두었어요.
+ *
+ * @param {import('@/types').Leg} leg
+ * @param {Set<string>} arrivedIds 지금 구간들이 도착하는 지점 ID
+ * @returns {boolean}
+ */
+export function isDepartureOnly(leg, arrivedIds) {
+  return leg.kind !== 'gap' && leg.from !== HOME_ID && !arrivedIds.has(leg.from);
+}
+
+/**
+ * 재생을 시작할 때 첫 지점에 먼저 머무는지예요. 첫 구간이 도착하는 구간 없는 지점에서 떠날 때예요
+ * (isDepartureOnly). 도착 카드를 보여 줄 구간이 없어서 그 지점이 도착한 것처럼 처음에 STAY_MS만큼 머물러요(#265).
+ * selectArrivalStops의 t: 0 카드와 같은 조건이에요.
  *
  * @param {import('@/types').Leg[]} legs 시간 순서대로
  * @returns {boolean}
  */
 export function hasLeadingStay(legs) {
-  const first = legs[0];
-  if (!first || first.from === HOME_ID) return false;
-  return !legs.some((leg) => leg.to === first.from);
+  return legs.length > 0 && isDepartureOnly(legs[0], new Set(legs.map((leg) => leg.to)));
 }
 
 /**
@@ -234,8 +248,8 @@ export function calcElapsedAtTime(track, time) {
 
 /**
  * 지점에 도착한 순간의 진행 위치예요. 지도에서 지점을 눌렀을 때 seek에 넘겨요.
- * 도착하는 구간 없이 떠나는 구간만 있는 지점(계정의 첫 사진이 여행지일 때의 첫 지점)은
- * 가장 먼저 떠나는 구간의 시작(t: 0)이에요.
+ * 도착하는 구간 없이 떠나는 구간만 있는 지점(isDepartureOnly, 계정의 첫 사진이 여행지일 때의 첫 지점)은
+ * 가장 먼저 떠나는 구간의 시작(t: 0)이에요. gap 구간으로만 떠나는 지점은 null이에요.
  *
  * @param {import('@/types').Leg[]} legs
  * @param {string} stopId
@@ -245,7 +259,10 @@ export function calcPositionAtStop(legs, stopId) {
   const arriveIndex = legs.findIndex((leg) => leg.to === stopId);
   if (arriveIndex !== -1) return { legIndex: arriveIndex, t: 1 };
 
-  const departIndex = legs.findIndex((leg) => leg.from === stopId);
+  const arrivedIds = new Set(legs.map((leg) => leg.to));
+  const departIndex = legs.findIndex(
+    (leg) => leg.from === stopId && isDepartureOnly(leg, arrivedIds),
+  );
   return departIndex === -1 ? null : { legIndex: departIndex, t: 0 };
 }
 
