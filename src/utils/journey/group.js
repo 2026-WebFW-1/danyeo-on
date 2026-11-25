@@ -218,14 +218,17 @@ function findFirstIndex(sorted, test) {
  * 지정한 집은 지역이 하나뿐이어도 있고, source: 'user'가 붙어요.
  *
  * @param {RawStop[]} stops
- * @param {{ lat: number, lng: number } | null} pinnedHome
+ * @param {{ photoId: string, lat: number, lng: number } | null} pinnedHome
  * @returns {import('@/types').GroupResult['home']} 사진이 가장 많은 지역
  */
 function findHome(stops, pinnedHome) {
   const regions = groupIntoRegions(stops);
   if (pinnedHome) {
-    const region =
-      regions.find((r) => calcDistanceKm(r, pinnedHome) <= SAME_PLACE_KM) ?? pinnedHome;
+    // 이동 평균 중심이 사진에서 멀어질 수 있어서, 사진이 든 지점이 있으면 그 지점 좌표로 찾아요.
+    // groupIntoRegions가 지점을 처음 맞는 지역에 넣으니, 지점 좌표로 찾은 첫 지역이 그 지점이 실제로 들어간 지역이에요.
+    const stop = stops.find((s) => s.photos.some((photo) => photo.id === pinnedHome.photoId));
+    const point = stop ?? pinnedHome;
+    const region = regions.find((r) => calcDistanceKm(r, point) <= SAME_PLACE_KM) ?? pinnedHome;
     return { lat: roundCoord(region.lat), lng: roundCoord(region.lng), source: 'user' };
   }
   if (regions.length <= 1) return null;
@@ -370,7 +373,7 @@ function toLeg(from, to) {
  *   split 보정의 사진을 빼도 나눈 자리가 남게, 사진 ID 대신 시각으로 받아요
  * @param {MergeSpan[]} [mergeSpans] 이을 시각 구간. 이 구간에 걸친 여행 경계는 집을 거치거나 14일 넘게 비어도 끊지 않아요.
  *   기준 사진 ID가 있으면 두 사진 모두 집 밖 지점에 남아 있을 때만 이어요.
- * @param {{ lat: number, lng: number } | null} [pinnedHome] 사용자가 집으로 지정한 사진의 좌표. 지정한 사진을 빼도 집이 남게, 사진 ID 대신 좌표로 받아요
+ * @param {{ photoId: string, lat: number, lng: number } | null} [pinnedHome] 사용자가 집으로 지정한 사진. 사진을 빼도 집이 남게 좌표도 같이 받고, 사진이 받은 사진에 있으면 그 사진이 든 지점을 집으로 해요
  * @returns {import('@/types').GroupResult}
  */
 export function group(photos, splitAts = [], mergeSpans = [], pinnedHome = null) {

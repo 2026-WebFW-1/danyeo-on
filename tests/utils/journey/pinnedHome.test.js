@@ -19,7 +19,7 @@ describe('집으로 지정한 사진의 좌표', () => {
     const result = findPinnedHome(corrections, byId);
 
     // then
-    expect(result).toEqual({ lat: 37.5, lng: 127 });
+    expect(result).toEqual({ photoId: 'a', lat: 37.5, lng: 127 });
   });
 
   test('home 보정이 없으면 null이에요', () => {
@@ -40,7 +40,7 @@ describe('집으로 지정한 사진의 좌표', () => {
     ];
 
     // when, then
-    expect(findPinnedHome(corrections, byId)).toEqual({ lat: 35.68, lng: 139.69 });
+    expect(findPinnedHome(corrections, byId)).toEqual({ photoId: 'b', lat: 35.68, lng: 139.69 });
   });
 
   test.each([

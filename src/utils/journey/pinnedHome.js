@@ -5,13 +5,14 @@
  *
  * @param {import('@/types').Correction[]} corrections 만든 순서
  * @param {Map<string, import('@/types').Photo>} photoById 제외 전 전체 사진. 07에서 뺀 사진이어도 지정이 남아요
- * @returns {{ lat: number, lng: number } | null}
+ * @returns {{ photoId: string, lat: number, lng: number } | null}
  */
 export function findPinnedHome(corrections, photoById) {
   const last = corrections.findLast((correction) => correction.type === 'home');
   if (!last || !Array.isArray(last.photoIds) || last.photoIds.length === 0) return null;
 
-  const photo = photoById.get(last.photoIds[0]);
+  const photoId = last.photoIds[0];
+  const photo = photoById.get(photoId);
   if (!photo || !Number.isFinite(photo.lat) || !Number.isFinite(photo.lng)) return null;
-  return { lat: photo.lat, lng: photo.lng };
+  return { photoId, lat: photo.lat, lng: photo.lng };
 }
