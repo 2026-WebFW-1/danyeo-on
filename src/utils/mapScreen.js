@@ -7,6 +7,12 @@ import { toLocalDate, toLocalYear } from '@/utils/localDate';
 const ARRIVAL_STACK_SIZE = 3;
 // 첫 눈금은 타임라인 맨 왼쪽의 시작 연도예요. 다음 해 눈금이 이만큼 가까우면 글자가 겹쳐서 빼요.
 const MIN_YEAR_TICK_GAP = 0.06;
+// 눈금 간격을 늘릴 때 고르는 해 수예요. 이웃 눈금이 MIN_YEAR_TICK_GAP 이상 떨어지는 가장 작은 값을 써요.
+const YEAR_TICK_STEPS = [1, 2, 5, 10, 20, 50, 100];
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+// 연도 눈금 글자 하나의 폭(px)이고, 지금 구간 글자와 이만큼은 떨어져야 안 붙어 보여요.
+const TICK_LABEL_WIDTH_PX = 36;
+const TICK_LABEL_CLEARANCE_PX = 8;
 
 /**
  * ?period= 값을 기간으로 바꿔요. 값이 없거나 모르는 값이면 기본 기간이에요.
@@ -140,6 +146,8 @@ export function calcAxisRatio(time, fromTime, toTime) {
 
 /**
  * 타임라인의 연도 눈금이에요. 맨 왼쪽에 시작 연도를 두고, 그 뒤로 해마다 1월 1일에 눈금을 둬요.
+ * 기간이 길어서 이웃 눈금이 MIN_YEAR_TICK_GAP보다 좁아지면 2년 · 5년 · 10년… 간격으로 건너뛰어요.
+ * 건너뛸 때는 간격의 배수인 해(2000, 2005, 2010…)에 눈금을 둬서 글자가 자연스럽게 읽혀요.
  *
  * @param {string} fromIso 타임라인 맨 왼쪽의 시각(시간대 포함)
  * @param {number} toTime 타임라인 맨 오른쪽(밀리초)
@@ -148,11 +156,38 @@ export function calcAxisRatio(time, fromTime, toTime) {
 export function calcYearTicks(fromIso, toTime) {
   const fromTime = Date.parse(fromIso);
   const startYear = Number(toLocalYear(fromIso));
-  const ticks = [{ year: startYear, ratio: 0 }];
+  const spanYears = (toTime - fromTime) / YEAR_MS;
+  const step =
+    YEAR_TICK_STEPS.find((candidate) => candidate / spanYears >= MIN_YEAR_TICK_GAP) ??
+    YEAR_TICK_STEPS.at(-1);
+  const ticks = [];
 
+  if (startYear % step === 0) ticks.push({ year: startYear, ratio: 0 });
   for (let year = startYear + 1; Date.UTC(year, 0, 1) <= toTime; year += 1) {
-    ticks.push({ year, ratio: calcAxisRatio(Date.UTC(year, 0, 1), fromTime, toTime) });
+    if (year % step === 0) {
+      ticks.push({ year, ratio: calcAxisRatio(Date.UTC(year, 0, 1), fromTime, toTime) });
+    }
   }
   if (ticks.length > 1 && ticks[1].ratio < MIN_YEAR_TICK_GAP) ticks.shift();
   return ticks;
+}
+
+/**
+ * 지금 구간 글자와 같은 줄에서 겹치는 연도 눈금을 빼요.
+ * 글자는 손잡이 위치가 중심이고, 양 끝에서는 edgePx만큼 안쪽으로 밀려요(CSS clamp와 같은 계산).
+ *
+ * @param {{ year: number, ratio: number }[]} ticks
+ * @param {number} handleRatio 손잡이 위치 0~1
+ * @param {{ railWidth: number, labelWidth: number, edgePx: number }} size 잰 폭(px). railWidth가 0이면 아직 못 잰 것이라 그대로 둬요
+ * @returns {{ year: number, ratio: number }[]}
+ */
+export function filterTicksClearOfLabel(ticks, handleRatio, { railWidth, labelWidth, edgePx }) {
+  if (railWidth <= 0) return ticks;
+  const center = Math.max(edgePx, Math.min(handleRatio * railWidth, railWidth - edgePx));
+  const labelLeft = center - labelWidth / 2 - TICK_LABEL_CLEARANCE_PX;
+  const labelRight = center + labelWidth / 2 + TICK_LABEL_CLEARANCE_PX;
+  return ticks.filter(({ ratio }) => {
+    const tickLeft = ratio * railWidth;
+    return tickLeft + TICK_LABEL_WIDTH_PX <= labelLeft || tickLeft >= labelRight;
+  });
 }

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import timelineHandleIcon from '@/assets/icons/timeline-handle.svg';
 import { usePlaybackPosition } from '@/hooks/usePlayback';
@@ -7,6 +7,7 @@ import { cn } from '@/utils/cn';
 import {
   calcAxisRatio,
   calcYearTicks,
+  filterTicksClearOfLabel,
   formatDotDate,
   getPlaceName,
   selectChapterSpans,
@@ -19,9 +20,7 @@ import { PANEL_STYLE } from './panelStyle';
 const KEY_STEP_RATIO = 0.01;
 // 지금 구간 글자가 상자 밖으로 나가지 않게 글자 중심을 양 끝에서 이만큼 안쪽에 둬요.
 const LABEL_EDGE_PX = 90;
-// 연도 눈금과 지금 구간 글자가 같은 줄이라, 글자 중심에서 이만큼 안쪽의 눈금은 숨겨요. 일부만 가려져 잘려 보이지 않게요.
-// 글자 폭(약 170px)이 가장 넓게 차지하는 좁은 창(1024px)에 맞춘 값이에요.
-const LABEL_TICK_GAP_RATIO = 0.16;
+// 연도 눈금과 지금 구간 글자가 같은 줄이라, 글자가 실제로 차지한 자리(잰 폭)와 겹치는 눈금은 숨겨요.
 
 /**
  * 01 아래의 타임라인
@@ -45,8 +44,32 @@ export default function TimelineScrubber({ home, stops }) {
   const railRef = useRef(null);
   const wasPlayingRef = useRef(false);
   const chapterSpans = useMemo(() => selectChapterSpans(legs, stops), [legs, stops]);
+  const tickRowRef = useRef(null);
+  const labelRef = useRef(null);
+  const [labelSize, setLabelSize] = useState({ railWidth: 0, labelWidth: 0 });
+  const hasTrack = dateTrack.length > 0;
 
-  if (dateTrack.length === 0) return null;
+  // 글자 폭은 지금 구간에 따라, 칸 폭은 창 크기에 따라 바뀌어서 그리기 전에 재고 바뀔 때마다(ResizeObserver) 다시 재요.
+  useLayoutEffect(() => {
+    const tickRow = tickRowRef.current;
+    const label = labelRef.current;
+    if (!tickRow || !label) return undefined;
+
+    const measure = () => {
+      const next = { railWidth: tickRow.clientWidth, labelWidth: label.offsetWidth };
+      setLabelSize((prev) =>
+        prev.railWidth === next.railWidth && prev.labelWidth === next.labelWidth ? prev : next,
+      );
+    };
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(tickRow);
+    observer.observe(label);
+    return () => observer.disconnect();
+  }, [hasTrack]);
+
+  if (!hasTrack) return null;
 
   const axisFrom = dateTrack[0].fromTime;
   const axisTo = dateTrack.at(-1).toTime;
@@ -97,19 +120,21 @@ export default function TimelineScrubber({ home, stops }) {
       aria-label="여행 타임라인"
       className={cn('absolute right-98 bottom-8 left-8 h-16', PANEL_STYLE)}
     >
-      <div className="absolute inset-x-6 top-2.5">
-        {calcYearTicks(legs[0].departAt, axisTo)
-          .filter(({ ratio: tickRatio }) => Math.abs(tickRatio - ratio) >= LABEL_TICK_GAP_RATIO)
-          .map(({ year, ratio: tickRatio }) => (
-            <span
-              key={year}
-              className="absolute font-serif text-2xs font-bold tracking-[0.2em] text-dim"
-              style={{ left: `${tickRatio * 100}%` }}
-            >
-              {year}
-            </span>
-          ))}
+      <div ref={tickRowRef} className="absolute inset-x-6 top-2.5">
+        {filterTicksClearOfLabel(calcYearTicks(legs[0].departAt, axisTo), ratio, {
+          ...labelSize,
+          edgePx: LABEL_EDGE_PX,
+        }).map(({ year, ratio: tickRatio }) => (
+          <span
+            key={year}
+            className="absolute font-serif text-2xs font-bold tracking-[0.2em] text-dim"
+            style={{ left: `${tickRatio * 100}%` }}
+          >
+            {year}
+          </span>
+        ))}
         <span
+          ref={labelRef}
           className="absolute -translate-x-1/2 text-2xs font-medium whitespace-nowrap text-nav"
           style={{
             left: `clamp(${LABEL_EDGE_PX}px, ${handlePercent}, calc(100% - ${LABEL_EDGE_PX}px))`,
