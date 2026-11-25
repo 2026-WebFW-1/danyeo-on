@@ -458,7 +458,7 @@ function buildLeg(from, to, index, modeCorrections, lookup) {
 /**
  * 집을 거쳐 가도 시간이 모자라지 않은지 봅니다. 앞 점 -> 집 구간의 집 도착 추정 시각이
  * 집 -> 뒤 점 구간의 집 출발 추정 시각보다 늦으면 모자랍니다. 같으면 됩니다.
- * 두 시각은 구간에 적히는 초 단위로 맞춰 비교합니다.
+ * 구간에 적히는 시각(formatAt)과 같게 초 미만을 버리고 비교해서, 적힌 도착이 출발보다 늦은 구간이 생기지 않게 합니다.
  *
  * @param {ReturnType<typeof pickLinePoints>[number]} prev
  * @param {ReturnType<typeof pickLinePoints>[number]} home 끼울 집
@@ -472,7 +472,7 @@ function canInsertHome(prev, home, next, modeCorrections, lookup) {
   const out = planLeg(home, next, modeCorrections, lookup);
   const arriveMs = toInstant(back.departPhoto) + back.travelHours * MS_PER_HOUR;
   const departMs = toInstant(out.arrivePhoto) - out.travelHours * MS_PER_HOUR;
-  const toSecond = (ms) => Math.round(ms / 1000);
+  const toSecond = (ms) => Math.floor(ms / 1000);
   return toSecond(arriveMs) <= toSecond(departMs);
 }
 

@@ -734,13 +734,13 @@ describe('buildJourney 집을 지정한 계정의 집 끼우기(#269)', () => {
   describe('시간이 부족한 경계', () => {
     // 지정한 집(서울)은 사진을 빼서 지점이 없고, 방콕 두 지점을 split으로 끊은 경계예요.
     const BASE = '2024-05-01T10:00:00';
-    const makeAccount = (gapMs) => {
+    const makeAccount = (gapMs, city = 'bangkok') => {
       const second = new Date(toMs(`${BASE}Z`) + gapMs).toISOString().slice(0, 19);
       return {
         photos: [
           makePhoto('p_home', 'seoul', '2024-04-01T09:00:00'),
-          makePhoto('p_a', 'bangkok', BASE),
-          makePhoto('p_b', 'bangkok', second),
+          makePhoto('p_a', city, BASE),
+          makePhoto('p_b', city, second),
         ],
         corrections: [
           { id: 'h', type: 'home', photoIds: ['p_home'] },
@@ -790,6 +790,51 @@ describe('buildJourney 집을 지정한 계정의 집 끼우기(#269)', () => {
         'outbound',
       ]);
       expect(summarize(lateJourney.legs).map(([kind]) => kind)).toEqual(['outbound', 'gap']);
+    });
+
+    test('반올림하면 같은 초여도 적히는 시각(초 미만 절삭)이 도착이 늦으면 gap으로 남아요', async () => {
+      // given: 후쿠오카 <-> 서울 추정 시간의 소수 초가 0.5초 미만이라, 반올림하면 도착 · 출발이 같은 초가 돼요
+      const km = calcDistanceKm(CITIES.seoul, CITIES.fukuoka);
+      const travelMs = calcTravelHours(km, 'flight') * 3600 * 1000;
+      const wholeSec = Math.floor(travelMs / 1000);
+      expect(travelMs % 1000).toBeGreaterThan(0);
+      expect(travelMs % 1000).toBeLessThan(500);
+      const account = makeAccount(2 * wholeSec * 1000, 'fukuoka');
+
+      // when
+      const journey = await buildJourney(account.photos, account.corrections, findCity);
+
+      // then: 집 도착은 적힌 시각으로 wholeSec초, 집 출발은 그보다 1초 이른 wholeSec - 1초 뒤라 모자라요
+      expect(summarize(journey.legs).map(([kind]) => kind)).toEqual(['outbound', 'gap']);
+    });
+
+    test('집을 끼운 모든 경계에서 적힌 도착 시각이 다음 출발 시각보다 늦지 않아요', async () => {
+      // given: 후쿠오카 계정의 경계를 1초씩 벌려 가며, 끼우는 경우와 gap인 경우를 모두 만나요
+      const km = calcDistanceKm(CITIES.seoul, CITIES.fukuoka);
+      const wholeSec = Math.floor((calcTravelHours(km, 'flight') * 3600 * 1000) / 1000);
+      const gaps = [-2, -1, 0, 1, 2, 3].map((extra) => (2 * wholeSec + extra) * 1000);
+
+      // when
+      const journeys = await Promise.all(
+        gaps.map((gap) => {
+          const account = makeAccount(gap, 'fukuoka');
+          return buildJourney(account.photos, account.corrections, findCity);
+        }),
+      );
+
+      // then
+      const inserted = journeys.map((journey) =>
+        journey.legs.flatMap((leg, i) =>
+          leg.kind === 'return' && journey.legs[i + 1]?.kind === 'outbound'
+            ? [[leg.arriveAt, journey.legs[i + 1].departAt]]
+            : [],
+        ),
+      );
+      expect(inserted.flat().length).toBeGreaterThan(0);
+      expect(inserted.some((pairs) => pairs.length === 0)).toBe(true);
+      for (const [arriveAt, departAt] of inserted.flat()) {
+        expect(toMs(arriveAt)).toBeLessThanOrEqual(toMs(departAt));
+      }
     });
 
     test('이동 수단 보정으로 고친 mode의 이동 시간으로 판단해요', async () => {
