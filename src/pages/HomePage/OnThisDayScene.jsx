@@ -38,6 +38,10 @@ const PAGER_BUTTON_CLASS =
  *  - 작은 사진은 넓은 창에서 96px 네 장(피그마)이고, 창이 좁아 글 칸이 408px보다 좁아지면 칸에 맞춰 같이 줄어요.
  *    96px로 고정하면 좁은 창에서 화면 옆으로 나가요.
  *  - 피그마는 제목과 한 줄 글을 Playfair로 썼지만 도시 이름과 글이 한글이라, 03 도시 이름처럼 본문 글꼴로 써요.
+ *  - 큰 제목은 창이 1280px보다 좁으면 72px에서 56px로 한 단계 줄여요(#271). 글 칸이 1024px 창에서 408px까지 좁아져서,
+ *    72px로는 "블라디보스토크"처럼 띄어쓰기 없는 긴 이름이 칸을 넘어 화면 밖으로 나갔어요. 1280px부터는 피그마 크기예요.
+ *  - 그래도 칸보다 긴 이름(8글자 이상)만 칸에 맞춰 끊어요(wrap-anywhere). 그 밖에는 낱말 단위로 끊어요(break-keep).
+ *    03 이름과 같은 규칙이에요(#243). 줄이지 않고 끊기만 하면 6글자 이름도 "샌프란시스코 / , 2025."처럼 쉼표가 떨어져요.
  *
  * @param {object} props
  * @param {import('@/types').Journey} props.journey
@@ -84,7 +88,10 @@ export default function OnThisDayScene({ journey, items }) {
               {formatAnniversary(item)}
             </p>
           </div>
-          <h2 id={titleId} className="text-8xl font-bold tracking-[-0.02em] break-keep text-ink">
+          <h2
+            id={titleId}
+            className="text-7xl font-bold tracking-[-0.02em] wrap-anywhere break-keep text-ink xl:text-8xl"
+          >
             {formatOnThisDayTitle(stop)}
           </h2>
           <p className="text-3xl font-bold break-keep text-ink">{formatOnThisDayLead(item)}</p>
