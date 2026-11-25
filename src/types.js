@@ -40,6 +40,7 @@
  * @property {string} from 'home' 또는 지점 ID
  * @property {string} to 'home' 또는 지점 ID
  * @property {string} [fromPhotoId] 집에서 나가는 구간(from이 'home')에만 있어요. 집을 떠나기 직전에 찍은 사진 ID예요.
+ *   집을 직접 지정한 계정이 여행 사이에 끼운 집(사진이 없어요)에서 나가는 구간에는 없어요. 그 구간은 이동 수단을 고칠 수 없어요(#269)
  *   이동 수단 보정이 출발 지점의 사진으로 구간을 가리키는데, 집은 지점(Stop)이 아니라 화면이 사진을 알 길이 없어서 실어요(#249)
  * @property {[number, number]} fromLatLng
  * @property {[number, number]} toLatLng

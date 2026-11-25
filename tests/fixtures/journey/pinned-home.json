@@ -1,0 +1,96 @@
+{
+  "photos": [
+    {
+      "id": "p_t1",
+      "takenAt": "2024-01-10T10:00:00",
+      "offset": "+09:00",
+      "lat": 35.68,
+      "lng": 139.69,
+      "fileKey": null
+    },
+    {
+      "id": "p_t2",
+      "takenAt": "2024-01-12T10:00:00",
+      "offset": "+09:00",
+      "lat": 35.68,
+      "lng": 139.69,
+      "fileKey": null
+    },
+    {
+      "id": "p_b1",
+      "takenAt": "2024-02-10T10:00:00",
+      "offset": "+07:00",
+      "lat": 13.75,
+      "lng": 100.5,
+      "fileKey": null
+    },
+    {
+      "id": "p_b2",
+      "takenAt": "2024-02-12T10:00:00",
+      "offset": "+07:00",
+      "lat": 13.75,
+      "lng": 100.5,
+      "fileKey": null
+    },
+    {
+      "id": "p_d1",
+      "takenAt": "2024-02-12T12:00:00",
+      "offset": "+07:00",
+      "lat": 16.05,
+      "lng": 108.2,
+      "fileKey": null
+    },
+    {
+      "id": "p_s1",
+      "takenAt": "2024-03-01T09:00:00",
+      "offset": "+09:00",
+      "lat": 37.5,
+      "lng": 127,
+      "fileKey": null
+    },
+    {
+      "id": "p_s2",
+      "takenAt": "2024-03-02T09:00:00",
+      "offset": "+09:00",
+      "lat": 37.5,
+      "lng": 127,
+      "fileKey": null
+    },
+    {
+      "id": "p_s3",
+      "takenAt": "2024-03-03T09:00:00",
+      "offset": "+09:00",
+      "lat": 37.5,
+      "lng": 127,
+      "fileKey": null
+    },
+    {
+      "id": "p_f1",
+      "takenAt": "2024-03-10T10:00:00",
+      "offset": "+09:00",
+      "lat": 33.59,
+      "lng": 130.4,
+      "fileKey": null
+    },
+    {
+      "id": "p_f2",
+      "takenAt": "2024-03-11T10:00:00",
+      "offset": "+09:00",
+      "lat": 33.59,
+      "lng": 130.4,
+      "fileKey": null
+    }
+  ],
+  "corrections": [
+    {
+      "id": "c_home",
+      "type": "home",
+      "photoIds": ["p_s1"]
+    },
+    {
+      "id": "c_split",
+      "type": "split",
+      "beforePhotoId": "p_d1"
+    }
+  ]
+}

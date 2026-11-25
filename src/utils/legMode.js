@@ -64,6 +64,7 @@ export function calcTravelHours(km, mode) {
  * 사용자가 이 구간의 이동 수단을 고칠 수 있는지예요.
  * 보정은 출발 지점의 사진(fromPhotoId)으로 구간을 찾아요. 지점에서 출발하면 지점 ID가 그 지점의 첫 사진이라 늘 고칠 수 있어요.
  * 집은 Journey에서 지점(Stop)이 아니라 구간의 from이 'home'뿐이라, buildJourney가 실어 준 사진 ID(leg.fromPhotoId)가 있어야 해요.
+ * 집을 직접 지정한 계정이 여행 사이에 끼운 집(사진이 없어요)에서 나가는 구간에는 그 값이 없어서 고칠 수 없어요(#269).
  * 3판(#249) 전에 저장된 Journey에는 그 값이 없어요. 읽을 때 뒤에서 다시 계산하니(journeyService) 그동안만 못 고쳐요.
  *
  * @param {import('@/types').Leg} leg

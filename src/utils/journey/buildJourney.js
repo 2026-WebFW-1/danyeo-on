@@ -263,6 +263,7 @@ function buildStops(groupStops, placeByStopId, transitPhotoIds, lookup) {
 /**
  * 선을 그을 점을 고릅니다. 이웃한 점끼리 이으면 구간이 됩니다.
  * 경유 지점은 건너뛰고(사진은 지점에 남습니다), 집 지점이 연달아 있으면 집 하나로 합칩니다.
+ * 집을 직접 지정한 계정은 이 뒤에 insertPinnedHome이 집을 끼웁니다.
  * 합친 집은 사진 목록도 합칩니다. 앞쪽 집 사진에 걸린 이동 수단 보정이 합친 뒤에도 그 집에서 나가는 구간을 찾게요.
  *
  * @param {import('@/types').GroupStop[]} groupStops 집 포함, 시각 순
@@ -378,6 +379,42 @@ function calcPhotoGapHours(kind, departPhoto, arrivePhoto) {
  */
 
 /**
+ * 이웃한 두 점의 구간에서 종류 · 이동 수단 · 추정 이동 시간을 정합니다.
+ * 구간을 만드는 buildLeg와 집을 끼울 수 있는지 보는 canInsertHome이 같이 써서, 두 계산이 어긋나지 않습니다.
+ *
+ * @param {ReturnType<typeof pickLinePoints>[number]} from
+ * @param {ReturnType<typeof pickLinePoints>[number]} to
+ * @param {import('@/types').Correction[]} modeCorrections
+ * @param {LegLookup} lookup
+ * @returns {{ kind: import('@/types').Leg['kind'], km: number, userMode: import('@/types').Leg['mode'] | null, mode: import('@/types').Leg['mode'], departPhoto: Pick<import('@/types').Photo, 'offset'> & Partial<import('@/types').Photo>, arrivePhoto: Pick<import('@/types').Photo, 'offset'> & Partial<import('@/types').Photo>, travelHours: number }}
+ */
+function planLeg(from, to, modeCorrections, lookup) {
+  const kind = getLegKind(from, to, lookup.tripIdByStopId);
+  const km = calcDistanceKm(from, to);
+  const userMode = findUserMode(from, modeCorrections);
+  // 끼운 집은 사진이 없어서, 시간대만 있는 가짜 사진(stayPhoto)을 씁니다.
+  const departPhoto = from.stayPhoto ?? lookup.photoById.get(from.lastPhotoId);
+  const arrivePhoto = to.stayPhoto ?? lookup.photoById.get(to.firstPhotoId);
+  // 이동 수단은 반올림 전 거리로 정합니다(group과 같게).
+  const mode =
+    userMode ??
+    legMode(km, {
+      from: { cc: lookup.ccOf(from), lat: from.lat, lng: from.lng },
+      to: { cc: lookup.ccOf(to), lat: to.lat, lng: to.lng },
+      maxHours: calcPhotoGapHours(kind, departPhoto, arrivePhoto),
+    });
+  return {
+    kind,
+    km,
+    userMode,
+    mode,
+    departPhoto,
+    arrivePhoto,
+    travelHours: calcTravelHours(km, mode),
+  };
+}
+
+/**
  * 이웃한 두 점을 구간 하나로 만듭니다.
  *
  * @param {ReturnType<typeof pickLinePoints>[number]} from
@@ -388,20 +425,13 @@ function calcPhotoGapHours(kind, departPhoto, arrivePhoto) {
  * @returns {import('@/types').Leg}
  */
 function buildLeg(from, to, index, modeCorrections, lookup) {
-  const kind = getLegKind(from, to, lookup.tripIdByStopId);
-  const km = calcDistanceKm(from, to);
-  const userMode = findUserMode(from, modeCorrections);
-  const departPhoto = lookup.photoById.get(from.lastPhotoId);
-  const arrivePhoto = lookup.photoById.get(to.firstPhotoId);
-  // 이동 수단은 반올림 전 거리로 정합니다(group과 같게).
-  const mode =
-    userMode ??
-    legMode(km, {
-      from: { cc: lookup.ccOf(from), lat: from.lat, lng: from.lng },
-      to: { cc: lookup.ccOf(to), lat: to.lat, lng: to.lng },
-      maxHours: calcPhotoGapHours(kind, departPhoto, arrivePhoto),
-    });
-  const times = calcLegTimes(kind, departPhoto, arrivePhoto, calcTravelHours(km, mode));
+  const { kind, km, userMode, mode, departPhoto, arrivePhoto, travelHours } = planLeg(
+    from,
+    to,
+    modeCorrections,
+    lookup,
+  );
+  const times = calcLegTimes(kind, departPhoto, arrivePhoto, travelHours);
 
   return {
     id: `leg_${index + 1}`,
@@ -412,7 +442,8 @@ function buildLeg(from, to, index, modeCorrections, lookup) {
     to: to.isHome ? HOME : to.id,
     // 집은 지점(Stop)으로 나가지 않아서, 화면이 이 구간의 이동 수단 보정을 만들 사진을 여기서 받습니다.
     // 좌표가 아니라 사진 ID라서 집 위치를 더 드러내지 않습니다.
-    ...(from.isHome && { fromPhotoId: from.lastPhotoId }),
+    // 끼운 집(insertPinnedHome)은 사진이 없어서 없고, 그 구간은 이동 수단을 고칠 수 없습니다.
+    ...(from.isHome && !from.stayPhoto && { fromPhotoId: from.lastPhotoId }),
     fromLatLng: [from.lat, from.lng],
     toLatLng: [to.lat, to.lng],
     ...times,
@@ -422,6 +453,63 @@ function buildLeg(from, to, index, modeCorrections, lookup) {
     // 경도 차가 180°를 넘으면 날짜변경선을 건넙니다. 지도가 선을 지구 반대편으로 돌리지 않게 그려야 합니다.
     crossesAntimeridian: Math.abs(to.lng - from.lng) > HALF_TURN_DEG,
   };
+}
+
+/**
+ * 집을 거쳐 가도 시간이 모자라지 않은지 봅니다. 앞 점 -> 집 구간의 집 도착 추정 시각이
+ * 집 -> 뒤 점 구간의 집 출발 추정 시각보다 늦으면 모자랍니다. 같으면 됩니다.
+ * 구간에 적히는 시각(formatAt)과 같게 초 미만을 버리고 비교해서, 적힌 도착이 출발보다 늦은 구간이 생기지 않게 합니다.
+ *
+ * @param {ReturnType<typeof pickLinePoints>[number]} prev
+ * @param {ReturnType<typeof pickLinePoints>[number]} home 끼울 집
+ * @param {ReturnType<typeof pickLinePoints>[number]} next
+ * @param {import('@/types').Correction[]} modeCorrections
+ * @param {LegLookup} lookup
+ * @returns {boolean}
+ */
+function canInsertHome(prev, home, next, modeCorrections, lookup) {
+  const back = planLeg(prev, home, modeCorrections, lookup);
+  const out = planLeg(home, next, modeCorrections, lookup);
+  const arriveMs = toInstant(back.departPhoto) + back.travelHours * MS_PER_HOUR;
+  const departMs = toInstant(out.arrivePhoto) - out.travelHours * MS_PER_HOUR;
+  const toSecond = (ms) => Math.floor(ms / 1000);
+  return toSecond(arriveMs) <= toSecond(departMs);
+}
+
+/**
+ * 집을 직접 지정한 계정에서, 맨 앞과 여행 경계에 집을 끼웁니다. 맨 뒤에는 끼우지 않습니다.
+ * 실제 집 지점이 있는 자리는 그 지점을 쓰고, 시간이 모자란 경계는 gap으로 남깁니다.
+ * 끼운 집은 사진이 없어서 지정한 사진의 시간대만 stayPhoto로 갖고, 사진 ID가 없어 이동 수단 보정이 걸리지 않습니다.
+ *
+ * @param {ReturnType<typeof pickLinePoints>} points
+ * @param {{ lat: number, lng: number, offset: string }} home 집 좌표와 지정한 사진의 시간대
+ * @param {import('@/types').Correction[]} modeCorrections
+ * @param {LegLookup} lookup
+ * @returns {ReturnType<typeof pickLinePoints>}
+ */
+function insertPinnedHome(points, home, modeCorrections, lookup) {
+  const homePoint = {
+    id: HOME,
+    lat: home.lat,
+    lng: home.lng,
+    isHome: true,
+    photoIds: [],
+    stayPhoto: { offset: home.offset },
+  };
+  const result = [];
+  points.forEach((point, i) => {
+    const prev = points[i - 1];
+    const isFirstAway = i === 0 && !point.isHome;
+    const isBoundary = prev && getLegKind(prev, point, lookup.tripIdByStopId) === 'gap';
+    if (
+      isFirstAway ||
+      (isBoundary && canInsertHome(prev, homePoint, point, modeCorrections, lookup))
+    ) {
+      result.push(homePoint);
+    }
+    result.push(point);
+  });
+  return result;
 }
 
 /**
@@ -523,7 +611,7 @@ const buildHome = (home, place) => (home ? { ...home, city: place.city, cc: plac
 
 /**
  * 사진과 보정으로 화면이 받는 Journey를 만듭니다. 순서만 정하고, 일은 단계마다 함수가 합니다.
- * 순서: exclude 사진 빼기 -> group(split으로 나누고 merge로 합치기) -> 지점 이름 및 경유 -> 구간(집 포함) -> 여행 이름 및 이동 수단 보정
+ * 순서: exclude 사진 빼기 -> group(split으로 나누고 merge로 합치기) -> 지점 이름 및 경유 -> 구간(집 포함, 직접 지정한 집은 여행 사이에 끼움) -> 여행 이름 및 이동 수단 보정
  * 규칙은 my-journey의 mock/journey-fixture.mjs와 같아서, seed를 넣으면 fixtures의 *.journey.json과 같게 나옵니다.
  *
  * @param {import('@/types').Photo[]} photos 올린 사진 전부. 순서는 상관없습니다
@@ -552,10 +640,22 @@ export async function buildJourney(photos, corrections, findPlace) {
   const stops = buildStops(grouped.stops, places.byStopId, transitPhotoIds, lookup);
   const stopById = indexById(stops);
 
-  const points = pickLinePoints(grouped.stops, stopById);
+  const linePoints = pickLinePoints(grouped.stops, stopById);
   // 집은 지점(Stop)이 아니라서 나라 코드를 집 이름에서 가져옵니다.
   const ccOf = (point) => (point.isHome ? places.home.cc : stopById.get(point.id).cc);
-  const legs = buildLegs(points, filterByType(corrections, 'mode'), { ...lookup, ccOf });
+  const modeCorrections = filterByType(corrections, 'mode');
+  const legLookup = { ...lookup, ccOf };
+  // 집을 직접 지정한 계정만 여행 사이에 집을 끼웁니다. 자동으로 잡힌 집이면 이 길을 타지 않습니다.
+  const points =
+    grouped.home?.source === 'user'
+      ? insertPinnedHome(
+          linePoints,
+          { ...grouped.home, offset: offsetOf(allPhotosById.get(pinnedHome.photoId)) },
+          modeCorrections,
+          legLookup,
+        )
+      : linePoints;
+  const legs = buildLegs(points, modeCorrections, legLookup);
 
   const trips = buildTrips(
     grouped.trips,
