@@ -11,12 +11,14 @@ import edgeSeed from '@/data/seed/edge.json';
 import emptySeed from '@/data/seed/empty.json';
 import seojinSeed from '@/data/seed/seojin.json';
 import { calcDistanceKm } from '@/utils/distance';
+import { calcTravelHours, canEditLegMode } from '@/utils/legMode';
 import { buildJourney } from '@/utils/journey/buildJourney';
 import { buildAnchorMoves, selectSortTrips } from '@/utils/photoSort';
 import { selectPassportCalendar } from '@/utils/passportCalendar';
 import { selectPassportStats } from '@/utils/passportStats';
 import { selectPassportStamps } from '@/utils/passportStamps';
 import { selectPassportRecords } from '@/utils/passportRecords';
+import pinnedHome from '../../fixtures/journey/pinned-home.json';
 
 /**
  * personaId·generatedBy·about은 설명용이라 비교에서 빼요.
@@ -592,6 +594,287 @@ describe('buildJourney 집 직접 지정(#262)', () => {
 
     // then
     expect(journey).toEqual(auto);
+  });
+});
+
+describe('buildJourney 집을 지정한 계정의 집 끼우기(#269)', () => {
+  // pinned-home.json: 도쿄 → (집 없음) → 방콕, 방콕 → 다낭은 시간이 부족한 경계(split으로 끊음),
+  // 다낭 → 서울 집 사진 → 후쿠오카. 서울이 사진 수 1등이라 집 보정을 빼면 서울이 자동으로 집이에요.
+  const { photos, corrections } = pinnedHome;
+  const withoutHome = corrections.filter((correction) => correction.type !== 'home');
+  const summarize = (legs) => legs.map((leg) => [leg.kind, leg.from, leg.to]);
+  const toMs = (at) => Date.parse(at);
+
+  test('자동으로 잡힌 집이면 여행 사이에 집을 끼우지 않고 직행(gap)을 유지해요', async () => {
+    // when
+    const journey = await buildJourney(photos, withoutHome, findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ city: '서울' });
+    expect('source' in journey.home).toBe(false);
+    expect(summarize(journey.legs)).toEqual([
+      ['gap', 'p_t1', 'p_b1'],
+      ['gap', 'p_b1', 'p_d1'],
+      ['return', 'p_d1', 'home'],
+      ['outbound', 'home', 'p_f1'],
+    ]);
+  });
+
+  test('직접 지정하면 맨 앞과 여행 경계에 집을 끼우고 시간이 부족한 경계는 gap으로 남겨요', async () => {
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ city: '서울', source: 'user' });
+    expect(summarize(journey.legs)).toEqual([
+      ['outbound', 'home', 'p_t1'], // 맨 앞(계정의 첫 사진이 여행지)
+      ['return', 'p_t1', 'home'], // 집 사진 없이 끊긴 경계, 시간 충분
+      ['outbound', 'home', 'p_b1'],
+      ['gap', 'p_b1', 'p_d1'], // 시간이 부족한 경계
+      ['return', 'p_d1', 'home'], // 실제 집 지점
+      ['outbound', 'home', 'p_f1'], // 마지막 지점이 여행지라 뒤에 집이 없어요
+    ]);
+    expect(journey.legs.map((leg) => leg.id)).toEqual([
+      'leg_1',
+      'leg_2',
+      'leg_3',
+      'leg_4',
+      'leg_5',
+      'leg_6',
+    ]);
+    // 기존 규칙 그대로예요. 집 -> 지점은 그 지점의 여행, 지점 -> 집도 그 지점의 여행, gap은 여행이 없어요.
+    expect(journey.legs.map((leg) => leg.tripId)).toEqual([
+      'p_t1',
+      'p_t1',
+      'p_b1',
+      null,
+      'p_d1',
+      'p_f1',
+    ]);
+    expect(journey.trips.map((trip) => trip.stopIds)).toEqual([
+      ['p_t1'],
+      ['p_b1'],
+      ['p_d1'],
+      ['p_f1'],
+    ]);
+  });
+
+  test('지정 사진을 exclude해도 집과 끼우기가 유지돼요', async () => {
+    // given
+    const excluded = [...corrections, { id: 'x', type: 'exclude', photoId: 'p_s1' }];
+
+    // when
+    const pinned = await buildJourney(photos, corrections, findCity);
+    const journey = await buildJourney(photos, excluded, findCity);
+
+    // then
+    expect(journey.home).toEqual(pinned.home);
+    expect(journey.legs).toEqual(pinned.legs);
+  });
+
+  test('photoIds가 빈 배열이면(영구 삭제) 자동 판단과 완전히 같은 결과예요', async () => {
+    // given
+    const deleted = [...withoutHome, { id: 'c_home', type: 'home', photoIds: [] }];
+
+    // when
+    const auto = await buildJourney(photos, withoutHome, findCity);
+    const journey = await buildJourney(photos, deleted, findCity);
+
+    // then
+    expect(journey).toEqual(auto);
+  });
+
+  test('끼운 집에서 나가는 구간에는 fromPhotoId가 없고 이동 수단을 고칠 수 없어요', async () => {
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then: 끼운 집(leg_1, leg_3)은 없고, 실제 집 사진이 있는 출발(leg_6)은 있어요
+    const [first, , second, , , real] = journey.legs;
+    expect('fromPhotoId' in first).toBe(false);
+    expect('fromPhotoId' in second).toBe(false);
+    expect(canEditLegMode(first)).toBe(false);
+    expect(canEditLegMode(second)).toBe(false);
+    expect(real.fromPhotoId).toBe('p_s3');
+    expect(canEditLegMode(real)).toBe(true);
+  });
+
+  test('지정한 사진 ID로 mode 보정을 걸어도 끼운 집의 구간은 바뀌지 않아요', async () => {
+    // given: 지정한 사진을 07에서 빼서 실제 집 지점에도 들어 있지 않아요
+    const excluded = [...corrections, { id: 'x', type: 'exclude', photoId: 'p_s1' }];
+    const modeFix = { id: 'm', type: 'mode', fromPhotoId: 'p_s1', mode: 'car' };
+
+    // when
+    const before = await buildJourney(photos, excluded, findCity);
+    const journey = await buildJourney(photos, [...excluded, modeFix], findCity);
+
+    // then
+    expect(journey.legs).toEqual(before.legs);
+    expect(journey.legs.every((leg) => leg.modeSource === 'auto')).toBe(true);
+  });
+
+  test('맨 뒤에는 집을 끼우지 않고 마지막 지점이 여행지면 거기서 끝나요', async () => {
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then
+    expect(journey.legs.at(-1).to).toBe('p_f1');
+    expect(journey.legs.some((leg) => leg.from === 'p_f1')).toBe(false);
+  });
+
+  test('실제 집 사진이 있는 경계는 그 지점을 쓰고 집을 더 끼우지 않아요', async () => {
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then: 다낭 -> 집 -> 후쿠오카는 구간 둘뿐이에요
+    const around = journey.legs.filter((leg) => leg.from === 'p_d1' || leg.to === 'p_f1');
+    expect(around.map((leg) => leg.kind)).toEqual(['return', 'outbound']);
+    expect(around[1].fromPhotoId).toBe('p_s3');
+  });
+
+  describe('시간이 부족한 경계', () => {
+    // 지정한 집(서울)은 사진을 빼서 지점이 없고, 방콕 두 지점을 split으로 끊은 경계예요.
+    const BASE = '2024-05-01T10:00:00';
+    const makeAccount = (gapMs) => {
+      const second = new Date(toMs(`${BASE}Z`) + gapMs).toISOString().slice(0, 19);
+      return {
+        photos: [
+          makePhoto('p_home', 'seoul', '2024-04-01T09:00:00'),
+          makePhoto('p_a', 'bangkok', BASE),
+          makePhoto('p_b', 'bangkok', second),
+        ],
+        corrections: [
+          { id: 'h', type: 'home', photoIds: ['p_home'] },
+          { id: 'x', type: 'exclude', photoId: 'p_home' },
+          { id: 's', type: 'split', beforePhotoId: 'p_b' },
+        ],
+      };
+    };
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    test('집을 거치면 도착이 출발보다 늦는 경계는 gap으로 남고, 충분하면 끼워요', async () => {
+      // given: 방콕 <-> 서울은 한쪽이 5시간이 넘어서 두 시간 간격으로는 모자라요
+      const short = makeAccount(2 * 60 * 60 * 1000);
+      const long = makeAccount(10 * MS_PER_DAY);
+
+      // when
+      const shortJourney = await buildJourney(short.photos, short.corrections, findCity);
+      const longJourney = await buildJourney(long.photos, long.corrections, findCity);
+
+      // then
+      expect(summarize(shortJourney.legs)).toEqual([
+        ['outbound', 'home', 'p_a'],
+        ['gap', 'p_a', 'p_b'],
+      ]);
+      expect(summarize(longJourney.legs)).toEqual([
+        ['outbound', 'home', 'p_a'],
+        ['return', 'p_a', 'home'],
+        ['outbound', 'home', 'p_b'],
+      ]);
+    });
+
+    test('집 도착과 집 출발이 딱 같은 시각이면 집을 끼우고, 1초라도 늦으면 gap이에요', async () => {
+      // given: 방콕 <-> 서울을 비행으로 추정한 시간(초 단위로 맞춰요)의 두 배만큼 벌려요
+      const km = calcDistanceKm(CITIES.seoul, CITIES.bangkok);
+      const travelSec = Math.round((calcTravelHours(km, 'flight') * 3600 * 1000) / 1000);
+      const tie = makeAccount(2 * travelSec * 1000);
+      const late = makeAccount(2 * travelSec * 1000 - 2000);
+
+      // when
+      const tieJourney = await buildJourney(tie.photos, tie.corrections, findCity);
+      const lateJourney = await buildJourney(late.photos, late.corrections, findCity);
+
+      // then
+      expect(summarize(tieJourney.legs).map(([kind]) => kind)).toEqual([
+        'outbound',
+        'return',
+        'outbound',
+      ]);
+      expect(summarize(lateJourney.legs).map(([kind]) => kind)).toEqual(['outbound', 'gap']);
+    });
+
+    test('이동 수단 보정으로 고친 mode의 이동 시간으로 판단해요', async () => {
+      // given: 이틀 간격은 비행(5시간대 둘)이면 충분하지만, 앞 점에서 돌아오는 쪽을 차(70km/h)로 고치면 모자라요
+      const long = makeAccount(2 * MS_PER_DAY);
+      const modeFix = { id: 'm', type: 'mode', fromPhotoId: 'p_a', mode: 'car' };
+
+      // when
+      const journey = await buildJourney(long.photos, [...long.corrections, modeFix], findCity);
+
+      // then
+      expect(summarize(journey.legs).map(([kind]) => kind)).toEqual(['outbound', 'gap']);
+      expect(
+        summarize((await buildJourney(long.photos, long.corrections, findCity)).legs),
+      ).toHaveLength(3);
+    });
+  });
+
+  describe('끼운 집 쪽 추정 시각의 시간대', () => {
+    const withOffset = (photoId, offset) =>
+      photos.map((photo) => (photo.id === photoId ? { ...photo, offset } : photo));
+
+    test('지정한 사진의 시간대로 적어요', async () => {
+      // given: 지정한 사진(p_s2)만 +08:00이에요
+      const shifted = withOffset('p_s2', '+08:00');
+      const pinned = [{ id: 'c_home', type: 'home', photoIds: ['p_s2'] }, corrections[1]];
+
+      // when
+      const journey = await buildJourney(shifted, pinned, findCity);
+
+      // then: 끼운 집 쪽 시각은 +08:00, 방콕 · 도쿄 쪽은 사진 그대로예요
+      const [out1, back, out2] = journey.legs;
+      expect(out1.departAt.endsWith('+08:00')).toBe(true);
+      expect(out1.arriveAt.endsWith('+09:00')).toBe(true);
+      expect(back.arriveAt.endsWith('+08:00')).toBe(true);
+      expect(out2.departAt.endsWith('+08:00')).toBe(true);
+    });
+
+    test('지정한 사진을 07에서 빼도 그 사진의 시간대를 써요', async () => {
+      // given
+      const shifted = withOffset('p_s1', '+08:00');
+      const excluded = [...corrections, { id: 'x', type: 'exclude', photoId: 'p_s1' }];
+
+      // when
+      const journey = await buildJourney(shifted, excluded, findCity);
+
+      // then
+      const [out1, back, out2] = journey.legs;
+      expect(out1.departAt.endsWith('+08:00')).toBe(true);
+      expect(back.arriveAt.endsWith('+08:00')).toBe(true);
+      expect(out2.departAt.endsWith('+08:00')).toBe(true);
+    });
+
+    test('지정한 사진에 시간대가 없으면 +09:00으로 적어요', async () => {
+      // given
+      const noOffset = withOffset('p_s1', undefined);
+      const excluded = [...corrections, { id: 'x', type: 'exclude', photoId: 'p_s1' }];
+
+      // when
+      const journey = await buildJourney(noOffset, excluded, findCity);
+
+      // then
+      expect(journey.legs[0].departAt.endsWith('+09:00')).toBe(true);
+    });
+  });
+
+  test('지점 하나와 뺀 집 사진 한 장뿐인 계정은 집 -> 지점 outbound 구간 하나가 생겨요', async () => {
+    // given
+    const account = [
+      makePhoto('p_s1', 'seoul', '2024-07-01T09:00:00'),
+      makePhoto('p_b1', 'bangkok', '2024-07-11T20:10:00'),
+      makePhoto('p_b2', 'bangkok', '2024-07-13T10:00:00'),
+    ];
+    const pins = [
+      { id: 'h', type: 'home', photoIds: ['p_s1'] },
+      { id: 'x', type: 'exclude', photoId: 'p_s1' },
+    ];
+
+    // when
+    const journey = await buildJourney(account, pins, findCity);
+
+    // then
+    expect(summarize(journey.legs)).toEqual([['outbound', 'home', 'p_b1']]);
+    expect(journey.legs[0]).toMatchObject({ tripId: 'p_b1', timing: 'estimated' });
+    expect('fromPhotoId' in journey.legs[0]).toBe(false);
   });
 });
 
