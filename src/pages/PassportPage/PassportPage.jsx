@@ -20,7 +20,7 @@ import PassportView from './PassportView';
  * @see PassportView
  */
 export default function PassportPage() {
-  const { journey, status } = useJourney();
+  const { journey, status, isRefreshing } = useJourney();
 
   const stats = useMemo(() => selectPassportStats(journey), [journey]);
   const stamps = useMemo(() => selectPassportStamps(journey), [journey]);
@@ -52,6 +52,7 @@ export default function PassportPage() {
   return (
     <PassportView
       journey={journey}
+      isRefreshing={isRefreshing}
       stats={stats}
       stamps={stamps}
       calendar={calendar}

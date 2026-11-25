@@ -29,8 +29,8 @@ let container;
 let root;
 let corrections;
 
-const render = async (journey) => {
-  vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', error: null });
+const render = async (journey, isRefreshing = false) => {
+  vi.mocked(useJourney).mockReturnValue({ journey, status: 'ready', error: null, isRefreshing });
   await act(async () =>
     root.render(
       <MemoryRouter initialEntries={['/passport']}>
@@ -44,10 +44,10 @@ const render = async (journey) => {
 };
 
 // 훅이 돌려주는 값을 바꿔 다시 그려요. journeyStatus가 바뀌는 것을 흉내 내요.
-const rerender = async (journey, patch) => {
+const rerender = async (journey, patch, isRefreshing = false) => {
   corrections = { ...corrections, ...patch };
   vi.mocked(useCorrections).mockReturnValue(corrections);
-  await render(journey);
+  await render(journey, isRefreshing);
 };
 
 const section = () => container.querySelector('section[aria-labelledby="passport-home"]');
@@ -298,6 +298,87 @@ describe('저장', () => {
 
     expect(corrections.refreshJourney).toHaveBeenCalledTimes(1);
     expect(corrections.add).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('보정을 읽기 전', () => {
+  test.each(['idle', 'loading', 'error'])(
+    '보정이 %s이면 고르기 버튼이 꺼져 있어요',
+    async (status) => {
+      await rerender(edge, { status });
+
+      expect(button('집 바꾸기').disabled).toBe(true);
+    },
+  );
+
+  test('보정을 다 읽으면 버튼이 켜져요', async () => {
+    await rerender(edge, { status: 'loading' });
+    expect(button('집 바꾸기').disabled).toBe(true);
+
+    await rerender(edge, { status: 'ready' });
+
+    expect(button('집 바꾸기').disabled).toBe(false);
+  });
+
+  test('집을 모르는 계정의 [집 고르기]도 꺼져 있어요', async () => {
+    await rerender(unknownHome, { status: 'loading' });
+
+    expect(button('집 고르기').disabled).toBe(true);
+  });
+
+  test('불러오기에 실패하면 07처럼 새로고침을 안내해요', async () => {
+    await rerender(edge, { status: 'error' });
+
+    expect(section().querySelector('[role="alert"]').textContent).toBe(
+      '고친 기록을 불러오지 못해 지금은 집을 바꿀 수 없어요. 새로고침해 주세요.',
+    );
+  });
+
+  test('열어 둔 사이 보정이 ready가 아니게 되면 목록을 감추고 확정이 나가지 않아요', async () => {
+    await render(edge);
+    await click(button('집 바꾸기'));
+    await click(rowOf('도쿄'));
+
+    await rerender(edge, { status: 'loading' });
+
+    expect(section().querySelector('[role="radiogroup"]')).toBeNull();
+    expect(confirmButton()).toBeUndefined();
+    expect(corrections.add).not.toHaveBeenCalled();
+  });
+});
+
+describe('새 Journey를 읽는 중', () => {
+  const saveTokyo = async () => {
+    await render(edge);
+    await click(button('집 바꾸기'));
+    await click(rowOf('도쿄'));
+    await click(confirmButton());
+  };
+
+  test('journeyStatus가 saved여도 isRefreshing이 true면 정리하는 중이고 버튼이 잠겨요', async () => {
+    await saveTokyo();
+
+    await rerender(edge, { journeyStatus: 'saved' }, true);
+
+    expect(section().querySelector('[role="status"]').textContent).toBe('여행을 정리하는 중…');
+    expect(button('집 바꾸기').disabled).toBe(true);
+  });
+
+  test('isRefreshing이 false가 되면 풀려요', async () => {
+    await saveTokyo();
+    await rerender(edge, { journeyStatus: 'saved' }, true);
+
+    await rerender(edge, { journeyStatus: 'saved' }, false);
+
+    expect(section().querySelector('[role="status"]')).toBeNull();
+    expect(button('집 바꾸기').disabled).toBe(false);
+  });
+
+  test('저장과 무관하게 isRefreshing이 true여도 조작은 잠겨요', async () => {
+    await render(pinned, true);
+
+    expect(button('집 바꾸기').disabled).toBe(true);
+    expect(button('자동으로 되돌리기').disabled).toBe(true);
   });
 });
 

@@ -25,13 +25,17 @@ const OUTLINE_BUTTON_CLASS =
  *  - 저장 단계: saving(보정을 보내는 중) → refreshing(저장됨, Journey 계산은 journeyStatus를 봐요) / saveFailed.
  *    보정 저장이 실패하면 [다시 시도]가 같은 저장을 다시 하고, 보정은 저장됐는데 계산이 실패하면 계산만 다시 해요.
  *  - 직접 지정한 집은 home 보정이 하나가 아닐 수 있어서(마지막 것만 효력이 있어요) 되돌릴 때는 전부 지워요.
+ *  - 보정을 다 불러오기 전에는(store.add가 던져요) 집을 고를 수 없어요. 불러오기에 실패하면 07처럼 새로고침을 안내해요.
+ *  - 저장된 Journey를 다시 읽는 동안(isRefreshing)은 옛 집과 후보가 보여서 조작을 잠가요. 저장과 무관하게 true여도
+ *    (다른 화면에서 고친 직후) 같은 이유로 잠그고 "정리하는 중…"을 보여요. 실제로 Journey를 다시 맞추는 중이라서요.
  *  - 집을 모르면(journey.home이 null) 사진을 올리라고 안내하고, 고를 도시가 있으면 [집 고르기]도 둬요.
  *
  * @param {object} props
  * @param {import('@/types').Journey | null} props.journey
+ * @param {boolean} [props.isRefreshing] 저장된 새 Journey를 다시 읽는 중이면 true(useJourney). 그동안은 옛 Journey라 조작을 잠가요
  * @param {string} [props.className] 위 여백 등 놓을 자리
  */
-export default function HomeSection({ journey, className }) {
+export default function HomeSection({ journey, isRefreshing = false, className }) {
   const { corrections, status, add, removeMany, journeyStatus, refreshJourney } = useCorrections();
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState('idle');
@@ -43,7 +47,11 @@ export default function HomeSection({ journey, className }) {
   const hasTrips = (journey?.trips.length ?? 0) > 0;
   const canPick = home !== null || selectHomeCandidates(journey).length > 0;
 
-  const isBusy = phase === 'saving' || (phase === 'refreshing' && journeyStatus === 'building');
+  // 저장 중이거나, 계산 중이거나, 계산이 끝났어도 새 Journey를 읽기 전이면 화면의 집은 옛 값이에요.
+  const isBusy =
+    isRefreshing || phase === 'saving' || (phase === 'refreshing' && journeyStatus === 'building');
+  const isLoadFailed = status === 'error';
+  const canChoose = status === 'ready' && !isBusy;
   const isFailed = phase === 'saveFailed' || (phase === 'refreshing' && journeyStatus === 'failed');
 
   const run = async (action) => {
@@ -59,8 +67,10 @@ export default function HomeSection({ journey, className }) {
     }
   };
 
-  const handleConfirm = (candidate) =>
-    run(() => add({ type: 'home', photoIds: [candidate.photoId] }));
+  const handleConfirm = (candidate) => {
+    if (!canChoose) return undefined;
+    return run(() => add({ type: 'home', photoIds: [candidate.photoId] }));
+  };
 
   const handleRevert = () => {
     const ids = corrections.filter((item) => item.type === 'home').map((item) => item.id);
@@ -83,6 +93,12 @@ export default function HomeSection({ journey, className }) {
     description = (
       <p role="alert" className="text-md text-accent">
         집을 바꾸지 못했어요. 잠시 뒤 다시 시도해 주세요.
+      </p>
+    );
+  } else if (isLoadFailed) {
+    description = (
+      <p role="alert" className="text-md text-accent">
+        고친 기록을 불러오지 못해 지금은 집을 바꿀 수 없어요. 새로고침해 주세요.
       </p>
     );
   } else if (!home) {
@@ -108,7 +124,7 @@ export default function HomeSection({ journey, className }) {
       type="button"
       aria-expanded={isOpen}
       aria-controls="passport-home-picker"
-      disabled={isBusy}
+      disabled={!isOpen && !canChoose}
       onClick={() => setIsOpen((prev) => !prev)}
       className={OUTLINE_BUTTON_CLASS}
     >
@@ -179,7 +195,7 @@ export default function HomeSection({ journey, className }) {
           </div>
           <div className="flex shrink-0 items-center gap-6">{actions}</div>
         </div>
-        {isOpen && (
+        {isOpen && canChoose && (
           <div id="passport-home-picker">
             <HomePicker journey={journey} onConfirm={handleConfirm} />
           </div>
