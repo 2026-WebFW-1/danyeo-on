@@ -213,13 +213,21 @@ function findFirstIndex(sorted, test) {
 }
 
 /**
- * 지역이 하나뿐이면 어디가 집이고 어디가 여행지인지 가를 수 없어서 null이에요.
+ * 자동 판단은 지역이 하나뿐이면 어디가 집이고 어디가 여행지인지 가를 수 없어서 null이에요.
+ * 사용자가 집을 지정했으면 그 좌표에서 60km 안인 첫 지역을 집으로 하고, 그런 지역이 없으면 지정한 좌표 그대로가 집이에요.
+ * 지정한 집은 지역이 하나뿐이어도 있고, source: 'user'가 붙어요.
  *
  * @param {RawStop[]} stops
- * @returns {{ lat: number, lng: number } | null} 사진이 가장 많은 지역
+ * @param {{ lat: number, lng: number } | null} pinnedHome
+ * @returns {import('@/types').GroupResult['home']} 사진이 가장 많은 지역
  */
-function findHome(stops) {
+function findHome(stops, pinnedHome) {
   const regions = groupIntoRegions(stops);
+  if (pinnedHome) {
+    const region =
+      regions.find((r) => calcDistanceKm(r, pinnedHome) <= SAME_PLACE_KM) ?? pinnedHome;
+    return { lat: roundCoord(region.lat), lng: roundCoord(region.lng), source: 'user' };
+  }
   if (regions.length <= 1) return null;
 
   const top = regions.reduce((best, r) => (r.photoCount > best.photoCount ? r : best));
@@ -362,15 +370,16 @@ function toLeg(from, to) {
  *   split 보정의 사진을 빼도 나눈 자리가 남게, 사진 ID 대신 시각으로 받아요
  * @param {MergeSpan[]} [mergeSpans] 이을 시각 구간. 이 구간에 걸친 여행 경계는 집을 거치거나 14일 넘게 비어도 끊지 않아요.
  *   기준 사진 ID가 있으면 두 사진 모두 집 밖 지점에 남아 있을 때만 이어요.
+ * @param {{ lat: number, lng: number } | null} [pinnedHome] 사용자가 집으로 지정한 사진의 좌표. 지정한 사진을 빼도 집이 남게, 사진 ID 대신 좌표로 받아요
  * @returns {import('@/types').GroupResult}
  */
-export function group(photos, splitAts = [], mergeSpans = []) {
+export function group(photos, splitAts = [], mergeSpans = [], pinnedHome = null) {
   const located = /** @type {import('@/types').LocatedPhoto[]} */ (photos.filter(isLocated)).sort(
     byTakenMs,
   );
   const rawStops = buildStops(located, splitAts);
   // 나누면 지점 중심이 옮겨 집이 바뀔 수 있어서, 집은 나누기 전 지점으로 정해요.
-  const home = findHome(splitAts.length > 0 ? buildStops(located, []) : rawStops);
+  const home = findHome(splitAts.length > 0 ? buildStops(located, []) : rawStops, pinnedHome);
 
   const timedOnly = photos.filter((photo) => hasTime(photo) && !isLocated(photo));
   const filledByStop = groupUnlocatedPhotosByStop(rawStops, located, timedOnly);

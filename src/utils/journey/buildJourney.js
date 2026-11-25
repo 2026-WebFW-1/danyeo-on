@@ -3,6 +3,7 @@ import { chapterSlug } from '@/utils/chapterSlug';
 import { calcDistanceKm } from '@/utils/distance';
 import { group } from '@/utils/journey/group';
 import { collectMergeSpans } from '@/utils/journey/mergeSpans';
+import { findPinnedHome } from '@/utils/journey/pinnedHome';
 import { calcTravelHours, legMode } from '@/utils/legMode';
 import { toLocalDate } from '@/utils/localDate';
 
@@ -539,7 +540,8 @@ export async function buildJourney(photos, corrections, findPlace) {
   const allPhotosById = indexById(photos);
   const splitAts = collectSplitAts(filterByType(corrections, 'split'), allPhotosById);
   const mergeSpans = collectMergeSpans(corrections, allPhotosById, excludedIds);
-  const grouped = group(keptPhotos, splitAts, mergeSpans); // { home, stops, trips, unlocated }
+  const pinnedHome = findPinnedHome(corrections, allPhotosById);
+  const grouped = group(keptPhotos, splitAts, mergeSpans, pinnedHome); // { home, stops, trips, unlocated }
   const lookup = {
     photoById: indexById(keptPhotos),
     tripIdByStopId: mapTripIdByStopId(grouped.trips),

@@ -497,6 +497,104 @@ describe('buildJourney 규칙', () => {
   });
 });
 
+describe('buildJourney 집 직접 지정(#262)', () => {
+  // BANGKOK_TRIP은 서울 사진이 가장 많아 서울이 집이에요.
+  const pin = (id, photoIds) => ({ id, type: 'home', photoIds });
+
+  test('home 보정으로 집이 바뀌고 source가 user예요', async () => {
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, [pin('h', ['p_b1'])], findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ city: '방콕', cc: 'TH', source: 'user' });
+    expect(journey.stops.map((stop) => stop.city)).toEqual(['서울', '서울']);
+  });
+
+  test('집을 지정하지 않으면 home에 source 칸이 없어요', async () => {
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, [], findCity);
+
+    // then
+    expect(journey.home.city).toBe('서울');
+    expect('source' in journey.home).toBe(false);
+  });
+
+  test('지정한 사진을 exclude해도 집과 source가 유지돼요', async () => {
+    // given: 집 사진 하나를 07에서 뺐어요
+    const corrections = [pin('h', ['p_b1']), { id: 'x', type: 'exclude', photoId: 'p_b1' }];
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ city: '방콕', source: 'user' });
+  });
+
+  test('집 사진을 빼서 근처에 지점이 없고 지역이 하나뿐이어도 지정한 좌표가 집이에요', async () => {
+    // given
+    const photos = [
+      makePhoto('p_s1', 'seoul', '2024-07-01T09:00:00'),
+      makePhoto('p_b1', 'bangkok', '2024-07-11T20:10:00'),
+      makePhoto('p_b2', 'bangkok', '2024-07-13T10:00:00'),
+    ];
+    const corrections = [pin('h', ['p_s1']), { id: 'x', type: 'exclude', photoId: 'p_s1' }];
+
+    // when
+    const journey = await buildJourney(photos, corrections, findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ lat: 37.5, lng: 127, city: '서울', source: 'user' });
+    expect(journey.stops.map((stop) => stop.city)).toEqual(['방콕']);
+  });
+
+  test('photoIds가 빈 배열이면(영구 삭제) 자동 판단과 완전히 같은 결과예요', async () => {
+    // when
+    const auto = await buildJourney(BANGKOK_TRIP, [], findCity);
+    const journey = await buildJourney(BANGKOK_TRIP, [pin('h', [])], findCity);
+
+    // then
+    expect(journey).toEqual(auto);
+  });
+
+  test('여러 번 지정하면 마지막이 이겨요', async () => {
+    // given
+    const corrections = [pin('h1', ['p_b1']), pin('h2', ['p_s1'])];
+
+    // when
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey.home).toMatchObject({ city: '서울', source: 'user' });
+  });
+
+  test('마지막 home 보정의 photoIds가 비면 앞선 지정으로 돌아가지 않고 자동 판단이에요', async () => {
+    // given
+    const corrections = [pin('h1', ['p_b1']), pin('h2', [])];
+
+    // when
+    const auto = await buildJourney(BANGKOK_TRIP, [], findCity);
+    const journey = await buildJourney(BANGKOK_TRIP, corrections, findCity);
+
+    // then
+    expect(journey).toEqual(auto);
+  });
+
+  test('위치 없는 사진을 지정하면 자동 판단이에요', async () => {
+    // given
+    const photos = [
+      ...BANGKOK_TRIP,
+      { id: 'p_none', takenAt: '2024-07-02T09:00:00', lat: null, lng: null },
+    ];
+
+    // when
+    const auto = await buildJourney(photos, [], findCity);
+    const journey = await buildJourney(photos, [pin('h', ['p_none'])], findCity);
+
+    // then
+    expect(journey).toEqual(auto);
+  });
+});
+
 describe('합치기 뒤에 바뀐 여행 사진', () => {
   const photo = (id, city, day) => makePhoto(id, city, `2025-03-${day}T12:00:00`);
   const homes = ['01', '02', '08', '09', '19', '20'].map((day) =>

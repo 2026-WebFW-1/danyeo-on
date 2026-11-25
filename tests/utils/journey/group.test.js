@@ -616,3 +616,70 @@ describe('group', () => {
     });
   });
 });
+
+describe('group 집 직접 지정', () => {
+  const SEOUL = { lat: 37.5, lng: 127 };
+  const BANGKOK = { lat: 13.75, lng: 100.5 };
+  const photo = (id, takenAt, place) => ({ id, takenAt, offset: '+09:00', ...place });
+  // 서울 2장, 방콕 3장이라 자동 판단은 방콕이 집이에요.
+  const photos = [
+    photo('s1', '2025-01-01T10:00:00', SEOUL),
+    photo('s2', '2025-01-02T10:00:00', SEOUL),
+    photo('b1', '2025-02-01T10:00:00', BANGKOK),
+    photo('b2', '2025-02-02T10:00:00', BANGKOK),
+    photo('b3', '2025-02-03T10:00:00', BANGKOK),
+  ];
+
+  test('지정 좌표가 있으면 사진 수 1등 대신 그 지역이 집이에요', () => {
+    // when
+    const result = group(photos, [], [], SEOUL);
+
+    // then
+    expect(result.home).toEqual({ ...SEOUL, source: 'user' });
+    expect(findStopOf(result, 's1').isHome).toBe(true);
+    expect(findStopOf(result, 'b1').isHome).toBe(false);
+  });
+
+  test('지정 좌표 근처에 지점이 없어도(뺀 사진) 그 좌표가 집이고, 지역이 하나뿐이어도 집이 생겨요', () => {
+    // given: 서울 사진은 group이 받는 사진에 없어요
+    const onlyBangkok = photos.filter((p) => p.id.startsWith('b'));
+
+    // when
+    const result = group(onlyBangkok, [], [], SEOUL);
+
+    // then
+    expect(result.home).toEqual({ ...SEOUL, source: 'user' });
+    expect(result.stops.every((stop) => !stop.isHome)).toBe(true);
+    expect(group(onlyBangkok).home).toBeNull();
+  });
+
+  test('집 사진이 들어 있는 지역은 그 지역의 좌표를 집으로 써요', () => {
+    // given: 지정한 사진이 지역 중심에서 조금 떨어져 있어요
+    const nearBangkok = { lat: 13.8, lng: 100.55 };
+
+    // when
+    const result = group(photos, [], [], nearBangkok);
+
+    // then
+    expect(result.home).toEqual({ ...BANGKOK, source: 'user' });
+  });
+
+  test('자동 판단과 같은 지역을 지정하면 좌표가 같고 source만 붙어요', () => {
+    // when
+    const auto = group(photos);
+    const pinned = group(photos, [], [], BANGKOK);
+
+    // then
+    expect(auto.home).toEqual(BANGKOK);
+    expect(pinned.home).toEqual({ ...auto.home, source: 'user' });
+    expect({ ...pinned, home: auto.home }).toEqual(auto);
+  });
+
+  test('지정하지 않으면 source 칸이 없어요', () => {
+    // when
+    const result = group(photos);
+
+    // then
+    expect('source' in result.home).toBe(false);
+  });
+});

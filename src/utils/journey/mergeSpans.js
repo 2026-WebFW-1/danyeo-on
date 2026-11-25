@@ -1,4 +1,5 @@
 import { group } from '@/utils/journey/group';
+import { findPinnedHome } from '@/utils/journey/pinnedHome';
 
 // 사진을 제외한 뒤에도 기준 시각이 필요해 여행 계산과 07a 모두 전체 사진을 넘겨요.
 const DEFAULT_OFFSET = '+09:00';
@@ -54,10 +55,12 @@ export function collectMergeSpans(corrections, photoById, excludedIds = new Set(
   const merges = [];
   const earlierExcludes = new Set();
   const earlierSplits = [];
+  const earlierHomes = [];
   for (const correction of corrections) {
     const { id, type, photoIds } = correction;
     if (type === 'exclude') earlierExcludes.add(correction.photoId);
     if (type === 'split') earlierSplits.push(takenMs(photoById.get(correction.beforePhotoId)));
+    if (type === 'home') earlierHomes.push(correction);
     if (type !== 'merge' || !Array.isArray(photoIds) || photoIds.length !== 2) continue;
     const [left, right] = photoIds;
     if (!(takenMs(photoById.get(left)) < takenMs(photoById.get(right)))) continue;
@@ -75,6 +78,7 @@ export function collectMergeSpans(corrections, photoById, excludedIds = new Set(
       original,
       earlierSplits,
       resolveSpans(merges, earlierExcludes, photoById),
+      findPinnedHome(earlierHomes, photoById),
     );
     merges.push({ id, ...findAnchorCandidates(grouped, left, right) });
   }
