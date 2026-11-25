@@ -15,6 +15,7 @@ import {
   selectArrivalStops,
   selectChapterSpans,
 } from '@/utils/mapScreen';
+import { buildTimeline, calcPosition } from '@/utils/playback';
 
 describe('parsePeriod', () => {
   test('아는 기간은 그대로예요', () => {
@@ -144,6 +145,20 @@ describe('selectArrivalStops', () => {
     test('그 지점을 떠나는 첫 구간의 시작(t: 0)에서 한 장이에요', () => {
       const result = selectArrivalStops(noArrival, stops, { legIndex: 0, t: 0 });
       expect(result.map((stop) => stop.id)).toEqual([firstStop.id]);
+    });
+
+    test('재생 처음에 머무는 동안 카드가 떠 있어요', () => {
+      const timeline = buildTimeline(noArrival);
+      const position = calcPosition(timeline, 1000);
+      expect(selectArrivalStops(noArrival, stops, position).map((stop) => stop.id)).toEqual([
+        firstStop.id,
+      ]);
+      const moving = calcPosition(timeline, timeline.steps[0].startMs + 100);
+      expect(selectArrivalStops(noArrival, stops, moving)).toEqual([]);
+    });
+
+    test('집에서 떠나는 일정은 처음에 카드가 없어요', () => {
+      expect(selectArrivalStops(legs, stops, calcPosition(buildTimeline(legs), 0))).toEqual([]);
     });
 
     test('이동을 시작하면 카드가 없어요', () => {

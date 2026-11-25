@@ -2,6 +2,7 @@
 
 import { DEFAULT_PERIOD, HOME_ID, PERIODS } from '@/constants/journey';
 import { toLocalDate, toLocalYear } from '@/utils/localDate';
+import { hasLeadingStay } from '@/utils/playback';
 
 // 카드는 지금 지점과 앞 지점 둘까지 겹쳐요. 피그마 01 Arrival stack이 3장이에요.
 const ARRIVAL_STACK_SIZE = 3;
@@ -102,18 +103,18 @@ export function selectArrivalStops(legs, stops, position) {
   // 도착한 순서대로 지점 ID를 모아요. 도착하는 구간이 없는 지점은 처음 떠나는 구간 앞에 넣어요.
   const arrivedIds = new Set(legs.map((item) => item.to));
   const ids = [];
-  let isFirstDeparture = false;
+  const isFirstStay = position.legIndex === 0 && hasLeadingStay(legs);
   for (const item of legs.slice(0, position.legIndex + 1)) {
-    isFirstDeparture =
-      item.from !== HOME_ID && !arrivedIds.has(item.from) && !ids.includes(item.from);
-    if (isFirstDeparture) ids.push(item.from);
+    if (item.from !== HOME_ID && !arrivedIds.has(item.from) && !ids.includes(item.from)) {
+      ids.push(item.from);
+    }
     if (item !== leg || position.t === 1) ids.push(item.to);
   }
 
   const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
   const current = stopsById.get(ids.at(-1));
-  // t: 0은 도착하는 구간이 없는 지점을 처음 떠날 때만 카드가 있어요. 그 밖의 이동 시작은 카드가 없어요.
-  if (!current || current.transit || (position.t === 0 && !isFirstDeparture)) return [];
+  // t: 0은 처음에 머무는 동안(hasLeadingStay)만 카드가 있어요. 그 밖의 이동 시작은 카드가 없어요.
+  if (!current || current.transit || (position.t === 0 && !isFirstStay)) return [];
 
   return ids
     .map((id) => stopsById.get(id))
