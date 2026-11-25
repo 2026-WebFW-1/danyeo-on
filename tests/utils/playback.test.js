@@ -5,6 +5,7 @@ import empty from '@/data/fixtures/empty.journey.json';
 import heavy from '@/data/fixtures/heavy.journey.json';
 import seojin from '@/data/fixtures/seojin.journey.json';
 import { selectLegsByPeriod } from '@/utils/periodLegs';
+import { selectLegsByTrip } from '@/utils/tripLegs';
 import {
   buildDateTrack,
   buildTimeline,
@@ -15,6 +16,7 @@ import {
   calcPositionAtDate,
   calcPositionAtStop,
   calcTimeAtElapsed,
+  hasLeadingStay,
   calcRefreshedElapsedMs,
   isSameRoute,
 } from '@/utils/playback';
@@ -322,8 +324,25 @@ describe('calcPositionAtStop', () => {
     expect(calcPositionAtStop(legs, legs[0].to)).toEqual({ legIndex: 0, t: 1 });
   });
 
-  test('도착하는 구간이 없으면 null이에요', () => {
+  test('이 구간들에 나오지 않는 지점이면 null이에요', () => {
     expect(calcPositionAtStop(legs, 'none')).toBeNull();
+    expect(calcPositionAtStop([], legs[0].to)).toBeNull();
+  });
+
+  // 계정의 첫 사진이 여행지면 집 → 첫 지점 구간이 없어서 첫 지점은 구간의 from으로만 나와요(#265).
+  test('도착하는 구간이 없으면 그 지점을 떠나는 구간의 시작(t: 0)이에요', () => {
+    const firstStop = legs[0].to;
+    expect(calcPositionAtStop(legs.slice(1), firstStop)).toEqual({ legIndex: 0, t: 0 });
+  });
+
+  test('여러 구간이 떠나면 가장 먼저 떠나는 구간이에요', () => {
+    const departing = { ...legs[1], from: 'p_first', to: 'p_a' };
+    const again = { ...legs[2], from: 'p_first', to: 'home' };
+    expect(calcPositionAtStop([departing, again], 'p_first')).toEqual({ legIndex: 0, t: 0 });
+    expect(calcPositionAtStop([{ ...departing, from: 'home' }, again], 'p_first')).toEqual({
+      legIndex: 1,
+      t: 0,
+    });
   });
 });
 
@@ -373,5 +392,166 @@ describe('calcRefreshedElapsedMs', () => {
 
   test('다 그린 상태면 그대로 다 그린 상태예요', () => {
     expect(calcRefreshedElapsedMs(timeline, nextTimeline, Infinity)).toBe(Infinity);
+  });
+});
+
+// 계정의 첫 사진이 여행지면 집 → 첫 지점 구간이 없어요. 첫 지점이 처음에 머물러요(#265).
+describe('처음에 머무는 구간(hasLeadingStay)', () => {
+  const leadLegs = legs.slice(1);
+  const leadTimeline = buildTimeline(leadLegs);
+  const leadMs = leadTimeline.steps[0].startMs;
+  const leadTrack = buildDateTrack(leadLegs, leadTimeline);
+
+  describe('hasLeadingStay', () => {
+    test('첫 구간이 집에서 떠나면 아니에요', () => {
+      expect(hasLeadingStay(legs)).toBe(false);
+      expect(hasLeadingStay([])).toBe(false);
+    });
+
+    test('첫 구간이 도착하는 구간 없는 지점에서 떠나면 맞아요', () => {
+      expect(leadLegs[0].from).not.toBe('home');
+      expect(hasLeadingStay(leadLegs)).toBe(true);
+    });
+
+    test('그 지점에 도착하는 구간이 있으면 아니에요', () => {
+      const returning = [...leadLegs, { ...legs[0], to: leadLegs[0].from }];
+      expect(hasLeadingStay(returning)).toBe(false);
+    });
+  });
+
+  describe('buildTimeline', () => {
+    test('첫 구간이 3초 늦게 출발하고 전체 시간도 그만큼 늘어요', () => {
+      expect(leadMs).toBe(3000);
+      const last = leadTimeline.steps.at(-1);
+      expect(leadTimeline.totalMs).toBe(last.startMs + last.moveMs + last.stayMs);
+    });
+
+    test('집에서 떠나는 일정은 그대로예요', () => {
+      expect(steps[0].startMs).toBe(0);
+    });
+  });
+
+  describe('calcPosition', () => {
+    test('머무는 동안은 { legIndex: 0, t: 0 }이에요', () => {
+      expect(calcPosition(leadTimeline, 0)).toEqual({ legIndex: 0, t: 0 });
+      expect(calcPosition(leadTimeline, leadMs - 1)).toEqual({ legIndex: 0, t: 0 });
+      expect(calcPosition(leadTimeline, leadMs)).toEqual({ legIndex: 0, t: 0 });
+    });
+
+    test('머문 뒤에는 첫 구간을 이동해요', () => {
+      const half = leadMs + leadTimeline.steps[0].moveMs / 2;
+      expect(calcPosition(leadTimeline, half)).toEqual({ legIndex: 0, t: 0.5 });
+    });
+  });
+
+  describe('calcElapsedMs', () => {
+    test('첫 구간의 t: 0은 머물기의 시작이에요', () => {
+      expect(calcElapsedMs(leadTimeline, { legIndex: 0, t: 0 })).toBe(0);
+      expect(calcElapsedMs(timeline, { legIndex: 0, t: 0 })).toBe(0);
+    });
+
+    test('머문 뒤 위치는 그대로 계산해요', () => {
+      const { moveMs } = leadTimeline.steps[0];
+      expect(calcElapsedMs(leadTimeline, { legIndex: 0, t: 0.5 })).toBe(leadMs + moveMs / 2);
+    });
+  });
+
+  describe('calcPositionAtStop', () => {
+    test('첫 지점을 누르면 머물기의 시작이에요', () => {
+      const position = calcPositionAtStop(leadLegs, leadLegs[0].from);
+      expect(calcElapsedMs(leadTimeline, position)).toBe(0);
+      expect(calcPosition(leadTimeline, 0)).toEqual(position);
+    });
+  });
+
+  describe('buildDateTrack', () => {
+    test('맨 앞에 첫 출발 시각에 멈춘 토막이 있고 나머지는 그만큼 늦어요', () => {
+      const departTime = Date.parse(leadLegs[0].departAt);
+      expect(leadTrack[0]).toEqual({
+        startMs: 0,
+        endMs: leadMs,
+        fromTime: departTime,
+        toTime: departTime,
+      });
+      expect(leadTrack[1].startMs).toBe(leadMs);
+    });
+
+    test('집에서 떠나면 토막을 더 두지 않아요', () => {
+      expect(buildDateTrack(legs, timeline)[0].startMs).toBe(0);
+      expect(buildDateTrack(legs, timeline)[0].endMs).toBe(steps[0].moveMs);
+    });
+  });
+
+  describe('calcTimeAtElapsed · calcElapsedAtTime', () => {
+    test('머무는 동안 손잡이는 첫 출발 날짜에 있어요', () => {
+      const departTime = Date.parse(leadLegs[0].departAt);
+      expect(calcTimeAtElapsed(leadTrack, 0)).toBe(departTime);
+      expect(calcTimeAtElapsed(leadTrack, leadMs / 2)).toBe(departTime);
+    });
+
+    test('맨 처음으로 끌면 머물기의 시작이에요', () => {
+      const departTime = Date.parse(leadLegs[0].departAt);
+      expect(calcElapsedAtTime(leadTrack, departTime)).toBe(0);
+      expect(calcElapsedAtTime(leadTrack, departTime - 1e9)).toBe(0);
+    });
+
+    test('출발 뒤 날짜는 NaN 없이 이동 토막에 놓여요', () => {
+      const { departAt, arriveAt } = leadLegs[0];
+      const mid = (Date.parse(departAt) + Date.parse(arriveAt)) / 2;
+      const elapsed = calcElapsedAtTime(leadTrack, mid);
+      expect(Number.isFinite(elapsed)).toBe(true);
+      expect(elapsed).toBeGreaterThan(leadMs);
+    });
+  });
+
+  describe('calcRefreshedElapsedMs', () => {
+    const longerLegs = leadLegs.map((leg, index) => (index === 0 ? { ...leg, km: 5000 } : leg));
+    const nextTimeline = buildTimeline(longerLegs);
+
+    test('머무는 중이면 머문 시간을 지켜요', () => {
+      expect(calcRefreshedElapsedMs(leadTimeline, nextTimeline, 0)).toBe(0);
+      expect(calcRefreshedElapsedMs(leadTimeline, nextTimeline, 1200)).toBe(1200);
+    });
+
+    test('머문 뒤에는 이동한 비율을 지켜요', () => {
+      const elapsed = leadMs + leadTimeline.steps[0].moveMs * 0.25;
+      const next = calcRefreshedElapsedMs(leadTimeline, nextTimeline, elapsed);
+      expect(calcPosition(nextTimeline, next)).toEqual({ legIndex: 0, t: 0.25 });
+    });
+
+    test('집에서 떠나는 일정은 그대로예요', () => {
+      expect(calcRefreshedElapsedMs(timeline, timeline, 0)).toBe(0);
+    });
+  });
+});
+
+// ?trip=으로 한 여행만 재생하면 앞 여행에서 이어지는 gap 구간이 첫 구간으로 들어와요.
+// 그 구간의 출발 지점(앞 여행의 마지막 지점)은 첫 지점이 아니에요(#265).
+describe('gap 구간으로 시작하는 여행', () => {
+  const tripLegs = selectLegsByTrip(edge, 'p_6e3edd');
+  const previousStopId = 'p_3e3110';
+
+  test('재현 조건: 첫 구간이 gap이고 그 출발 지점에 도착하는 구간이 없어요', () => {
+    expect(tripLegs[0].kind).toBe('gap');
+    expect(tripLegs[0].from).toBe(previousStopId);
+    expect(tripLegs.some((leg) => leg.to === previousStopId)).toBe(false);
+  });
+
+  test('hasLeadingStay는 아니에요', () => {
+    expect(hasLeadingStay(tripLegs)).toBe(false);
+  });
+
+  test('buildTimeline은 처음에 머물지 않아요', () => {
+    expect(buildTimeline(tripLegs).steps[0].startMs).toBe(0);
+  });
+
+  test('calcPositionAtStop은 앞 여행의 지점이면 null이에요', () => {
+    expect(calcPositionAtStop(tripLegs, previousStopId)).toBeNull();
+  });
+
+  test('gap이 아닌 구간으로 떠나면 그 지점은 첫 지점이에요', () => {
+    const plain = tripLegs.map((leg, index) => (index === 0 ? { ...leg, kind: undefined } : leg));
+    expect(hasLeadingStay(plain)).toBe(true);
+    expect(calcPositionAtStop(plain, previousStopId)).toEqual({ legIndex: 0, t: 0 });
   });
 });

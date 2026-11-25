@@ -2,6 +2,7 @@
 
 import { DEFAULT_PERIOD, HOME_ID, PERIODS } from '@/constants/journey';
 import { toLocalDate, toLocalYear } from '@/utils/localDate';
+import { hasLeadingStay, isDepartureOnly } from '@/utils/playback';
 
 // 카드는 지금 지점과 앞 지점 둘까지 겹쳐요. 피그마 01 Arrival stack이 3장이에요.
 const ARRIVAL_STACK_SIZE = 3;
@@ -91,6 +92,8 @@ export function getPlaceName(home, stops, placeId) {
 /**
  * 지금 머무는 지점과 앞 지점들을 도착 카드로 골라요. 맨 앞이 지금 지점이에요.
  * 지점에 도착해 머무는 동안(t: 1)만 있고, 집에 돌아왔거나 경유지면 빈 배열이에요.
+ * 도착하는 구간이 없는 지점(isDepartureOnly, 계정의 첫 사진이 여행지일 때의 첫 지점. gap 구간의 출발 지점은 아니에요)은
+ * 그 지점을 떠나는 첫 구간의 시작(t: 0)에서 도착한 것으로 봐요.
  *
  * @param {import('@/types').Leg[]} legs
  * @param {import('@/types').Stop[]} stops
@@ -98,15 +101,29 @@ export function getPlaceName(home, stops, placeId) {
  * @returns {import('@/types').Stop[]}
  */
 export function selectArrivalStops(legs, stops, position) {
-  if (position?.t !== 1) return [];
+  if (position?.t !== 1 && position?.t !== 0) return [];
+
+  const leg = legs[position.legIndex];
+  if (!leg) return [];
+
+  // 도착한 순서대로 지점 ID를 모아요. 도착하는 구간이 없는 지점은 처음 떠나는 구간 앞에 넣어요.
+  const arrivedIds = new Set(legs.map((item) => item.to));
+  const ids = [];
+  const isFirstStay = position.legIndex === 0 && hasLeadingStay(legs);
+  for (const item of legs.slice(0, position.legIndex + 1)) {
+    if (isDepartureOnly(item, arrivedIds) && !ids.includes(item.from)) {
+      ids.push(item.from);
+    }
+    if (item !== leg || position.t === 1) ids.push(item.to);
+  }
 
   const stopsById = new Map(stops.map((stop) => [stop.id, stop]));
-  const current = stopsById.get(legs[position.legIndex]?.to);
-  if (!current || current.transit) return [];
+  const current = stopsById.get(ids.at(-1));
+  // t: 0은 처음에 머무는 동안(hasLeadingStay)만 카드가 있어요. 그 밖의 이동 시작은 카드가 없어요.
+  if (!current || current.transit || (position.t === 0 && !isFirstStay)) return [];
 
-  return legs
-    .slice(0, position.legIndex + 1)
-    .map((leg) => stopsById.get(leg.to))
+  return ids
+    .map((id) => stopsById.get(id))
     .filter((stop) => stop && !stop.transit)
     .slice(-ARRIVAL_STACK_SIZE)
     .reverse();

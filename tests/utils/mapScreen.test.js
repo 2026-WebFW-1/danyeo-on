@@ -16,6 +16,8 @@ import {
   selectArrivalStops,
   selectChapterSpans,
 } from '@/utils/mapScreen';
+import { buildTimeline, calcPosition } from '@/utils/playback';
+import { selectLegsByTrip } from '@/utils/tripLegs';
 
 describe('parsePeriod', () => {
   test('아는 기간은 그대로예요', () => {
@@ -128,6 +130,72 @@ describe('selectArrivalStops', () => {
 
   test('구간 번호가 범위를 넘어도 터지지 않아요', () => {
     expect(selectArrivalStops([], stops, { legIndex: 3, t: 1 })).toEqual([]);
+    expect(selectArrivalStops([], stops, { legIndex: 0, t: 0 })).toEqual([]);
+  });
+
+  test('이동을 시작하는 순간(t: 0)에는 없어요', () => {
+    legs.forEach((_, legIndex) => {
+      expect(selectArrivalStops(legs, stops, { legIndex, t: 0 })).toEqual([]);
+    });
+  });
+
+  // 계정의 첫 사진이 여행지면 집 → 첫 지점 구간이 없어서 첫 지점은 구간의 from으로만 나와요(#265).
+  describe('도착하는 구간이 없는 첫 지점', () => {
+    const noArrival = legs.slice(1);
+    const firstStop = stops.find((stop) => stop.id === legs[0].to);
+
+    test('그 지점을 떠나는 첫 구간의 시작(t: 0)에서 한 장이에요', () => {
+      const result = selectArrivalStops(noArrival, stops, { legIndex: 0, t: 0 });
+      expect(result.map((stop) => stop.id)).toEqual([firstStop.id]);
+    });
+
+    test('재생 처음에 머무는 동안 카드가 떠 있어요', () => {
+      const timeline = buildTimeline(noArrival);
+      const position = calcPosition(timeline, 1000);
+      expect(selectArrivalStops(noArrival, stops, position).map((stop) => stop.id)).toEqual([
+        firstStop.id,
+      ]);
+      const moving = calcPosition(timeline, timeline.steps[0].startMs + 100);
+      expect(selectArrivalStops(noArrival, stops, moving)).toEqual([]);
+    });
+
+    test('집에서 떠나는 일정은 처음에 카드가 없어요', () => {
+      expect(selectArrivalStops(legs, stops, calcPosition(buildTimeline(legs), 0))).toEqual([]);
+    });
+
+    test('이동을 시작하면 카드가 없어요', () => {
+      expect(selectArrivalStops(noArrival, stops, { legIndex: 0, t: 0.5 })).toEqual([]);
+    });
+
+    test('뒤 지점에 도착하면 첫 지점이 앞 지점 카드로 깔려요', () => {
+      const result = selectArrivalStops(noArrival, stops, { legIndex: 0, t: 1 });
+      expect(result.map((stop) => stop.id)).toEqual([noArrival[0].to, firstStop.id]);
+    });
+
+    test('같은 지점에서 떠나는 구간이 또 있어도 한 번만 넣어요', () => {
+      const [first, second, third] = stops;
+      const twice = [
+        { ...legs[1], from: first.id, to: second.id },
+        { ...legs[2], from: first.id, to: third.id },
+      ];
+      const result = selectArrivalStops(twice, stops, { legIndex: 1, t: 1 });
+      expect(result.map((stop) => stop.id)).toEqual([third.id, second.id, first.id]);
+      expect(selectArrivalStops(twice, stops, { legIndex: 1, t: 0 })).toEqual([]);
+    });
+  });
+});
+
+describe('selectArrivalStops (gap 구간으로 시작하는 여행)', () => {
+  const tripLegs = selectLegsByTrip(edge, 'p_6e3edd');
+
+  test('앞 여행의 마지막 지점은 카드에 넣지 않아요', () => {
+    expect(tripLegs[0].kind).toBe('gap');
+    const result = selectArrivalStops(tripLegs, edge.stops, { legIndex: 0, t: 1 });
+    expect(result.map((stop) => stop.id)).toEqual([tripLegs[0].to]);
+  });
+
+  test('이동을 시작하는 순간(t: 0)에는 카드가 없어요', () => {
+    expect(selectArrivalStops(tripLegs, edge.stops, { legIndex: 0, t: 0 })).toEqual([]);
   });
 });
 

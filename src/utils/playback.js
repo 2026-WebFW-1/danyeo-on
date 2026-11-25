@@ -1,6 +1,8 @@
 // 01 지도 재생의 시간 계산이에요. 화면·requestAnimationFrame과 상관없이
 // "재생을 시작하고 지난 시간(ms) ↔ 지도 진행 위치"만 바꿔요. 시간을 흘리는 건 usePlayback이 해요.
 
+import { HOME_ID } from '@/constants/journey';
+
 // 구간 하나를 이동하는 시간은 거리에 비례해요. 화면에서 비행기가 늘 비슷한 빠르기로 움직여요.
 // 3,000km(서울 → 방콕쯤)가 0.9초예요.
 const MOVE_MS_PER_KM = 0.3;
@@ -60,14 +62,43 @@ export function calcMoveMs(km) {
 }
 
 /**
+ * 이 구간이 "도착하는 구간 없이 떠나기만 하는 지점"에서 떠나는지예요(계정의 첫 사진이 여행지일 때의 첫 지점, #265).
+ * 집에서 떠나거나, 그 지점에 도착하는 구간이 있거나, 여행 사이를 잇는 gap 구간이면 아니에요.
+ * gap 구간의 출발 지점은 앞 여행의 마지막 지점이라 ?trip= 으로 이 여행만 재생해도 첫 구간으로 들어와요.
+ * 그 지점은 첫 지점이 아니라서 gap 구간은 빼요.
+ * 알려진 한계: 계정의 첫 여행이 지점 하나뿐이고 바로 gap이 이어지면 첫 구간이 gap이라 그 지점은 계속 눌러도 반응이 없어요.
+ * 가리려면 "여정의 첫 구간인지"를 재생 계산에 넘겨야 해서 두었어요.
+ *
+ * @param {import('@/types').Leg} leg
+ * @param {Set<string>} arrivedIds 지금 구간들이 도착하는 지점 ID
+ * @returns {boolean}
+ */
+export function isDepartureOnly(leg, arrivedIds) {
+  return leg.kind !== 'gap' && leg.from !== HOME_ID && !arrivedIds.has(leg.from);
+}
+
+/**
+ * 재생을 시작할 때 첫 지점에 먼저 머무는지예요. 첫 구간이 도착하는 구간 없는 지점에서 떠날 때예요
+ * (isDepartureOnly). 도착 카드를 보여 줄 구간이 없어서 그 지점이 도착한 것처럼 처음에 STAY_MS만큼 머물러요(#265).
+ * selectArrivalStops의 t: 0 카드와 같은 조건이에요.
+ *
+ * @param {import('@/types').Leg[]} legs 시간 순서대로
+ * @returns {boolean}
+ */
+export function hasLeadingStay(legs) {
+  return legs.length > 0 && isDepartureOnly(legs[0], new Set(legs.map((leg) => leg.to)));
+}
+
+/**
  * 구간들을 이어서 재생 일정을 만들어요.
+ * 처음에 머무는 시간(hasLeadingStay)이 있으면 첫 구간은 그만큼 늦게 출발해요(steps[0].startMs).
  *
  * @param {import('@/types').Leg[]} legs 시간 순서대로
  * @returns {PlaybackTimeline}
  */
 export function buildTimeline(legs) {
   const steps = [];
-  let startMs = 0;
+  let startMs = hasLeadingStay(legs) ? STAY_MS : 0;
   for (const leg of legs) {
     const moveMs = calcMoveMs(leg.km);
     const stayMs = leg.to === 'home' ? 0 : STAY_MS;
@@ -79,7 +110,7 @@ export function buildTimeline(legs) {
 
 /**
  * 지난 시간으로 지금 진행 위치를 계산해요.
- * 도착하고 머무는 동안은 그 구간의 t: 1이에요.
+ * 도착하고 머무는 동안은 그 구간의 t: 1이에요. 처음에 머무는 동안(hasLeadingStay)은 { legIndex: 0, t: 0 }이에요.
  * 전체 시간을 넘었거나 구간이 0개면 null(다 그린 상태)이에요.
  *
  * @param {PlaybackTimeline} timeline
@@ -95,13 +126,14 @@ export function calcPosition({ steps, totalMs }, elapsedMs) {
   const legIndex = steps.findIndex((step) => elapsed <= step.startMs + step.moveMs + step.stayMs);
   const { startMs, moveMs } = steps[legIndex];
   // 나눗셈은 소수 오차로 도착한 순간에도 1이 안 될 수 있어서 도착 시각과 먼저 비교해요.
-  const t = elapsed >= startMs + moveMs ? 1 : (elapsed - startMs) / moveMs;
+  const t = elapsed >= startMs + moveMs ? 1 : Math.max(0, elapsed - startMs) / moveMs;
   return { legIndex, t };
 }
 
 /**
  * calcPosition의 반대예요. 진행 위치에 해당하는 지난 시간을 돌려줘요.
  * 위치를 옮길 때(seek) 써요. t: 1은 도착한 순간(머물기 시작)이에요.
+ * 첫 구간의 t: 0은 재생의 맨 처음이에요. 처음에 머무는 구간(hasLeadingStay)이 있으면 그 머물기의 시작이에요.
  * position이 null이거나 legIndex가 구간 수를 넘으면 다 그린 상태라 Infinity예요.
  *
  * @param {PlaybackTimeline} timeline
@@ -110,6 +142,8 @@ export function calcPosition({ steps, totalMs }, elapsedMs) {
  */
 export function calcElapsedMs({ steps }, position) {
   if (!position || position.legIndex >= steps.length) return Infinity;
+
+  if (position.legIndex <= 0 && position.t <= 0) return 0;
 
   const { startMs, moveMs } = steps[Math.max(0, position.legIndex)];
   return startMs + clamp(position.t, 0, 1) * moveMs;
@@ -141,6 +175,7 @@ export function calcPositionAtDate(legs, date) {
  * 재생 시간과 실제 시각을 잇는 표를 만들어요. 구간마다 이동 토막, 머무르면 머무는 토막이 하나씩 있어요.
  * 머무는 토막은 도착부터 다음 출발까지예요. 위치(t: 1)만으로는 머무는 동안의 날짜를 알 수 없어서 따로 둬요.
  * 집에 돌아오면 재생은 머물지 않고 바로 떠나므로, 집에 있던 기간은 다음 이동 토막에 얹어요.
+ * 처음에 머무는 구간(hasLeadingStay)이 있으면 맨 앞에 토막을 하나 더 둬요. 첫 출발 시각에서 시간이 흐르지 않아요.
  * 그래서 손잡이가 몇 달을 건너뛸 때도 한 번에 튀지 않고 그 이동 동안 미끄러져요.
  *
  * @param {import('@/types').Leg[]} legs 시간 순서대로
@@ -148,7 +183,11 @@ export function calcPositionAtDate(legs, date) {
  * @returns {DateSegment[]} 구간이 0개면 빈 배열
  */
 export function buildDateTrack(legs, { steps }) {
-  return legs.flatMap((leg, index) => {
+  const leadMs = steps[0]?.startMs ?? 0;
+  const leadTime = Date.parse(legs[0]?.departAt);
+  const lead =
+    leadMs > 0 ? [{ startMs: 0, endMs: leadMs, fromTime: leadTime, toTime: leadTime }] : [];
+  const rest = legs.flatMap((leg, index) => {
     const { startMs, moveMs, stayMs } = steps[index];
     const arriveTime = Date.parse(leg.arriveAt);
     const isAfterHome = index > 0 && steps[index - 1].stayMs === 0;
@@ -165,6 +204,7 @@ export function buildDateTrack(legs, { steps }) {
     };
     return [move, stay];
   });
+  return [...lead, ...rest];
 }
 
 /**
@@ -208,14 +248,22 @@ export function calcElapsedAtTime(track, time) {
 
 /**
  * 지점에 도착한 순간의 진행 위치예요. 지도에서 지점을 눌렀을 때 seek에 넘겨요.
+ * 도착하는 구간 없이 떠나는 구간만 있는 지점(isDepartureOnly, 계정의 첫 사진이 여행지일 때의 첫 지점)은
+ * 가장 먼저 떠나는 구간의 시작(t: 0)이에요. gap 구간으로만 떠나는 지점은 null이에요.
  *
  * @param {import('@/types').Leg[]} legs
  * @param {string} stopId
- * @returns {import('@/utils/routeMap').RouteProgress | null} 이 구간들로 도착하는 지점이 아니면 null
+ * @returns {import('@/utils/routeMap').RouteProgress | null} 이 구간들에 나오지 않는 지점이면 null
  */
 export function calcPositionAtStop(legs, stopId) {
-  const legIndex = legs.findIndex((leg) => leg.to === stopId);
-  return legIndex === -1 ? null : { legIndex, t: 1 };
+  const arriveIndex = legs.findIndex((leg) => leg.to === stopId);
+  if (arriveIndex !== -1) return { legIndex: arriveIndex, t: 1 };
+
+  const arrivedIds = new Set(legs.map((leg) => leg.to));
+  const departIndex = legs.findIndex(
+    (leg) => leg.from === stopId && isDepartureOnly(leg, arrivedIds),
+  );
+  return departIndex === -1 ? null : { legIndex: departIndex, t: 0 };
 }
 
 /**
@@ -256,6 +304,10 @@ export function calcRefreshedElapsedMs(from, to, elapsedMs) {
   const { legIndex, t } = position;
   const step = from.steps[legIndex];
   const nextStep = to.steps[legIndex];
+  // 처음에 머무는 중이면 머문 시간을 지켜요. 같은 경로라 머무는 시간은 같아요.
+  if (legIndex === 0 && Math.max(0, elapsedMs) < step.startMs) {
+    return Math.min(Math.max(0, elapsedMs), nextStep.startMs);
+  }
   const nextArriveMs = nextStep.startMs + nextStep.moveMs;
   const stayedMs = Math.max(0, elapsedMs) - (step.startMs + step.moveMs);
   if (t === 1 && stayedMs > 0) return nextArriveMs + Math.min(stayedMs, nextStep.stayMs);
