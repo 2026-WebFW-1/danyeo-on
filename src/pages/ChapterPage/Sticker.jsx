@@ -11,6 +11,9 @@ const SIZE_CLASS = { large: 'text-3xl', medium: 'text-xl', small: 'text-lg' };
  * 호출: Collage가 스티커 칸에 그려요. 크기(size)는 칸이 정해요.
  * <Sticker label="개스타운" size="medium" />
  *
+ * 의도:
+ *  - 누를 수 없는 조각이라 화살표 커서예요(#278). 브라우저 기본인 글자 선택 커서("I")가 나오면 고칠 수 있는 것처럼 보여요.
+ *
  * @param {object} props
  * @param {string} props.label
  * @param {'large' | 'medium' | 'small'} props.size
@@ -20,7 +23,7 @@ export default function Sticker({ label, size }) {
     <span
       className={cn(
         CARD_CLASS,
-        'block py-3 pr-5 pl-4 font-bold whitespace-nowrap text-ink',
+        'block cursor-default py-3 pr-5 pl-4 font-bold whitespace-nowrap text-ink',
         SIZE_CLASS[size],
       )}
     >
