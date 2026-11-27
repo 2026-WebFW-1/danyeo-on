@@ -201,27 +201,64 @@ describe('add', () => {
     expect(addCorrection).not.toHaveBeenCalled();
   });
 
-  test('다른 탭에서 먼저 뺀 사진이면 서버가 준 id로 목록에 붙이고, 그 id로 복구해요', async () => {
+  test('다른 탭에서 먼저 뺀 사진이면 보정을 다시 불러와 서버에 있던 보정을 돌려주고, 그 id로 복구해요', async () => {
     await fetchSaved();
-    vi.useFakeTimers({ now: new Date(NOW) });
+    const otherTab = { ...exclude, id: 'c_other_tab', photoId: 'p_c', createdAt: NOW };
     vi.mocked(addCorrection).mockResolvedValue('c_other_tab');
+    vi.mocked(getCorrections).mockResolvedValue([rename, exclude, otherTab]);
     vi.mocked(removeCorrection).mockResolvedValue(true);
 
     const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
 
-    expect(added).toEqual({
-      id: 'c_other_tab',
-      ownerId: 'u1',
-      type: 'exclude',
-      photoId: 'p_c',
-      createdAt: NOW,
-    });
-    expect(getState().corrections).toEqual([rename, exclude, added]);
+    expect(added).toEqual(otherTab);
+    expect(getState().corrections).toEqual([rename, exclude, otherTab]);
+    expect(getState().status).toBe('ready');
 
     await getState().remove(added.id);
 
     expect(removeCorrection).toHaveBeenCalledWith('c_other_tab');
     expect(getState().corrections).toEqual([rename, exclude]);
+  });
+
+  test('다른 탭에서 먼저 뺀 보정은 이 탭에서 나중에 저장한 보정보다 앞에(서버 순서로) 놓여요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockImplementationOnce(echoId).mockResolvedValueOnce('c_other_tab');
+    const merged = await getState().add({ type: 'merge', photoIds: ['p_a', 'p_d'] });
+    const otherTab = { ...exclude, id: 'c_other_tab', photoId: 'p_c', createdAt: NOW };
+    const savedMerge = { ...merged, createdAt: '2026-11-14T03:00:01.000Z' };
+    vi.mocked(getCorrections).mockResolvedValue([rename, exclude, otherTab, savedMerge]);
+
+    await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(getState().corrections).toEqual([rename, exclude, otherTab, savedMerge]);
+  });
+
+  test('있던 보정이 그사이 지워졌으면 한 번 더 보내 새 보정으로 저장해요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValueOnce('c_other_tab').mockImplementationOnce(echoId);
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(addCorrection).toHaveBeenCalledTimes(2);
+    expect(added.id).toMatch(/^c_[0-9a-f]{12}$/);
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+  });
+
+  test('있던 보정을 다시 불러오지 못하면 서버가 준 id로 끝에 붙여요', async () => {
+    await fetchSaved();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(addCorrection).mockResolvedValue('c_other_tab');
+    vi.mocked(getCorrections).mockRejectedValue({
+      status: 0,
+      code: 'LOAD_FAILED',
+      message: '연결 실패',
+    });
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(added).toMatchObject({ id: 'c_other_tab', type: 'exclude', photoId: 'p_c' });
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+    expect(getState().status).toBe('ready');
   });
 
   test('이미 뺀 사진을 또 빼면 서버에 보내지 않고 있는 보정을 돌려줘요', async () => {

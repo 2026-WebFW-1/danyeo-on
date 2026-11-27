@@ -1120,7 +1120,10 @@ describe('07a 여행 보정 요청이 겹칠 때', () => {
   test('저장 응답 전에 탭을 왕복해도 같은 두 여행을 다시 보낼 수 없어요', async () => {
     // given
     const saving = Promise.withResolvers();
-    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    vi.mocked(addCorrection).mockImplementation(async (fields) => {
+      await saving.promise;
+      return fields.id;
+    });
     await render('/edit/photos');
     await click(boxes()[0]);
     await click(boxes()[1]);

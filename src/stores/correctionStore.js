@@ -210,14 +210,37 @@ async function startRefresh(set, ownerId) {
 }
 
 /**
+ * 서버에 먼저 있던 보정(다른 탭에서 저장)을 목록에 넣으려고 보정을 다시 불러와 목록을 바꿔요.
+ * 끝에 붙이면 그 보정이 이 탭에서 나중에 저장한 보정보다 뒤에 놓여요. merge는 앞선 exclude를 순서대로 모아
+ * 기준 사진을 정해서(collectMergeSpans), 순서가 서버와 다르면 새로고침 전까지 여행 묶음이 다르게 보여요.
+ *
+ * @returns {Promise<import('@/types').Correction | null | undefined>}
+ *   그 보정. 다시 불러온 목록에 없으면(그사이 지워짐) null, 불러오지 못했으면 undefined
+ */
+async function reloadToFind(get, set, id, requested) {
+  let corrections;
+  try {
+    corrections = await getCorrections();
+  } catch (error) {
+    console.error(error);
+    return undefined;
+  }
+  assertSameAccount(requested);
+  set({ corrections });
+  return corrections.find((correction) => correction.id === id) ?? null;
+}
+
+/**
  * 차례가 온 보정 하나를 저장하고 목록 끝에 붙여요. add · addMany가 써요.
  * 차례가 온 뒤에 이미 뺀 사진인지 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
- * 다른 탭에서 먼저 뺀 사진이면 서버가 넣지 않고 있던 보정의 id를 돌려줘요(BE #8). 그 id로 목록에 붙여야 [복구]가 그 보정을 지워요.
+ * 다른 탭에서 먼저 뺀 사진이면 서버가 넣지 않고 있던 보정의 id를 돌려줘요(BE #8). 그때는 보정을 다시 불러와
+ * 서버에 있는 보정을 서버 순서대로 둬요. 그래야 [복구]가 그 보정을 지워요.
  *
+ * @param {boolean} [isRetry] 있던 보정이 그사이 지워져 다시 보내는 중이면 true
  * @returns {Promise<{ correction: import('@/types').Correction, isWritten: boolean }>}
  *   isWritten: 서버에 보냈으면 true. 이미 뺀 사진이라 있는 보정을 돌려줬으면 false
  */
-async function saveOne(get, set, input, ownerId, requested) {
+async function saveOne(get, set, input, ownerId, requested, isRetry = false) {
   assertSameAccount(requested);
 
   const key = getSaveKey(input);
@@ -230,10 +253,21 @@ async function saveOne(get, set, input, ownerId, requested) {
   const savedId = await writeCorrection(ownerId, () => addCorrection(fields));
   assertSameAccount(requested);
 
+  if (savedId !== fields.id) {
+    const existing = await reloadToFind(get, set, savedId, requested);
+    // 서버에 이미 있던 보정이어도 계산해요. 먼저 뺀 쪽 탭이 계산하지 못하고 닫혔을 수 있어요.
+    if (existing) return { correction: existing, isWritten: true };
+    // 있던 보정이 그사이 지워졌으면(다른 탭에서 복구) 사진이 빠지지 않은 채라 한 번 더 보내요.
+    if (existing === null) {
+      if (isRetry) throw { status: 0, code: 'SAVE_FAILED', message: '보정을 저장하지 못했어요' };
+      return saveOne(get, set, input, ownerId, requested, true);
+    }
+    // 다시 불러오지 못했으면 아래에서 서버가 준 id로 끝에 붙여요. 순서는 다시 불러올 때 맞춰져요.
+  }
+
   // id만 돌려받아서, 나머지는 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
   const correction = { ...fields, id: savedId, ownerId, createdAt: new Date().toISOString() };
   set((state) => ({ corrections: [...state.corrections, correction] }));
-  // 서버에 이미 있던 보정이어도 계산해요. 먼저 뺀 쪽 탭이 계산하지 못하고 닫혔을 수 있어요.
   return { correction, isWritten: true };
 }
 
@@ -352,7 +386,7 @@ export const useCorrectionStore = create((set, get) => ({
    *
    * 같은 사진을 두 번 빼면 하나를 지워도 사진이 돌아오지 않아요(buildJourney는 빠진 사진을 ID로만 모아요).
    * 그래서 이미 뺀 사진이면 서버에 보내지 않고 있는 보정을 돌려줘요.
-   * 다른 탭에서 먼저 빼서 이 목록에 없으면 서버가 막고, 돌려준 보정의 id는 서버에 있던 보정의 id예요.
+   * 다른 탭에서 먼저 빼서 이 목록에 없으면 서버가 막아요. 그때는 보정을 다시 불러와 서버에 있던 보정을 돌려줘요.
    * 이름·이동 수단은 여러 번 고쳐도 마지막 보정이 이겨서 그대로 쌓아요.
    *
    * @param {import('@/types').CorrectionInput} input
