@@ -154,6 +154,26 @@ describe('ConfirmDialog', () => {
     expect(document.activeElement).toBe(opener);
   });
 
+  test('열려 있는 동안 뒤 화면의 스크롤을 막고, 닫히면 원래대로 돌려요', async () => {
+    document.documentElement.style.overflow = 'auto';
+
+    await render();
+    expect(document.documentElement.style.overflow).toBe('hidden');
+
+    await render({ isOpen: false });
+    expect(document.documentElement.style.overflow).toBe('auto');
+
+    document.documentElement.style.overflow = '';
+  });
+
+  test('열린 채로 사라져도 스크롤을 다시 풀어요', async () => {
+    await render();
+
+    await act(async () => root.render(null));
+
+    expect(document.documentElement.style.overflow).toBe('');
+  });
+
   test('되돌릴 수 없는 확인(isDanger)은 확인 버튼을 강조색으로 보여 줘요', async () => {
     await render();
     expect(button('지우기').className).not.toContain('text-accent');

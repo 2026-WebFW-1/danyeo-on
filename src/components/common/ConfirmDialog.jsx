@@ -19,6 +19,7 @@ const BUTTON_CLASS =
  * 의도:
  *  - 닫기(onCancel)는 [취소] · 뒷배경 누르기 · Esc예요. 확인 버튼은 닫지 않고 onConfirm만 불러서, 부르는 쪽이 닫아요.
  *  - 열리면 초점을 [취소]에 둬요. Enter를 잘못 눌러도 지워지지 않게요. 닫히면 열기 전 곳으로 초점을 돌려줘요(Lightbox와 같아요).
+ *  - 열려 있는 동안 뒤 화면이 스크롤되지 않게 막아요. window.confirm처럼, 닫았을 때 보던 자리에 그대로 있게요.
  *  - Tab은 두 버튼 사이만 돌아요. 창 뒤의 버튼으로 초점이 빠져나가지 않게요.
  *  - 모양은 피그마 14b의 dialog/leave예요. 그대로 두는 쪽([취소])이 검정 버튼, 일을 벌이는 쪽이 테두리 버튼이에요.
  *    삭제 확인용 프레임은 따로 없어서, isDanger면 [글 지우기]와 같은 강조색(accent)으로 테두리와 글자를 칠해요.
@@ -61,6 +62,21 @@ export default function ConfirmDialog({
     const previousFocus = document.activeElement;
     cancelRef.current?.focus();
     return () => previousFocus?.focus?.();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const { style } = document.documentElement;
+    const previous = { overflow: style.overflow, paddingRight: style.paddingRight };
+    // 스크롤 막대가 자리를 차지하는 환경에서는 막대가 사라진 만큼 화면이 옆으로 밀려서, 그 너비를 채워 둬요.
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    style.overflow = 'hidden';
+    if (scrollbarWidth > 0) style.paddingRight = `${scrollbarWidth}px`;
+    return () => {
+      style.overflow = previous.overflow;
+      style.paddingRight = previous.paddingRight;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
