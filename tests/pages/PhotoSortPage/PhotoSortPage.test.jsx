@@ -117,6 +117,16 @@ const renameButton = (name) => container.querySelector(`button[aria-label="${nam
 const nameInput = () => container.querySelector('input[aria-label$="번 여행 이름"]');
 const buttonByText = (text) =>
   [...container.querySelectorAll('button')].find((button) => button.textContent === text);
+// 확인 창은 document.body에 그려져서(portal) container 밖에서 찾아요.
+const dialog = () => document.querySelector('[role="dialog"]');
+const dialogButton = (text) =>
+  [...dialog().querySelectorAll('button')].find((button) => button.textContent === text);
+
+/** 줄의 [영구 삭제]를 누르고, 확인 창에서도 [영구 삭제]를 눌러요. */
+async function confirmDelete() {
+  await click(buttonByText('영구 삭제'));
+  await click(dialogButton('영구 삭제'));
+}
 
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -461,7 +471,6 @@ describe('PhotoSortPage 제외한 사진', () => {
   });
 
   test('[영구 삭제]를 묻는 창에서 취소하면 아무것도 지우지 않아요', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockCorrections({
       corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
     });
@@ -469,16 +478,21 @@ describe('PhotoSortPage 제외한 사진', () => {
 
     await click(buttonByText('영구 삭제'));
 
-    expect(window.confirm).toHaveBeenCalledExactlyOnceWith(
-      '다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.',
+    expect(dialog().textContent).toContain(
+      '다녀온에서 이 사진을 영구 삭제할까요?삭제 후에는 복구할 수 없어요.',
     );
+    // 묻는 동안에는 지우는 중이 아니에요.
+    expect(buttonByText('삭제하는 중…')).toBeUndefined();
+
+    await click(dialogButton('취소'));
+
+    expect(dialog()).toBeNull();
     expect(deletePhotos).not.toHaveBeenCalled();
     expect(corrections.removeMany).not.toHaveBeenCalled();
   });
 
   test('[영구 삭제]를 확인하면 그 사진 한 장만 지우고, 그 사진의 exclude를 모두 지워요', async () => {
     const [first, second] = bangkokPhotoIds;
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos).mockResolvedValue([second]);
     mockCorrections({
       corrections: [
@@ -490,7 +504,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(deletePhotos).toHaveBeenCalledExactlyOnceWith([second]);
     expect(clearMyPhotos).toHaveBeenCalledOnce();
@@ -500,7 +514,6 @@ describe('PhotoSortPage 제외한 사진', () => {
   test('지우기 전에 그 사진에 건 split 기준을 다음 사진으로 옮기고, 옮긴 뒤에 사진을 지워요', async () => {
     const [, second, third] = bangkokPhotoIds;
     const calls = [];
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos).mockImplementation(async (ids) => {
       calls.push('deletePhotos');
       return ids;
@@ -517,7 +530,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     await expect(corrections.moveAnchors.mock.results[0].value).resolves.toEqual([
       { correctionId: 'c_split', fromPhotoId: second, toPhotoId: third },
@@ -527,14 +540,13 @@ describe('PhotoSortPage 제외한 사진', () => {
 
   test('기준 옮기기가 실패하면 사진을 지우지 않고 그 사진 칸에 안내해요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     mockCorrections({
       corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
       moveAnchors: vi.fn().mockRejectedValue({ code: 'SAVE_FAILED' }),
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(deletePhotos).not.toHaveBeenCalled();
     expect(corrections.removeMany).not.toHaveBeenCalled();
@@ -546,7 +558,6 @@ describe('PhotoSortPage 제외한 사진', () => {
   test('사진을 지우지 못하면 옮긴 기준을 되돌리고, 그 사진 칸에 안내해요', async () => {
     const [, second, third] = bangkokPhotoIds;
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos).mockRejectedValue(new Error('network'));
     mockCorrections({
       corrections: [
@@ -556,7 +567,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(corrections.moveAnchors).toHaveBeenCalledTimes(2);
     expect(clearMyPhotos).not.toHaveBeenCalled();
@@ -570,14 +581,13 @@ describe('PhotoSortPage 제외한 사진', () => {
   });
 
   test('지우는 동안 그 사진의 [복구] · [영구 삭제]를 막아요', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos).mockReturnValue(new Promise(() => {}));
     mockCorrections({
       corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(buttonByText('복구').disabled).toBe(true);
     expect(buttonByText('삭제하는 중…').disabled).toBe(true);
@@ -587,7 +597,6 @@ describe('PhotoSortPage 제외한 사진', () => {
     const [first, second] = bangkokPhotoIds;
     let finishDelete;
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos).mockReturnValue(
       new Promise((_, reject) => {
         finishDelete = () => reject(new Error('network'));
@@ -601,7 +610,7 @@ describe('PhotoSortPage 제외한 사진', () => {
     });
     await render('/edit/photos?tab=excluded');
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     const otherDelete = buttonByText('영구 삭제');
     expect(otherDelete.disabled).toBe(true);
@@ -619,7 +628,6 @@ describe('PhotoSortPage 제외한 사진', () => {
 
   test('영구 삭제가 실패하면 그 사진 칸에 안내하고, 다시 누르면 다시 지워요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(deletePhotos)
       .mockRejectedValueOnce(new Error('network'))
       .mockResolvedValueOnce([bangkokPhotoIds[0]]);
@@ -628,14 +636,14 @@ describe('PhotoSortPage 제외한 사진', () => {
       removeMany: vi.fn().mockResolvedValue(),
     });
     await render('/edit/photos?tab=excluded');
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(container.querySelector('[role="alert"]').textContent).toBe(
       '사진을 지우지 못했어요. 다시 눌러 주세요',
     );
     expect(corrections.removeMany).not.toHaveBeenCalled();
 
-    await click(buttonByText('영구 삭제'));
+    await confirmDelete();
 
     expect(deletePhotos).toHaveBeenCalledTimes(2);
     expect(corrections.removeMany).toHaveBeenCalledExactlyOnceWith(['c_1']);

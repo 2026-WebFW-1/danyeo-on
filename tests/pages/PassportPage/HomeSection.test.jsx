@@ -384,14 +384,13 @@ describe('새 Journey를 읽는 중', () => {
 
 describe('자동으로 되돌리기', () => {
   test('home 보정을 전부 지워요. 다른 종류의 보정은 두고, 확인 창은 없어요', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm');
     corrections.removeMany.mockReturnValue(new Promise(() => {}));
     await render(pinned);
 
     await click(button('자동으로 되돌리기'));
 
     expect(corrections.removeMany).toHaveBeenCalledWith(['c_h1', 'c_h2']);
-    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(section().querySelector('[role="status"]').textContent).toBe('여행을 정리하는 중…');
   });
 
