@@ -56,16 +56,41 @@ test('getCorrections의 오류에 코드가 없으면 LOAD_FAILED로 던져요',
   });
 });
 
-test('addCorrection은 add_correction에 보정을 보내요', async () => {
+test('addCorrection은 add_correction에 보정을 보내고 저장된 id를 돌려줘요', async () => {
   // given
-  const rpc = vi.fn().mockResolvedValue({ error: null });
+  const rpc = vi.fn().mockResolvedValue({ data: 'c_a', error: null });
   vi.mocked(getSupabase).mockResolvedValue({ rpc });
 
   // when
-  await addCorrection(rename);
+  const id = await addCorrection(rename);
 
   // then
   expect(rpc).toHaveBeenCalledWith('add_correction', { correction: rename });
+  expect(id).toBe('c_a');
+});
+
+test('addCorrection은 서버가 이미 있던 보정의 id를 주면 그 id를 돌려줘요', async () => {
+  // given
+  const rpc = vi.fn().mockResolvedValue({ data: 'c_other_tab', error: null });
+  vi.mocked(getSupabase).mockResolvedValue({ rpc });
+
+  // when
+  const id = await addCorrection({ id: 'c_mine', type: 'exclude', photoId: 'p_a' });
+
+  // then
+  expect(id).toBe('c_other_tab');
+});
+
+test('addCorrection은 서버가 id를 주지 않으면 보낸 id를 돌려줘요', async () => {
+  // given
+  const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+  vi.mocked(getSupabase).mockResolvedValue({ rpc });
+
+  // when
+  const id = await addCorrection(rename);
+
+  // then
+  expect(id).toBe('c_a');
 });
 
 test('addCorrection이 거절되면 응답의 status와 함께 던져요', async () => {

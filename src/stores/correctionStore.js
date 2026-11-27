@@ -212,6 +212,7 @@ async function startRefresh(set, ownerId) {
 /**
  * 차례가 온 보정 하나를 저장하고 목록 끝에 붙여요. add · addMany가 써요.
  * 차례가 온 뒤에 이미 뺀 사진인지 찾아요. 부를 때 찾으면, 지우는 중인 보정을 돌려주고 곧 그 보정이 지워져 빼기가 사라져요.
+ * 다른 탭에서 먼저 뺀 사진이면 서버가 넣지 않고 있던 보정의 id를 돌려줘요(BE #8). 그 id로 목록에 붙여야 [복구]가 그 보정을 지워요.
  *
  * @returns {Promise<{ correction: import('@/types').Correction, isWritten: boolean }>}
  *   isWritten: 서버에 보냈으면 true. 이미 뺀 사진이라 있는 보정을 돌려줬으면 false
@@ -226,12 +227,13 @@ async function saveOne(get, set, input, ownerId, requested) {
   }
 
   const fields = { ...input, id: createCorrectionId() };
-  await writeCorrection(ownerId, () => addCorrection(fields));
+  const savedId = await writeCorrection(ownerId, () => addCorrection(fields));
   assertSameAccount(requested);
 
-  // add_correction은 아무것도 돌려주지 않아서, 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
-  const correction = { ...fields, ownerId, createdAt: new Date().toISOString() };
+  // id만 돌려받아서, 나머지는 보낸 값으로 보정을 만들어요. createdAt은 다시 불러오면 서버 값으로 바뀌어요.
+  const correction = { ...fields, id: savedId, ownerId, createdAt: new Date().toISOString() };
   set((state) => ({ corrections: [...state.corrections, correction] }));
+  // 서버에 이미 있던 보정이어도 계산해요. 먼저 뺀 쪽 탭이 계산하지 못하고 닫혔을 수 있어요.
   return { correction, isWritten: true };
 }
 
@@ -350,6 +352,7 @@ export const useCorrectionStore = create((set, get) => ({
    *
    * 같은 사진을 두 번 빼면 하나를 지워도 사진이 돌아오지 않아요(buildJourney는 빠진 사진을 ID로만 모아요).
    * 그래서 이미 뺀 사진이면 서버에 보내지 않고 있는 보정을 돌려줘요.
+   * 다른 탭에서 먼저 빼서 이 목록에 없으면 서버가 막고, 돌려준 보정의 id는 서버에 있던 보정의 id예요.
    * 이름·이동 수단은 여러 번 고쳐도 마지막 보정이 이겨서 그대로 쌓아요.
    *
    * @param {import('@/types').CorrectionInput} input
