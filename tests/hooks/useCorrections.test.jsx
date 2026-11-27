@@ -127,7 +127,7 @@ describe('useCorrections', () => {
   });
 
   test('add로 저장하면 돌려주는 목록에 바로 보여요', async () => {
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(async (fields) => fields.id);
     await mount();
 
     let added;
@@ -141,7 +141,7 @@ describe('useCorrections', () => {
   test('저장한 뒤 Journey 계산 상태를 돌려주고, 실패하면 refreshJourney로 다시 계산해요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     useAuthStore.setState({ user: { id: 'u1' } });
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(async (fields) => fields.id);
     vi.mocked(refreshJourney).mockRejectedValueOnce(LOAD_FAILED).mockResolvedValueOnce();
     await mount();
     expect(latest.journeyStatus).toBe('idle');

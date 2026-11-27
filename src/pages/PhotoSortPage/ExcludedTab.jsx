@@ -16,7 +16,7 @@ import { COLUMN_LABEL_CLASS, EXCLUDED_ROW_GRID_CLASS, SECTION_CLASS } from './se
  *   onBeforeDelete={handleMoveAnchors} onDeleted={handleRestore} />
  *
  * 의도:
- *  - [복구]는 그 사진의 exclude 보정을 모두 지워요. 같은 사진의 exclude가 둘일 수 있어서예요(BE #8).
+ *  - [복구]는 그 사진의 exclude 보정을 모두 지워요. 서버가 사진마다 하나만 저장하지만(BE #8) 둘이 남아 있어도 복구되게요.
  *  - 복구한 사진은 바로 이 목록에서 빠지고, 여행 묶음에는 Journey를 다시 계산한 뒤 돌아와요.
  *  - 피그마에 이 탭의 디자인이 없어서 07a 여행 표처럼 사진 한 장을 한 줄로 그리고, 버튼은 줄 오른쪽 끝에 둬요(ExcludedPhotoRow).
  *  - 목록은 보정에서 만들어서, 보정을 다 불러오기 전에는 그리지 않아요.

@@ -53,6 +53,13 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+// 서버는 저장된 보정의 id를 돌려줘요. 보통은 보낸 id 그대로예요.
+const echoId = async (fields) => fields.id;
+const echoAfter = (promise) => async (fields) => {
+  await promise;
+  return fields.id;
+};
+
 // 늦게 끝난 계산이 상태를 바꾸지 않는지 볼 때, 그 계산의 뒤처리가 다 돌 때까지 기다려요.
 const flushTasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -125,7 +132,7 @@ describe('add', () => {
     // given
     await fetchSaved();
     const saving = deferred();
-    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(saving.promise));
     const input = { type: 'merge', photoIds: ['b', 'c'] };
     // when
     const first = getState().add(input);
@@ -143,7 +150,7 @@ describe('add', () => {
   test('저장이 끝나면 id · ownerId · createdAt을 붙여 목록 끝에 더하고 그 보정을 돌려줘요', async () => {
     await fetchSaved();
     vi.useFakeTimers({ now: new Date(NOW) });
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
 
     const added = await getState().add({
       type: 'rename',
@@ -164,7 +171,7 @@ describe('add', () => {
 
   test('서버에는 id와 보낸 칸만 보내요(ownerId · createdAt은 서버가 정해요)', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
 
     const added = await getState().add({ type: 'mode', fromPhotoId: 'p_c', mode: 'car' });
 
@@ -194,6 +201,66 @@ describe('add', () => {
     expect(addCorrection).not.toHaveBeenCalled();
   });
 
+  test('다른 탭에서 먼저 뺀 사진이면 보정을 다시 불러와 서버에 있던 보정을 돌려주고, 그 id로 복구해요', async () => {
+    await fetchSaved();
+    const otherTab = { ...exclude, id: 'c_other_tab', photoId: 'p_c', createdAt: NOW };
+    vi.mocked(addCorrection).mockResolvedValue('c_other_tab');
+    vi.mocked(getCorrections).mockResolvedValue([rename, exclude, otherTab]);
+    vi.mocked(removeCorrection).mockResolvedValue(true);
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(added).toEqual(otherTab);
+    expect(getState().corrections).toEqual([rename, exclude, otherTab]);
+    expect(getState().status).toBe('ready');
+
+    await getState().remove(added.id);
+
+    expect(removeCorrection).toHaveBeenCalledWith('c_other_tab');
+    expect(getState().corrections).toEqual([rename, exclude]);
+  });
+
+  test('다른 탭에서 먼저 뺀 보정은 이 탭에서 나중에 저장한 보정보다 앞에(서버 순서로) 놓여요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockImplementationOnce(echoId).mockResolvedValueOnce('c_other_tab');
+    const merged = await getState().add({ type: 'merge', photoIds: ['p_a', 'p_d'] });
+    const otherTab = { ...exclude, id: 'c_other_tab', photoId: 'p_c', createdAt: NOW };
+    const savedMerge = { ...merged, createdAt: '2026-11-14T03:00:01.000Z' };
+    vi.mocked(getCorrections).mockResolvedValue([rename, exclude, otherTab, savedMerge]);
+
+    await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(getState().corrections).toEqual([rename, exclude, otherTab, savedMerge]);
+  });
+
+  test('있던 보정이 그사이 지워졌으면 한 번 더 보내 새 보정으로 저장해요', async () => {
+    await fetchSaved();
+    vi.mocked(addCorrection).mockResolvedValueOnce('c_other_tab').mockImplementationOnce(echoId);
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(addCorrection).toHaveBeenCalledTimes(2);
+    expect(added.id).toMatch(/^c_[0-9a-f]{12}$/);
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+  });
+
+  test('있던 보정을 다시 불러오지 못하면 서버가 준 id로 끝에 붙여요', async () => {
+    await fetchSaved();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(addCorrection).mockResolvedValue('c_other_tab');
+    vi.mocked(getCorrections).mockRejectedValue({
+      status: 0,
+      code: 'LOAD_FAILED',
+      message: '연결 실패',
+    });
+
+    const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
+
+    expect(added).toMatchObject({ id: 'c_other_tab', type: 'exclude', photoId: 'p_c' });
+    expect(getState().corrections).toEqual([rename, exclude, added]);
+    expect(getState().status).toBe('ready');
+  });
+
   test('이미 뺀 사진을 또 빼면 서버에 보내지 않고 있는 보정을 돌려줘요', async () => {
     await fetchSaved();
 
@@ -207,7 +274,7 @@ describe('add', () => {
   test('사진을 빼는 동안 pending에 표시하고, 같은 사진을 또 빼도 한 번만 보내요', async () => {
     await fetchSaved();
     const pending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(pending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(pending.promise));
 
     const first = getState().add({ type: 'exclude', photoId: 'p_c' });
     const second = getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -225,8 +292,8 @@ describe('add', () => {
     const failing = deferred();
     const retrying = deferred();
     vi.mocked(addCorrection)
-      .mockReturnValueOnce(failing.promise)
-      .mockReturnValueOnce(retrying.promise);
+      .mockImplementationOnce(echoAfter(failing.promise))
+      .mockImplementationOnce(echoAfter(retrying.promise));
 
     const first = getState().add({ type: 'exclude', photoId: 'p_c' });
     const second = getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -244,7 +311,9 @@ describe('add', () => {
   test('겹쳐 불러도 부른 순서대로 하나씩 보내고, 목록에도 그 순서로 붙어요', async () => {
     await fetchSaved();
     const slow = deferred();
-    vi.mocked(addCorrection).mockReturnValueOnce(slow.promise).mockResolvedValueOnce();
+    vi.mocked(addCorrection)
+      .mockImplementationOnce(echoAfter(slow.promise))
+      .mockImplementationOnce(echoId);
 
     const first = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '먼저 누른 이름' });
     const second = getState().add({
@@ -270,7 +339,7 @@ describe('add', () => {
 
   test('앞 요청이 실패해도 뒤 요청은 보내요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockRejectedValueOnce(SAVE_FAILED).mockResolvedValueOnce();
+    vi.mocked(addCorrection).mockRejectedValueOnce(SAVE_FAILED).mockImplementationOnce(echoId);
 
     const first = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '실패' });
     const second = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '성공' });
@@ -284,7 +353,7 @@ describe('add', () => {
     await fetchSaved();
     const removing = deferred();
     vi.mocked(removeCorrection).mockReturnValue(removing.promise);
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
 
     const removed = getState().remove(exclude.id);
     const readded = getState().add({ type: 'exclude', photoId: 'p_b' });
@@ -312,7 +381,7 @@ describe('add', () => {
 
   test('이름은 같은 사진으로 여러 번 바꿔도 쌓아요(마지막 보정이 이겨요)', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
 
     const added = await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '새 이름' });
 
@@ -322,7 +391,7 @@ describe('add', () => {
   test('저장하는 사이에 reset하면(계정 바뀜) 성공으로 돌려주지 않고 ACCOUNT_CHANGED로 던져요', async () => {
     await fetchSaved();
     const pending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(pending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(pending.promise));
 
     const request = getState().add({ type: 'exclude', photoId: 'p_c' });
     await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
@@ -338,7 +407,7 @@ describe('add', () => {
   test('차례를 기다리는 사이에 reset하면(계정 바뀜) 서버에 보내지 않아요', async () => {
     await fetchSaved();
     const slow = deferred();
-    vi.mocked(addCorrection).mockReturnValue(slow.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(slow.promise));
 
     const first = getState().add({ type: 'exclude', photoId: 'p_c' });
     const waiting = getState().add({ type: 'exclude', photoId: 'p_d' });
@@ -417,7 +486,7 @@ describe('remove', () => {
   test('뺀 사진을 되돌린 뒤에는 그 사진을 다시 뺄 수 있어요', async () => {
     await fetchSaved();
     vi.mocked(removeCorrection).mockResolvedValue(true);
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
 
     await getState().remove(exclude.id);
     const added = await getState().add({ type: 'exclude', photoId: 'p_b' });
@@ -430,7 +499,7 @@ describe('remove', () => {
 describe('addMany', () => {
   test('준 순서대로 하나씩 저장하고, Journey 계산은 끝에 한 번만 시작해요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const added = await getState().addMany([
@@ -460,7 +529,7 @@ describe('addMany', () => {
 
   test('중간에 실패하면 멈추고 던지지만, 앞서 저장한 보정은 남기고 그만큼 계산해요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValueOnce().mockRejectedValueOnce(SAVE_FAILED);
+    vi.mocked(addCorrection).mockImplementationOnce(echoId).mockRejectedValueOnce(SAVE_FAILED);
     vi.mocked(refreshJourney).mockResolvedValue();
 
     await expect(
@@ -480,7 +549,7 @@ describe('addMany', () => {
   test('빼는 동안 사진마다 pending에 표시하고, 끝나면 지워요', async () => {
     await fetchSaved();
     const saving = deferred();
-    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(saving.promise));
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const adding = getState().addMany([{ type: 'exclude', photoId: 'p_c' }]);
@@ -499,7 +568,7 @@ describe('addMany', () => {
   test('저장하는 사이에 reset하면(계정 바뀜) ACCOUNT_CHANGED로 던지고 계산하지 않아요', async () => {
     await fetchSaved();
     const saving = deferred();
-    vi.mocked(addCorrection).mockReturnValue(saving.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(saving.promise));
 
     const adding = getState().addMany([{ type: 'exclude', photoId: 'p_c' }]);
     await vi.waitFor(() => expect(addCorrection).toHaveBeenCalled());
@@ -648,7 +717,7 @@ describe('Journey 다시 계산', () => {
 
   test('저장이 끝나면 그 계정의 Journey 계산을 시작하고, add는 계산을 기다리지 않아요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const building = deferred();
     vi.mocked(refreshJourney).mockReturnValue(building.promise);
 
@@ -688,7 +757,7 @@ describe('Journey 다시 계산', () => {
   test('계산이 실패해도 보정은 저장된 채로 두고 failed로 남겨요. 다시 시도하면 지금 계정으로 계산해요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     vi.mocked(refreshJourney).mockRejectedValueOnce(LOAD_FAILED).mockResolvedValueOnce();
 
     const added = await getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -705,7 +774,7 @@ describe('Journey 다시 계산', () => {
   test('연달아 고치면 앞 계산이 늦게 끝나도 마지막 계산의 상태를 따라가요', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const first = deferred();
     const second = deferred();
     vi.mocked(refreshJourney)
@@ -726,7 +795,7 @@ describe('Journey 다시 계산', () => {
 
   test('계산하는 사이에 계정이 바뀌면 앞 계정의 결과를 새 계정의 상태로 남기지 않아요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const previous = deferred();
     const next = deferred();
     vi.mocked(refreshJourney)
@@ -768,7 +837,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
   test('보정을 보내기 전에 표시를 남기고, 계산이 저장되면 지워요', async () => {
     await fetchSaved();
     const sending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(sending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(sending.promise));
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const added = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '새 이름' });
@@ -811,7 +880,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
   test('저장하는 사이 계정이 바뀌어 계산하지 못하면, 그 계정으로 돌아왔을 때 계산해요', async () => {
     await fetchSaved();
     const sending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(sending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(sending.promise));
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const added = getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -837,7 +906,9 @@ describe('다음에 들어올 때 이어서 계산', () => {
     const first = deferred();
     vi.mocked(refreshJourney).mockReturnValueOnce(first.promise).mockResolvedValueOnce();
     const sending = deferred();
-    vi.mocked(addCorrection).mockResolvedValueOnce().mockReturnValueOnce(sending.promise);
+    vi.mocked(addCorrection)
+      .mockImplementationOnce(echoId)
+      .mockImplementationOnce(echoAfter(sending.promise));
 
     await getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '먼저' });
     const next = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '나중' });
@@ -856,7 +927,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
   test('보정을 보내는 중에 시작한 계산은 그 보정을 못 읽었을 수 있어서 표시를 지우지 않아요', async () => {
     await fetchSaved();
     const sending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(sending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(sending.promise));
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const added = getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -871,7 +942,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
 
   test('같은 탭에서 연달아 고치면 마지막 계산이 끝난 뒤 표시가 남지 않아요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const first = deferred();
     const second = deferred();
     vi.mocked(refreshJourney)
@@ -891,7 +962,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
 
   test('계산하는 사이 다른 탭이 보정을 바꾸면 표시를 남겨서 다음에 들어올 때 다시 계산해요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const building = deferred();
     vi.mocked(refreshJourney).mockReturnValueOnce(building.promise).mockResolvedValueOnce();
 
@@ -909,7 +980,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
 
   test('다른 탭의 계산이 먼저 저장해 표시를 지웠으면, 늦게 끝난 계산은 표시를 다시 남겨요', async () => {
     await fetchSaved();
-    vi.mocked(addCorrection).mockResolvedValue();
+    vi.mocked(addCorrection).mockImplementation(echoId);
     const building = deferred();
     vi.mocked(refreshJourney).mockReturnValue(building.promise);
 
@@ -928,7 +999,7 @@ describe('다음에 들어올 때 이어서 계산', () => {
     });
     await fetchSaved();
     const sending = deferred();
-    vi.mocked(addCorrection).mockReturnValue(sending.promise);
+    vi.mocked(addCorrection).mockImplementation(echoAfter(sending.promise));
     vi.mocked(refreshJourney).mockResolvedValue();
 
     const added = getState().add({ type: 'exclude', photoId: 'p_c' });
@@ -979,7 +1050,9 @@ describe('reset', () => {
   test('같은 계정으로 다시 들어오면, 나가기 전에 보낸 요청이 끝난 뒤에 보내요', async () => {
     await fetchSaved();
     const before = deferred();
-    vi.mocked(addCorrection).mockReturnValueOnce(before.promise).mockResolvedValueOnce();
+    vi.mocked(addCorrection)
+      .mockImplementationOnce(echoAfter(before.promise))
+      .mockImplementationOnce(echoId);
 
     const previous = getState().add({ type: 'rename', anchorPhotoId: 'p_a', name: '나가기 전' });
     await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));
@@ -1001,7 +1074,9 @@ describe('reset', () => {
   test('앞 계정의 요청이 끝나지 않아도 새 계정의 저장은 기다리지 않아요', async () => {
     await fetchSaved();
     const stuck = deferred();
-    vi.mocked(addCorrection).mockReturnValueOnce(stuck.promise).mockResolvedValueOnce();
+    vi.mocked(addCorrection)
+      .mockImplementationOnce(echoAfter(stuck.promise))
+      .mockImplementationOnce(echoId);
 
     const previous = getState().add({ type: 'exclude', photoId: 'p_c' });
     await vi.waitFor(() => expect(addCorrection).toHaveBeenCalledTimes(1));

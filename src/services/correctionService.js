@@ -23,12 +23,14 @@ export async function getCorrections() {
 
 /**
  * 보정 하나를 저장해요. 보정과 사진 연결(correction_photos)이 같이 들어가서, 한쪽만 남는 일은 없어요.
- * ownerId · createdAt은 서버가 정해서 넘기지 않아요. 서버는 아무것도 돌려주지 않아요.
+ * ownerId · createdAt은 서버가 정해서 넘기지 않아요.
+ * 서버는 저장된 보정의 id를 돌려줘요. 보통은 보낸 id 그대로예요. 이미 뺀 사진의 exclude면 서버가 넣지 않고
+ * 있던 보정의 id를 돌려줘요(다른 탭에서 먼저 뺀 경우. BE #8).
  * 가리키는 사진이 없거나 남의 사진이면 서버가 거절해요.
  * 실패하면 { status, code, message }로 던져요. 서버에 닿지 못하면 status는 0이에요.
  *
  * @param {import('@/types').CorrectionInput & { id: string }} correction
- * @returns {Promise<void>}
+ * @returns {Promise<string>} 저장된 보정의 id
  */
 export async function addCorrection(correction) {
   let response;
@@ -39,6 +41,7 @@ export async function addCorrection(correction) {
     throw toCorrectionError(error, 'SAVE_FAILED');
   }
   if (response.error) throw toCorrectionError(response.error, 'SAVE_FAILED', response.status);
+  return response.data ?? correction.id;
 }
 
 /**

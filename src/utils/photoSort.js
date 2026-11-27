@@ -46,7 +46,7 @@ import { toLocalDate } from '@/utils/localDate';
  * @property {string} id 사진 ID
  * @property {string | null} fileKey 사진을 못 받았거나 없는 사진이면 null(회색 칸)
  * @property {string | null} takenAt 현지 촬영 시각. 모르면 null
- * @property {string[]} correctionIds 이 사진을 뺀 exclude 보정. 같은 사진에 둘 이상일 수 있어요(BE #8)
+ * @property {string[]} correctionIds 이 사진을 뺀 exclude 보정. 서버가 사진마다 하나만 저장해서(BE #8) 보통 하나예요
  */
 
 const isExclude = (correction) => correction.type === 'exclude';
@@ -306,7 +306,7 @@ export function selectSortCounts(journey, trips, excludedIds) {
 
 /**
  * 제외한 사진 탭의 목록이에요. 최근에 뺀 사진이 앞이에요.
- * 같은 사진의 exclude가 여럿이면 하나로 묶어, [복구]가 모두 지우게 해요(BE #8).
+ * 같은 사진의 exclude가 여럿이면 하나로 묶어, [복구]가 모두 지우게 해요. 서버가 사진마다 하나만 저장하지만(BE #8) 남아 있어도 복구되게 둬요.
  *
  * @param {import('@/types').Correction[]} corrections
  * @param {import('@/types').Photo[]} photos
