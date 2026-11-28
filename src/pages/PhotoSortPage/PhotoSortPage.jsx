@@ -58,7 +58,8 @@ import UnlocatedTab from './UnlocatedTab';
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
  *  - [사진 모두 삭제](#284)는 글 · 보정 · 사진 · 이미지 · Journey를 지운 뒤(deleteAllMyData) 보정 · 글 · 올리기 스토어를
  *    처음 상태로 돌리고 13 올리기로 가요. 스토어에 지운 보정 · 글이 남아 있으면 다른 화면이 그 값을 그려서예요.
- *    보정을 저장하거나 Journey를 계산하는 중에는 막아요. 그 계산이 지운 뒤에 끝나면 옛 Journey를 다시 저장해서예요.
+ *    보정을 저장하거나 Journey를 계산하는 중, 13의 저장 · 이미지 올리기가 도는 중에는 막아요.
+ *    그 작업이 지운 뒤에 끝나면 옛 Journey · 사진 · 이미지를 다시 써서예요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
  *    회색 썸네일이 보여요. 사진을 못 받으면 고칠 수 없어서 Journey를 못 읽었을 때와 같이 안내만 해요.
  *
@@ -83,6 +84,14 @@ export default function PhotoSortPage() {
   const resetCorrections = useCorrectionStore((state) => state.reset);
   const resetPosts = usePostStore((state) => state.reset);
   const resetUpload = useUploadStore((state) => state.reset);
+  // 13에서 저장 · Journey 계산 · 이미지 올리기가 도는 중이면, 지운 뒤에 사진 · 이미지 · Journey가 다시 써져요.
+  const isUploadBusy = useUploadStore(
+    (state) =>
+      state.saveStatus === 'saving' ||
+      state.journeyStatus === 'building' ||
+      state.imageUpload.uploaded + state.imageUpload.skipped + state.imageUpload.failed <
+        state.imageUpload.total,
+  );
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get(SORT_TAB_PARAM);
@@ -189,7 +198,11 @@ export default function PhotoSortPage() {
         tripCount={totals.trips}
         cityCount={totals.cities}
         canDeleteAll={
-          isCorrectionsReady && !hasPending && !isRefreshing && journeyStatus !== 'building'
+          isCorrectionsReady &&
+          !hasPending &&
+          !isRefreshing &&
+          journeyStatus !== 'building' &&
+          !isUploadBusy
         }
         onDeleteAll={handleDeleteAll}
       />

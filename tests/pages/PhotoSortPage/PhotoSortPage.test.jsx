@@ -1245,6 +1245,18 @@ describe('07 사진 모두 삭제', () => {
     expect(buttonByText('사진 모두 삭제').disabled).toBe(true);
   });
 
+  test('13에서 이미지를 올리는 중이면 [사진 모두 삭제]를 막아요', async () => {
+    // given
+    useUploadStore.setState({ imageUpload: { total: 10, uploaded: 3, skipped: 0, failed: 0 } });
+    onTestFinished(() => useUploadStore.getState().reset());
+
+    // when
+    await render('/edit/photos');
+
+    // then
+    expect(buttonByText('사진 모두 삭제').disabled).toBe(true);
+  });
+
   test('Journey를 계산하는 중이면 [사진 모두 삭제]를 막아요', async () => {
     // given
     mockCorrections({ journeyStatus: 'building' });

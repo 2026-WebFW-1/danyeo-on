@@ -33,7 +33,7 @@ function fakeSupabase(steps, failTable) {
   vi.mocked(clearMyPhotos).mockImplementation(() => steps.push('clearMyPhotos'));
 }
 
-test('글 · 보정 · 사진 행, 이미지, Journey 순서로 내 것만 지우고 사진 기억을 비워요', async () => {
+test('Journey, 글 · 보정 · 사진 행, 이미지 순서로 내 것만 지우고 사진 기억을 비워요', async () => {
   // given
   const steps = [];
   fakeSupabase(steps);
@@ -43,12 +43,12 @@ test('글 · 보정 · 사진 행, 이미지, Journey 순서로 내 것만 지�
 
   // then
   expect(steps).toEqual([
+    'journey',
     'posts:owner_id=u1',
     'corrections:owner_id=u1',
     'photos:owner_id=u1',
-    'images',
-    'journey',
     'clearMyPhotos',
+    'images',
   ]);
   expect(deleteAllUploadedImages).toHaveBeenCalledWith('u1');
   expect(deleteJourney).toHaveBeenCalledWith('u1');
@@ -64,20 +64,35 @@ test('행을 지우지 못하면 던지고 뒤 단계는 하지 않아요', asyn
 
   // then
   await expect(deleting).rejects.toThrow('corrections 권한 없음');
-  expect(steps).toEqual(['posts:owner_id=u1', 'corrections:owner_id=u1']);
+  expect(steps).toEqual(['journey', 'posts:owner_id=u1', 'corrections:owner_id=u1']);
 });
 
-test('이미지를 지우지 못하면 던지고 Journey는 그대로 둬요', async () => {
+test('Journey를 지우지 못하면 던지고 행은 건드리지 않아요', async () => {
   // given
   const steps = [];
   fakeSupabase(steps);
-  vi.mocked(deleteAllUploadedImages).mockRejectedValue(new Error('storage 실패'));
+  vi.mocked(deleteJourney).mockRejectedValue(new Error('journeys 실패'));
 
   // when
   const deleting = deleteAllMyData('u1');
 
   // then
-  await expect(deleting).rejects.toThrow('storage 실패');
-  expect(deleteJourney).not.toHaveBeenCalled();
-  expect(clearMyPhotos).not.toHaveBeenCalled();
+  await expect(deleting).rejects.toThrow('journeys 실패');
+  expect(steps).toEqual([]);
+});
+
+test('이미지를 지우지 못해도 던지지 않아요. 행은 이미 지워져 남은 파일을 가리키는 화면이 없어요', async () => {
+  // given
+  const steps = [];
+  fakeSupabase(steps);
+  const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(deleteAllUploadedImages).mockRejectedValue(new Error('storage 실패'));
+
+  // when
+  await deleteAllMyData('u1');
+
+  // then
+  expect(clearMyPhotos).toHaveBeenCalledOnce();
+  expect(logError).toHaveBeenCalledWith(new Error('storage 실패'));
+  logError.mockRestore();
 });

@@ -130,14 +130,21 @@ export async function saveJourney(userId, journey) {
  * 지운 뒤에는 그 계정의 기억을 지우고 알려서, 열린 화면과 다음 getJourney가 빈 Journey를 읽어요.
  * 실패하면 { status: 0, code: 'DELETE_FAILED', message }로 거절하고, 기억은 그대로 둬요.
  *
+ * 이 탭에서 이미 시작한 refreshJourney는 지우기 전에 사진을 읽어서, 그대로 두면 지운 뒤에 옛 Journey를 다시 저장해요.
+ * 그래서 그 계산들을 새 계산에 밀린 것으로 만들고(저장하지 않고 빈 Journey를 받아요), 지우기도 같은 쓰기 줄에 세워요.
+ * 다른 탭 · 기기에서 도는 계산은 막지 못해요.
+ *
  * @param {string} userId 로그인한 사람의 id(AuthUser.id)
  * @returns {Promise<void>}
  */
 export async function deleteJourney(userId) {
+  latestRefresh.set(userId, Promise.resolve(EMPTY_JOURNEY));
   try {
-    const supabase = await getSupabase();
-    const { error } = await supabase.from('journeys').delete().eq('owner_id', userId);
-    if (error) throw error;
+    await queueWrite(userId, async () => {
+      const supabase = await getSupabase();
+      const { error } = await supabase.from('journeys').delete().eq('owner_id', userId);
+      if (error) throw error;
+    });
   } catch (error) {
     throw { status: 0, code: 'DELETE_FAILED', message: error.message };
   }

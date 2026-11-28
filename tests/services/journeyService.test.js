@@ -382,6 +382,13 @@ describe('deleteJourney', () => {
         }),
       },
       from: (table) => ({
+        upsert: (row) => ({
+          select: async () => {
+            calls.push({ table, action: 'upsert', value: row.owner_id });
+            stored = row.payload;
+            return { data: [{ owner_id: row.owner_id }], error: null };
+          },
+        }),
         delete: () => ({
           eq: async (column, value) => {
             calls.push({ table, action: 'delete', column, value });
@@ -446,6 +453,27 @@ describe('deleteJourney', () => {
     // then
     await expect(result).rejects.toEqual({ status: 0, code: 'DELETE_FAILED', message: 'denied' });
     expect(await getJourney(userId)).toEqual(journeyOf('old'));
+  });
+
+  test('지우기 전에 시작한 계산은 지운 뒤에 끝나도 저장하지 않고 빈 Journey를 받아요', async () => {
+    // given: 지우기 전에 사진을 읽고 계산하는 중이에요
+    const userId = newUserId();
+    const calls = fakeDeletableSupabase();
+    const building = deferred();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockReturnValue(building.promise);
+    const refreshing = refreshJourney(userId);
+    await vi.waitFor(() => expect(buildJourney).toHaveBeenCalled());
+
+    // when
+    await deleteJourney(userId);
+    building.resolve(journeyOf('old'));
+    const journey = await refreshing;
+
+    // then
+    expect(journey.stops).toEqual([]);
+    expect(calls.filter((call) => call.action === 'upsert')).toEqual([]);
+    expect((await getJourney(userId)).stops).toEqual([]);
   });
 });
 
