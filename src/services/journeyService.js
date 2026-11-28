@@ -124,6 +124,27 @@ export async function saveJourney(userId, journey) {
   journeyChanged.notify();
 }
 
+/**
+ * journeys 테이블의 내 행을 지워요. 사진을 모두 지울 때(#284) 불러요.
+ * 행이 없어도 오류가 아니에요. 행이 없는 계정은 getJourney가 빈 Journey를 줘요.
+ * 지운 뒤에는 그 계정의 기억을 지우고 알려서, 열린 화면과 다음 getJourney가 빈 Journey를 읽어요.
+ * 실패하면 { status: 0, code: 'DELETE_FAILED', message }로 거절하고, 기억은 그대로 둬요.
+ *
+ * @param {string} userId 로그인한 사람의 id(AuthUser.id)
+ * @returns {Promise<void>}
+ */
+export async function deleteJourney(userId) {
+  try {
+    const supabase = await getSupabase();
+    const { error } = await supabase.from('journeys').delete().eq('owner_id', userId);
+    if (error) throw error;
+  } catch (error) {
+    throw { status: 0, code: 'DELETE_FAILED', message: error.message };
+  }
+  cache.delete(userId);
+  journeyChanged.notify();
+}
+
 // 같은 계정의 쓰기를 앞 쓰기가 끝난 뒤에 실행해요. 앞 쓰기가 실패해도 다음 쓰기는 실행해요.
 function queueWrite(userId, write) {
   const run = (writeQueue.get(userId) ?? Promise.resolve()).then(write);

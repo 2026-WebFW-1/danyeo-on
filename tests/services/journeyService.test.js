@@ -4,6 +4,7 @@ import { UNKNOWN_PLACE } from '@/constants/geocode';
 import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { getSupabase } from '@/services/getSupabase';
 import {
+  deleteJourney,
   getJourney,
   getJourneyVersion,
   refreshJourney,
@@ -366,6 +367,86 @@ const savedJourneyWithSeoulHome = () => ({
 const savedJourneyWithOldSeoulHome = () => ({
   ...journeyOf('saved'),
   home: { ...SEOUL, city: '서울' },
+});
+
+describe('deleteJourney', () => {
+  // from().delete().eq()와 읽기를 흉내 내요. 지우면 읽기가 빈 행을 줘요.
+  function fakeDeletableSupabase(deleteError = null) {
+    const calls = [];
+    let stored = journeyOf('old');
+    const client = {
+      auth: {
+        getSession: async () => ({
+          data: { session: { user: { id: calls.findLast((c) => c.value)?.value } } },
+          error: null,
+        }),
+      },
+      from: (table) => ({
+        delete: () => ({
+          eq: async (column, value) => {
+            calls.push({ table, action: 'delete', column, value });
+            if (!deleteError) stored = null;
+            return { error: deleteError };
+          },
+        }),
+        select: () => ({
+          eq: (column, value) => ({
+            maybeSingle: async () => {
+              calls.push({ table, value });
+              return { data: stored && { payload: stored }, error: null };
+            },
+          }),
+        }),
+      }),
+    };
+    vi.mocked(getSupabase).mockResolvedValue(client);
+    return calls;
+  }
+
+  test('내 owner_id 행을 지워요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeDeletableSupabase();
+
+    // when
+    await deleteJourney(userId);
+
+    // then
+    expect(calls).toEqual([
+      { table: 'journeys', action: 'delete', column: 'owner_id', value: userId },
+    ]);
+  });
+
+  test('지우고 나면 기억을 지우고 알려서, 다음 getJourney가 빈 Journey를 읽어요', async () => {
+    // given
+    const userId = newUserId();
+    fakeDeletableSupabase();
+    expect(await getJourney(userId)).toEqual(journeyOf('old'));
+    const listener = vi.fn();
+    const unsubscribe = subscribeJourney(listener);
+
+    // when
+    await deleteJourney(userId);
+    unsubscribe();
+
+    // then
+    expect(listener).toHaveBeenCalledOnce();
+    expect((await getJourney(userId)).stops).toEqual([]);
+  });
+
+  test('지우지 못하면 DELETE_FAILED로 거절하고 기억은 그대로 둬요', async () => {
+    // given
+    const userId = newUserId();
+    fakeDeletableSupabase({ message: 'denied' });
+    expect(await getJourney(userId)).toEqual(journeyOf('old'));
+
+    // when
+    const result = deleteJourney(userId);
+
+    // then
+    await expect(result).rejects.toEqual({ status: 0, code: 'DELETE_FAILED', message: 'denied' });
+    expect(await getJourney(userId)).toEqual(journeyOf('old'));
+  });
 });
 
 describe('refreshJourney', () => {
