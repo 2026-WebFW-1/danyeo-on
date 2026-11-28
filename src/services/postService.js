@@ -1,4 +1,4 @@
-import { assertNotDeletingAll } from './deleteAllGate';
+import { guardWrite } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 import { getMyData } from './photoService';
 
@@ -27,8 +27,7 @@ export async function getPosts() {
  * @param {Pick<import('@/types').Post, 'id' | 'date' | 'title' | 'body' | 'tags' | 'photoIds'>} post
  * @returns {Promise<void>}
  */
-export async function savePost(post) {
-  assertNotDeletingAll();
+export const savePost = guardWrite(async (post) => {
   let response;
   try {
     const supabase = await getSupabase();
@@ -37,7 +36,7 @@ export async function savePost(post) {
     throw toPostError(error, 'SAVE_FAILED');
   }
   if (response.error) throw toPostError(response.error, 'SAVE_FAILED', response.status);
-}
+});
 
 /**
  * 글 하나를 지워요. 붙은 사진·태그 연결은 DB가 같이 지워요(cascade).
@@ -46,8 +45,7 @@ export async function savePost(post) {
  * @param {string} id
  * @returns {Promise<boolean>} 지운 행이 있으면 true. 이미 지워졌거나 내 것이 아니면 false예요
  */
-export async function removePost(id) {
-  assertNotDeletingAll();
+export const removePost = guardWrite(async (id) => {
   let response;
   try {
     const supabase = await getSupabase();
@@ -58,4 +56,4 @@ export async function removePost(id) {
   }
   if (response.error) throw toPostError(response.error, 'REMOVE_FAILED', response.status);
   return response.data.length > 0;
-}
+});

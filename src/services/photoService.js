@@ -1,6 +1,6 @@
 import { toUploadedImageFolders, toUploadedImagePaths } from '@/utils/photoFileKey';
 
-import { assertNotDeletingAll } from './deleteAllGate';
+import { guardWrite } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 
 const PHOTO_BUCKET = 'photos';
@@ -25,8 +25,7 @@ export async function getMyData() {
  * @param {Omit<import('@/types').Photo, 'ownerId' | 'uploadedAt' | 'timeUncertain'>[]} photos
  * @returns {Promise<import('@/types').SavePhotosResult>}
  */
-export async function savePhotos(photos) {
-  assertNotDeletingAll();
+export const savePhotos = guardWrite(async (photos) => {
   if (photos.length === 0)
     return {
       saved: [],
@@ -47,7 +46,7 @@ export async function savePhotos(photos) {
     saved: ids.filter((id) => savedIds.has(id)),
     skipped: ids.filter((id) => !savedIds.has(id)),
   };
-}
+});
 
 /**
  * 사진을 지워요. 없는 사진이나 남의 사진은 오류 없이 빠지니, 돌려받은 ID로 확인해요.
@@ -56,8 +55,7 @@ export async function savePhotos(photos) {
  * @param {string[]} ids
  * @returns {Promise<string[]>} 실제로 지운 사진 ID
  */
-export async function deletePhotos(ids) {
-  assertNotDeletingAll();
+export const deletePhotos = guardWrite(async (ids) => {
   if (ids.length === 0) return [];
 
   const supabase = await getSupabase();
@@ -81,7 +79,7 @@ export async function deletePhotos(ids) {
   }
 
   return data.map((row) => row.id);
-}
+});
 
 /**
  * 사진 이미지 두 벌(보기용·썸네일)을 photos 버킷에 올려요.
@@ -91,8 +89,7 @@ export async function deletePhotos(ids) {
  * @param {{ full: Blob, thumb: Blob }} images
  * @returns {Promise<void>}
  */
-export async function savePhotoImage(fileKey, images) {
-  assertNotDeletingAll();
+export const savePhotoImage = guardWrite(async (fileKey, images) => {
   const paths = toUploadedImagePaths(fileKey);
   if (!paths) throw new Error(`올린 사진의 fileKey가 아니에요: ${fileKey}`);
 
@@ -105,7 +102,7 @@ export async function savePhotoImage(fileKey, images) {
   );
   const failed = results.find((result) => result.error);
   if (failed) throw failed.error;
-}
+});
 
 // list는 한 번에 이만큼만 줘요(기본값은 100). 사진이 더 많으면 offset을 늘려 다시 받아요.
 const LIST_PAGE_SIZE = 1000;

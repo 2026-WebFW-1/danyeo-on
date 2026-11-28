@@ -3,7 +3,7 @@ import { buildJourney } from '@/utils/journey/buildJourney';
 import { findSavedPlace } from '@/utils/journey/findSavedPlace';
 
 import { createChangeSignal } from './changeSignal';
-import { assertNotDeletingAll, getDeleteAllEpoch, isDeletingAll } from './deleteAllGate';
+import { getDeleteAllEpoch, guardWrite, isDeletingAll } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 import { clearMyPhotos } from './myPhotosService';
 import { getMyData } from './photoService';
@@ -106,8 +106,7 @@ export function getJourney(userId) {
  * @param {import('@/types').Journey} journey buildJourney가 돌려준 값
  * @returns {Promise<void>}
  */
-export async function saveJourney(userId, journey) {
-  assertNotDeletingAll();
+export const saveJourney = guardWrite(async (userId, journey) => {
   try {
     const supabase = await getSupabase();
     const { data, error } = await supabase
@@ -124,7 +123,7 @@ export async function saveJourney(userId, journey) {
   }
   cache.delete(userId);
   journeyChanged.notify();
-}
+});
 
 /**
  * journeys 테이블의 내 행을 지워요. 사진을 모두 지울 때(#284) 불러요.
@@ -242,7 +241,11 @@ async function buildAndSave(userId, isSuperseded, isDeleteOverlapped) {
     if (isSuperseded()) return false;
     // 계산하는 사이 사진을 모두 지웠거나 지우는 중이면, 읽은 사진이 지우기 전 것이라 저장하지 않아요(#284).
     if (isDeleteOverlapped()) {
-      throw { status: 0, code: 'DELETED_DURING_BUILD', message: '계산하는 사이 사진을 모두 지웠어요' };
+      throw {
+        status: 0,
+        code: 'DELETED_DURING_BUILD',
+        message: '계산하는 사이 사진을 모두 지웠어요',
+      };
     }
     await saveJourney(userId, journey);
     return true;

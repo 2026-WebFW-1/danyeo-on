@@ -16,8 +16,8 @@ const OWNED_TABLES = ['posts', 'corrections', 'photos'];
  * Journey를 먼저 지우는 이유: 사진 행을 다 지운 뒤 실패하고 새로고침하면 사진이 0장이라 07에 버튼이 없어요.
  * 그때 Journey가 남아 있으면 01 · 03에 사진 없는 여행이 남고 지울 방법이 없어요. 사진 행이 남아 있는 동안은
  * 버튼이 보여서 다시 누를 수 있어요.
- * 지우는 동안 beginDeleteAll로 알려서, 이 탭의 다른 쓰기(사진 · 보정 · 글 저장)를 거절하고
- * 그 사이에 걸친 Journey 계산이 옛 Journey를 다시 저장하지 않게 해요.
+ * beginDeleteAll로 이미 보내는 중인 쓰기가 끝나길 기다린 뒤 지워요. 지우는 동안 이 탭의 새 쓰기는 거절되고,
+ * 그 사이에 걸친 Journey 계산은 옛 Journey를 다시 저장하지 않아요.
  * 이미지를 지우지 못하면 던지지 않아요(deletePhotos와 같아요). 행이 이미 지워져 버튼이 사라지고, 남은 파일은
  * 어느 화면도 가리키지 않아서예요.
  * 지운 뒤 사진 목록 기억을 비워서 열린 화면이 빈 목록을 읽어요. 보정 · 글 스토어는 부르는 쪽이 비워요.
@@ -26,7 +26,7 @@ const OWNED_TABLES = ['posts', 'corrections', 'photos'];
  * @returns {Promise<void>}
  */
 export async function deleteAllMyData(ownerId) {
-  const endDelete = beginDeleteAll();
+  const endDelete = await beginDeleteAll();
   try {
     await deleteJourney(ownerId);
 

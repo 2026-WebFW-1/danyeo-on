@@ -5,6 +5,7 @@ import {
   assertNotDeletingAll,
   beginDeleteAll,
   getDeleteAllEpoch,
+  guardWrite,
   isDeletingAll,
 } from '@/services/deleteAllGate';
 import { getSupabase } from '@/services/getSupabase';
@@ -19,9 +20,9 @@ const DELETING_ALL = { status: 0, code: 'DELETING_ALL', message: '사진을 모�
 afterEach(() => vi.resetAllMocks());
 
 describe('beginDeleteAll', () => {
-  test('시작하면 지우는 중이고, 끝났다고 알리면 풀려요', () => {
+  test('시작하면 지우는 중이고, 끝났다고 알리면 풀려요', async () => {
     // given
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
 
     // when
     const during = isDeletingAll();
@@ -32,12 +33,12 @@ describe('beginDeleteAll', () => {
     expect(isDeletingAll()).toBe(false);
   });
 
-  test('시작할 때와 끝날 때 번호를 올려요', () => {
+  test('시작할 때와 끝날 때 번호를 올려요', async () => {
     // given
     const before = getDeleteAllEpoch();
 
     // when
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
     const during = getDeleteAllEpoch();
     endDelete();
 
@@ -46,10 +47,10 @@ describe('beginDeleteAll', () => {
     expect(getDeleteAllEpoch()).toBe(before + 2);
   });
 
-  test('끝났다고 두 번 알려도 한 번만 반영해서, 다른 지우기가 남아 있으면 계속 지우는 중이에요', () => {
+  test('끝났다고 두 번 알려도 한 번만 반영해서, 다른 지우기가 남아 있으면 계속 지우는 중이에요', async () => {
     // given
-    const endFirst = beginDeleteAll();
-    const endSecond = beginDeleteAll();
+    const endFirst = await beginDeleteAll();
+    const endSecond = await beginDeleteAll();
 
     // when
     endFirst();
@@ -67,9 +68,9 @@ describe('assertNotDeletingAll', () => {
     expect(() => assertNotDeletingAll()).not.toThrow();
   });
 
-  test('지우는 중이면 DELETING_ALL로 던져요', () => {
+  test('지우는 중이면 DELETING_ALL로 던져요', async () => {
     // given
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
 
     // when
     const assert = () => assertNotDeletingAll();
@@ -77,6 +78,69 @@ describe('assertNotDeletingAll', () => {
     // then
     expect(assert).toThrow(expect.objectContaining({ code: 'DELETING_ALL' }));
     endDelete();
+  });
+});
+
+describe('guardWrite', () => {
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  test('지우는 중이 아니면 감싼 쓰기를 그대로 실행하고 결과를 돌려줘요', async () => {
+    // given
+    const write = vi.fn(async (a, b) => a + b);
+
+    // when
+    const result = await guardWrite(write)(1, 2);
+
+    // then
+    expect(result).toBe(3);
+    expect(write).toHaveBeenCalledWith(1, 2);
+  });
+
+  test('지우기는 이미 보내는 중인 쓰기가 끝날 때까지 기다렸다가 시작해요', async () => {
+    // given
+    const sending = deferred();
+    const writing = guardWrite(() => sending.promise)();
+    let started = false;
+
+    // when
+    const beginning = beginDeleteAll().then((end) => {
+      started = true;
+      return end;
+    });
+    await Promise.resolve();
+
+    // then
+    expect(started).toBe(false);
+    expect(isDeletingAll()).toBe(true);
+    sending.resolve('saved');
+    await expect(writing).resolves.toBe('saved');
+    const endDelete = await beginning;
+    expect(started).toBe(true);
+    endDelete();
+  });
+
+  test('보내는 중인 쓰기가 실패해도 지우기는 시작해요', async () => {
+    // given
+    const sending = deferred();
+    const writing = guardWrite(() => sending.promise)();
+
+    // when
+    const beginning = beginDeleteAll();
+    sending.reject(new Error('offline'));
+
+    // then
+    await expect(writing).rejects.toThrow('offline');
+    const endDelete = await beginning;
+    endDelete();
+    expect(isDeletingAll()).toBe(false);
   });
 });
 
@@ -95,7 +159,7 @@ describe('지우는 중에는 쓰기 서비스가 요청을 보내지 않고 거
 
   test.each(Object.entries(writes))('%s', async (name, write) => {
     // given
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
 
     // when
     const writing = write();

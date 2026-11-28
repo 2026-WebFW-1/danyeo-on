@@ -494,7 +494,7 @@ describe('사진을 모두 지우는 사이에 걸친 계산(deleteAllGate)', ()
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
     const { building, refreshing } = await startRefresh(userId);
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
 
     // when
     building.resolve(journeyOf('old'));
@@ -509,7 +509,7 @@ describe('사진을 모두 지우는 사이에 걸친 계산(deleteAllGate)', ()
     // given: 이미 보낸 보정 저장이 지우는 중에 끝나 계산을 시작한 경우예요
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
-    const endDelete = beginDeleteAll();
+    const endDelete = await beginDeleteAll();
     const { building, refreshing } = await startRefresh(userId);
     endDelete();
 
@@ -525,7 +525,7 @@ describe('사진을 모두 지우는 사이에 걸친 계산(deleteAllGate)', ()
     // given
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
-    beginDeleteAll()();
+    (await beginDeleteAll())();
     vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
     vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
 
@@ -540,8 +540,8 @@ describe('사진을 모두 지우는 사이에 걸친 계산(deleteAllGate)', ()
     // given
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
-    const endFirst = beginDeleteAll();
-    const endSecond = beginDeleteAll();
+    const endFirst = await beginDeleteAll();
+    const endSecond = await beginDeleteAll();
     endFirst();
     endFirst();
     vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));

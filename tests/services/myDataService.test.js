@@ -32,7 +32,7 @@ function fakeSupabase(steps, failTable) {
   });
   vi.mocked(deleteAllUploadedImages).mockImplementation(async () => steps.push('images'));
   vi.mocked(deleteJourney).mockImplementation(async () => steps.push('journey'));
-  vi.mocked(beginDeleteAll).mockImplementation(() => {
+  vi.mocked(beginDeleteAll).mockImplementation(async () => {
     steps.push('begin');
     return () => steps.push('end');
   });

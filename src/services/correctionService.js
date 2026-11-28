@@ -1,4 +1,4 @@
-import { assertNotDeletingAll } from './deleteAllGate';
+import { guardWrite } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 import { getMyData } from './photoService';
 
@@ -33,8 +33,7 @@ export async function getCorrections() {
  * @param {import('@/types').CorrectionInput & { id: string }} correction
  * @returns {Promise<string>} 저장된 보정의 id
  */
-export async function addCorrection(correction) {
-  assertNotDeletingAll();
+export const addCorrection = guardWrite(async (correction) => {
   let response;
   try {
     const supabase = await getSupabase();
@@ -44,7 +43,7 @@ export async function addCorrection(correction) {
   }
   if (response.error) throw toCorrectionError(response.error, 'SAVE_FAILED', response.status);
   return response.data ?? correction.id;
-}
+});
 
 /**
  * 보정 하나를 지워요. 사진 연결은 DB가 같이 지워요(cascade).
@@ -53,8 +52,7 @@ export async function addCorrection(correction) {
  * @param {string} id
  * @returns {Promise<boolean>} 지운 행이 있으면 true. 이미 지워졌거나 내 것이 아니면 false예요
  */
-export async function removeCorrection(id) {
-  assertNotDeletingAll();
+export const removeCorrection = guardWrite(async (id) => {
   let response;
   try {
     const supabase = await getSupabase();
@@ -65,7 +63,7 @@ export async function removeCorrection(id) {
   }
   if (response.error) throw toCorrectionError(response.error, 'REMOVE_FAILED', response.status);
   return response.data.length > 0;
-}
+});
 
 /**
  * 보정이 가리키는 사진 하나를 다른 사진으로 바꿔요. 보정 id · 만든 시각 · 순서는 그대로예요.
@@ -78,8 +76,7 @@ export async function removeCorrection(id) {
  * @param {string} toPhotoId
  * @returns {Promise<boolean>} 바꾼 연결이 있으면 true. 이미 옮겼거나 없으면 false예요
  */
-export async function moveCorrectionPhoto(correctionId, fromPhotoId, toPhotoId) {
-  assertNotDeletingAll();
+export const moveCorrectionPhoto = guardWrite(async (correctionId, fromPhotoId, toPhotoId) => {
   let response;
   try {
     const supabase = await getSupabase();
@@ -95,4 +92,4 @@ export async function moveCorrectionPhoto(correctionId, fromPhotoId, toPhotoId) 
   }
   if (response.error) throw toCorrectionError(response.error, 'SAVE_FAILED', response.status);
   return response.data.length > 0;
-}
+});
