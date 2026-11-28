@@ -56,13 +56,9 @@ import UnlocatedTab from './UnlocatedTab';
  *    넣어요. 지점 ID는 첫 사진 ID라, 한 장만 넣으면 그 사진을 뺐을 때 경유가 풀려요. 되돌리기는 그 보정을 모두 지워요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 서버가 사진마다 하나만 저장하지만(BE #8) 둘이 남아 있어도 복구되게요.
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
- *  - [사진 모두 삭제](#284)는 글 · 보정 · 사진 · 이미지 · Journey를 지운 뒤(deleteAllMyData) 13 올리기로 가요.
- *    끝나면 실패해도 보정 · 글 스토어를 처음 상태로 돌려 다시 읽게 해요. 중간에 실패해도 앞 단계는 이미 지워져서,
- *    스토어에 지운 보정 · 글이 남으면 다른 화면이 그 값을 그려요. 올리기 스토어는 다 지웠을 때만 비워요.
- *    지우는 동안에는 07의 다른 편집([다시 시도] 포함)을 모두 막아요. 그 사이 보정을 저장하면 Journey 계산이
- *    지우기 전 사진을 읽어, 다 지운 뒤에 옛 Journey를 다시 써요. 그래서 지우는 중 · 실패 상태를 여기 둬요.
- *    보정을 저장하거나 Journey를 계산하는 중, 13의 저장 · 이미지 올리기가 도는 중에는 막아요.
- *    그 작업이 지운 뒤에 끝나면 옛 Journey · 사진 · 이미지를 다시 써서예요.
+ *  - [사진 모두 삭제](#284)와 다른 쓰기(07 편집 · Journey 계산 · 13 올리기)는 서로 막아요. 겹치면 지우기 전 사진으로
+ *    계산한 옛 Journey가 지운 뒤에 다시 저장돼요. 중간에 실패해도 앞 단계는 이미 지워져서, 끝나면 성공 · 실패와
+ *    상관없이 보정 · 글 스토어를 비워 다시 읽게 해요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
  *    회색 썸네일이 보여요. 사진을 못 받으면 고칠 수 없어서 Journey를 못 읽었을 때와 같이 안내만 해요.
  *
@@ -87,7 +83,7 @@ export default function PhotoSortPage() {
   const resetCorrections = useCorrectionStore((state) => state.reset);
   const resetPosts = usePostStore((state) => state.reset);
   const resetUpload = useUploadStore((state) => state.reset);
-  // 13에서 저장 · Journey 계산 · 이미지 올리기가 도는 중이면, 지운 뒤에 사진 · 이미지 · Journey가 다시 써져요.
+  // 13에서 저장 · Journey 계산 · 이미지 올리기가 도는 중이에요.
   const isUploadBusy = useUploadStore(
     (state) =>
       state.saveStatus === 'saving' ||
