@@ -30,6 +30,7 @@ vi.mock('@/services/photoService', () => ({
   getMyData: vi.fn(),
   getUploadedImagePaths: vi.fn(),
   deletePhotos: vi.fn(),
+  deleteAllUploadedImages: vi.fn(),
 }));
 vi.mock('@/services/authService', () => ({
   getSessionUser: vi.fn(),

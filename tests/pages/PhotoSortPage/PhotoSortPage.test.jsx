@@ -19,9 +19,12 @@ import PhotoSortPage from '@/pages/PhotoSortPage/PhotoSortPage';
 import { addCorrection, removeCorrection } from '@/services/correctionService';
 import { refreshJourney } from '@/services/journeyService';
 import { clearMyPhotos } from '@/services/myPhotosService';
+import { deleteAllMyData } from '@/services/myDataService';
 import { deletePhotos } from '@/services/photoService';
 import { useAuthStore } from '@/stores/authStore';
 import { useCorrectionStore } from '@/stores/correctionStore';
+import { usePostStore } from '@/stores/postStore';
+import { useUploadStore } from '@/stores/upload/uploadStore';
 
 vi.mock('@/services/correctionService', () => ({
   addCorrection: vi.fn(),
@@ -41,6 +44,7 @@ vi.mock('@/services/photoService', async (original) => ({
   ...(await original()),
   deletePhotos: vi.fn(),
 }));
+vi.mock('@/services/myDataService', () => ({ deleteAllMyData: vi.fn() }));
 vi.mock('@/hooks/useLoadPosts', () => ({ useLoadPosts: () => 'ready' }));
 vi.mock('@/hooks/useJourney', () => ({ useJourney: vi.fn() }));
 vi.mock('@/hooks/useMyPhotos', () => ({ useMyPhotos: vi.fn() }));
@@ -1184,5 +1188,71 @@ describe('07a 여행 보정 요청이 겹칠 때', () => {
     await render('/edit/photos');
     expect(buttonByText('합치기').disabled).toBe(true);
     expect(boxes()[0].disabled).toBe(false);
+  });
+});
+
+describe('07 사진 모두 삭제', () => {
+  // 스토어의 reset에 건 spy가 다른 테스트로 새지 않게 되돌려요.
+  afterEach(() => vi.restoreAllMocks());
+
+  test('확인하면 내 것을 모두 지우고, 보정 · 글 · 올리기 스토어를 비운 뒤 13 올리기로 가요', async () => {
+    // given
+    useAuthStore.setState({ user: { id: 'delete-all-test' } });
+    onTestFinished(() => useAuthStore.setState({ user: null }));
+    const resets = [
+      vi.spyOn(useCorrectionStore.getState(), 'reset'),
+      vi.spyOn(usePostStore.getState(), 'reset'),
+      vi.spyOn(useUploadStore.getState(), 'reset'),
+    ];
+    vi.mocked(deleteAllMyData).mockResolvedValue();
+    await render('/edit/photos');
+    await click(buttonByText('사진 모두 삭제'));
+
+    // when
+    await click(dialogButton('모두 삭제'));
+
+    // then
+    expect(deleteAllMyData).toHaveBeenCalledExactlyOnceWith('delete-all-test');
+    resets.forEach((reset) => expect(reset).toHaveBeenCalledOnce());
+    expect(location).toBe('/upload');
+  });
+
+  test('지우지 못하면 07에 남아 안내하고 스토어는 그대로 둬요', async () => {
+    // given
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const resetCorrections = vi.spyOn(useCorrectionStore.getState(), 'reset');
+    vi.mocked(deleteAllMyData).mockRejectedValue(new Error('storage 실패'));
+    await render('/edit/photos');
+    await click(buttonByText('사진 모두 삭제'));
+
+    // when
+    await click(dialogButton('모두 삭제'));
+
+    // then
+    expect(location).toBe('/edit/photos');
+    expect(container.textContent).toContain('사진을 모두 지우지 못했어요. 다시 눌러 주세요');
+    expect(resetCorrections).not.toHaveBeenCalled();
+  });
+
+  test('보정을 저장하는 중이면 [사진 모두 삭제]를 막아요', async () => {
+    // given
+    mockCorrections({ hasPending: true });
+
+    // when
+    await render('/edit/photos');
+
+    // then
+    expect(buttonByText('사진 모두 삭제').disabled).toBe(true);
+  });
+
+  test('Journey를 계산하는 중이면 [사진 모두 삭제]를 막아요', async () => {
+    // given
+    mockCorrections({ journeyStatus: 'building' });
+
+    // when
+    await render('/edit/photos');
+
+    // then
+    expect(buttonByText('사진 모두 삭제').disabled).toBe(true);
   });
 });

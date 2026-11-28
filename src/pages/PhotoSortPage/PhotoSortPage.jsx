@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { DEFAULT_SORT_TAB, SORT_TAB_PARAM, SORT_TABS } from '@/constants/photoSort';
 import { useAirports } from '@/hooks/useAirports';
 import { useCorrections } from '@/hooks/useCorrections';
 import { useJourney } from '@/hooks/useJourney';
 import { useMyPhotos } from '@/hooks/useMyPhotos';
+import { deleteAllMyData } from '@/services/myDataService';
+import { useAuthStore } from '@/stores/authStore';
+import { useCorrectionStore } from '@/stores/correctionStore';
+import { usePostStore } from '@/stores/postStore';
+import { useUploadStore } from '@/stores/upload/uploadStore';
 import { selectJourneyTotals } from '@/utils/journeyTotals';
 import {
   buildAnchorMoves,
@@ -51,6 +56,9 @@ import UnlocatedTab from './UnlocatedTab';
  *    넣어요. 지점 ID는 첫 사진 ID라, 한 장만 넣으면 그 사진을 뺐을 때 경유가 풀려요. 되돌리기는 그 보정을 모두 지워요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 서버가 사진마다 하나만 저장하지만(BE #8) 둘이 남아 있어도 복구되게요.
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
+ *  - [사진 모두 삭제](#284)는 글 · 보정 · 사진 · 이미지 · Journey를 지운 뒤(deleteAllMyData) 보정 · 글 · 올리기 스토어를
+ *    처음 상태로 돌리고 13 올리기로 가요. 스토어에 지운 보정 · 글이 남아 있으면 다른 화면이 그 값을 그려서예요.
+ *    보정을 저장하거나 Journey를 계산하는 중에는 막아요. 그 계산이 지운 뒤에 끝나면 옛 Journey를 다시 저장해서예요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
  *    회색 썸네일이 보여요. 사진을 못 받으면 고칠 수 없어서 Journey를 못 읽었을 때와 같이 안내만 해요.
  *
@@ -71,6 +79,11 @@ export default function PhotoSortPage() {
     refreshJourney,
   } = useCorrections();
   const airports = useAirports();
+  const userId = useAuthStore((state) => state.user?.id);
+  const resetCorrections = useCorrectionStore((state) => state.reset);
+  const resetPosts = usePostStore((state) => state.reset);
+  const resetUpload = useUploadStore((state) => state.reset);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get(SORT_TAB_PARAM);
   const tab = SORT_TABS.some((item) => item.key === requestedTab) ? requestedTab : DEFAULT_SORT_TAB;
@@ -159,11 +172,27 @@ export default function PhotoSortPage() {
     return () => moveAnchors(() => moved.map(invertAnchorMove));
   };
 
+  const handleDeleteAll = async () => {
+    await deleteAllMyData(userId);
+    resetCorrections();
+    resetPosts();
+    resetUpload();
+    navigate('/upload');
+  };
+
   return (
     <main className="flex-1 bg-canvas pb-30">
       <SortHeader />
       <SortTabs current={tab} counts={counts} onSelect={handleSelectTab} />
-      <SortSummary photos={photoSummary} tripCount={totals.trips} cityCount={totals.cities} />
+      <SortSummary
+        photos={photoSummary}
+        tripCount={totals.trips}
+        cityCount={totals.cities}
+        canDeleteAll={
+          isCorrectionsReady && !hasPending && !isRefreshing && journeyStatus !== 'building'
+        }
+        onDeleteAll={handleDeleteAll}
+      />
       <JourneyStatusNotice status={journeyStatus} onRetry={refreshJourney} />
       {correctionStatus === 'error' && (
         <p role="alert" className={`${SECTION_CLASS} pt-6 text-md text-accent`}>
