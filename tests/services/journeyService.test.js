@@ -4,6 +4,7 @@ import { UNKNOWN_PLACE } from '@/constants/geocode';
 import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { getSupabase } from '@/services/getSupabase';
 import {
+  beginDeleteAll,
   deleteJourney,
   getJourney,
   getJourneyVersion,
@@ -474,6 +475,85 @@ describe('deleteJourney', () => {
     expect(journey.stops).toEqual([]);
     expect(calls.filter((call) => call.action === 'upsert')).toEqual([]);
     expect((await getJourney(userId)).stops).toEqual([]);
+  });
+});
+
+describe('beginDeleteAll', () => {
+  /** 계산을 시작해 두고, 사진을 읽고 계산하는 중에 멈춰 둬요. */
+  async function startRefresh(userId) {
+    const building = deferred();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockReturnValue(building.promise);
+    const refreshing = refreshJourney(userId);
+    await vi.waitFor(() => expect(buildJourney).toHaveBeenCalled());
+    return { building, refreshing };
+  }
+
+  test('지우는 중에 끝난 계산은 저장하지 않고 DELETED_DURING_BUILD로 거절해요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
+    const { building, refreshing } = await startRefresh(userId);
+    const endDelete = beginDeleteAll(userId);
+
+    // when
+    building.resolve(journeyOf('old'));
+
+    // then
+    await expect(refreshing).rejects.toMatchObject({ code: 'DELETED_DURING_BUILD' });
+    expect(writesOf(calls)).toEqual([]);
+    endDelete();
+  });
+
+  test('지우는 동안 시작해 다 지운 뒤에 끝난 계산도 저장하지 않아요', async () => {
+    // given: 이미 보낸 보정 저장이 지우는 중에 끝나 계산을 시작한 경우예요
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
+    const endDelete = beginDeleteAll(userId);
+    const { building, refreshing } = await startRefresh(userId);
+    endDelete();
+
+    // when
+    building.resolve(journeyOf('old'));
+
+    // then
+    await expect(refreshing).rejects.toMatchObject({ code: 'DELETED_DURING_BUILD' });
+    expect(writesOf(calls)).toEqual([]);
+  });
+
+  test('다 지운 뒤에 시작한 계산은 저장해요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
+    beginDeleteAll(userId)();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+
+    // when
+    await refreshJourney(userId);
+
+    // then
+    expect(writesOf(calls)).toHaveLength(1);
+  });
+
+  test('끝났다고 두 번 알려도 한 번만 반영해서, 다른 지우기가 진행 중이면 계속 막아요', async () => {
+    // given
+    const userId = newUserId();
+    const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
+    const endFirst = beginDeleteAll(userId);
+    const endSecond = beginDeleteAll(userId);
+    endFirst();
+    endFirst();
+    vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
+    vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
+
+    // when
+    const refreshing = refreshJourney(userId);
+
+    // then
+    await expect(refreshing).rejects.toMatchObject({ code: 'DELETED_DURING_BUILD' });
+    expect(writesOf(calls)).toEqual([]);
+    endSecond();
   });
 });
 

@@ -30,6 +30,9 @@ export const getJourneyVersion = journeyChanged.getVersion;
 const latestRefresh = new Map();
 // 계정마다 journeys 쓰기를 한 줄로 세워요. 앞 쓰기가 끝나야 다음 쓰기가 최신인지 보고 써요.
 const writeQueue = new Map();
+// 사진을 모두 지울 때(#284) 올리는 계정별 판 번호와, 지금 지우는 중인 수예요. beginDeleteAll이 바꿔요.
+const deleteEpochs = new Map();
+const deletingCounts = new Map();
 // 이번에 앱을 연 뒤로 다시 계산을 시작한 적이 있는 계정이에요. 옛 규칙의 Journey를 읽을 때마다 다시 계산하지 않게 해요.
 const refreshStarted = new Set();
 
@@ -125,6 +128,28 @@ export async function saveJourney(userId, journey) {
 }
 
 /**
+ * 사진을 모두 지우기 시작한다고 알려요(#284). 돌려준 함수로 끝났다고 알려요(성공 · 실패 모두).
+ * 시작할 때와 끝날 때 판 번호를 올려서, 그 사이에 걸친 refreshJourney는 지우기 전 사진을 읽었을 수 있으니 저장하지 않아요.
+ * 화면에서 버튼을 막는 것만으로는 이미 보낸 보정 저장 · 다른 화면의 계산까지 막지 못해서 여기서 막아요.
+ * 이 탭에서 시작한 계산만 막아요. 다른 탭 · 기기의 계산은 막지 못해요.
+ *
+ * @param {string} userId
+ * @returns {() => void} 끝났다고 알리는 함수. 두 번 불러도 한 번만 반영해요
+ */
+export function beginDeleteAll(userId) {
+  const bump = () => deleteEpochs.set(userId, (deleteEpochs.get(userId) ?? 0) + 1);
+  bump();
+  deletingCounts.set(userId, (deletingCounts.get(userId) ?? 0) + 1);
+  let isEnded = false;
+  return () => {
+    if (isEnded) return;
+    isEnded = true;
+    bump();
+    deletingCounts.set(userId, deletingCounts.get(userId) - 1);
+  };
+}
+
+/**
  * journeys 테이블의 내 행을 지워요. 사진을 모두 지울 때(#284) 불러요.
  * 행이 없어도 오류가 아니에요. 행이 없는 계정은 getJourney가 빈 Journey를 줘요.
  * 지운 뒤에는 그 계정의 기억을 지우고 알려서, 열린 화면과 다음 getJourney가 빈 Journey를 읽어요.
@@ -178,6 +203,7 @@ function queueWrite(userId, write) {
  *  - ACCOUNT_CHANGED: 읽는 사이 계정이 바뀌었어요(계산·저장하지 않아요)
  *  - BUILD_FAILED: 계산하다 오류가 났어요
  *  - SAVE_FAILED: journeys에 쓰지 못했어요(saveJourney)
+ *  - DELETED_DURING_BUILD: 계산하는 사이 사진을 모두 지웠거나 지우는 중이에요(beginDeleteAll). 저장하지 않아요
  *
  * @param {string} userId 로그인한 사람의 id(AuthUser.id)
  * @returns {Promise<import('@/types').Journey>} 저장한 Journey
@@ -185,8 +211,11 @@ function queueWrite(userId, write) {
 export function refreshJourney(userId) {
   refreshStarted.add(userId);
   const isSuperseded = () => latestRefresh.get(userId) !== refresh;
+  const startEpoch = deleteEpochs.get(userId) ?? 0;
+  const isDeleteOverlapped = () =>
+    (deletingCounts.get(userId) ?? 0) > 0 || (deleteEpochs.get(userId) ?? 0) !== startEpoch;
   // 새 계산에 밀렸으면 저장하지 않았거나 실패했어도 새 계산의 결과를 줘요.
-  const refresh = buildAndSave(userId, isSuperseded).then(
+  const refresh = buildAndSave(userId, isSuperseded, isDeleteOverlapped).then(
     (journey) => journey ?? latestRefresh.get(userId),
     (error) => {
       if (isSuperseded()) return latestRefresh.get(userId);
@@ -198,7 +227,7 @@ export function refreshJourney(userId) {
 }
 
 // refreshJourney의 본체예요. 새 계산에 밀려 저장하지 않았으면 null이에요.
-async function buildAndSave(userId, isSuperseded) {
+async function buildAndSave(userId, isSuperseded, isDeleteOverlapped) {
   let myData;
   try {
     myData = await getMyData();
@@ -235,6 +264,10 @@ async function buildAndSave(userId, isSuperseded) {
   // 차례를 기다리는 사이 새 계산이 시작됐을 수 있어서, 쓰기 직전에 봐요.
   const isSaved = await queueWrite(userId, async () => {
     if (isSuperseded()) return false;
+    // 계산하는 사이 사진을 모두 지웠거나 지우는 중이면, 읽은 사진이 지우기 전 것이라 저장하지 않아요(#284).
+    if (isDeleteOverlapped()) {
+      throw { status: 0, code: 'DELETED_DURING_BUILD', message: '계산하는 사이 사진을 모두 지웠어요' };
+    }
     await saveJourney(userId, journey);
     return true;
   });
