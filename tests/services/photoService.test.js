@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getSupabase } from '@/services/getSupabase';
-import { deletePhotos, getPhotoImageUrl, getUploadedImagePaths } from '@/services/photoService';
+import {
+  deleteAllUploadedImages,
+  deletePhotos,
+  getPhotoImageUrl,
+  getUploadedImagePaths,
+} from '@/services/photoService';
 
 vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
 
@@ -147,5 +152,56 @@ describe('deletePhotos', () => {
     // then
     expect(deleted).toEqual([]);
     expect(getSupabase).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteAllUploadedImages', () => {
+  /** 보기용 · 썸네일 폴더에 n개씩 있는 버킷을 만들어요. */
+  function mockBucket(count, removeResult = { error: null }) {
+    const names = Array.from({ length: count }, (_, i) => ({ name: `p_${i}.webp` }));
+    const storageBucket = {
+      list: vi.fn(async () => ({ data: names, error: null })),
+      remove: vi.fn().mockResolvedValue(removeResult),
+    };
+    vi.mocked(getSupabase).mockResolvedValue({ storage: { from: vi.fn(() => storageBucket) } });
+    return storageBucket;
+  }
+
+  test('두 폴더의 이미지를 500개씩 나눠 지워요', async () => {
+    // given: 보기용 300 + 썸네일 300 = 600개
+    const storageBucket = mockBucket(300);
+
+    // when
+    await deleteAllUploadedImages('u1');
+
+    // then
+    expect(storageBucket.remove).toHaveBeenCalledTimes(2);
+    expect(storageBucket.remove.mock.calls[0][0]).toHaveLength(500);
+    expect(storageBucket.remove.mock.calls[1][0]).toHaveLength(100);
+    expect(storageBucket.remove.mock.calls.flatMap(([paths]) => paths)).toContain(
+      'u1/thumb/p_299.webp',
+    );
+  });
+
+  test('이미지가 없으면 지우기를 부르지 않아요', async () => {
+    // given
+    const storageBucket = mockBucket(0);
+
+    // when
+    await deleteAllUploadedImages('u1');
+
+    // then
+    expect(storageBucket.remove).not.toHaveBeenCalled();
+  });
+
+  test('지우지 못하면 오류를 던져요', async () => {
+    // given
+    mockBucket(1, { error: new Error('권한 없음') });
+
+    // when
+    const deleting = deleteAllUploadedImages('u1');
+
+    // then
+    await expect(deleting).rejects.toThrow('권한 없음');
   });
 });

@@ -143,6 +143,28 @@ export async function getUploadedImagePaths(ownerId) {
   return new Set([...fullPaths, ...thumbPaths]);
 }
 
+// storage.remove 한 번에 넘기는 경로 수예요. 333장이면 이미지가 666개라 나눠 보내요.
+const REMOVE_BATCH_SIZE = 500;
+
+/**
+ * photos 버킷의 내 이미지(보기용 · 썸네일)를 모두 지워요. 사진을 모두 지울 때(#284) 불러요.
+ * 사진 행에서 경로를 만들지 않고 폴더를 직접 받아 지워서, 창을 닫아 행 없이 올라간 이미지도 남지 않아요.
+ * 실패하면 던져요. 그 앞까지 지운 것은 그대로라 다시 부르면 남은 것만 지워요.
+ *
+ * @param {string} ownerId
+ * @returns {Promise<void>}
+ */
+export async function deleteAllUploadedImages(ownerId) {
+  const paths = [...(await getUploadedImagePaths(ownerId))];
+  const supabase = await getSupabase();
+  const bucket = supabase.storage.from(PHOTO_BUCKET);
+
+  for (let start = 0; start < paths.length; start += REMOVE_BATCH_SIZE) {
+    const { error } = await bucket.remove(paths.slice(start, start + REMOVE_BATCH_SIZE));
+    if (error) throw error;
+  }
+}
+
 // 비공개 버킷이라 주소에 기한이 있어요. 한 화면을 보는 동안은 넉넉하게 한 시간으로 잡았어요.
 const SIGNED_URL_SECONDS = 60 * 60;
 
