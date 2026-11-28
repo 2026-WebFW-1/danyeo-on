@@ -1,3 +1,4 @@
+import { assertNotDeletingAll } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 import { getMyData } from './photoService';
 
@@ -27,6 +28,7 @@ export async function getPosts() {
  * @returns {Promise<void>}
  */
 export async function savePost(post) {
+  assertNotDeletingAll();
   let response;
   try {
     const supabase = await getSupabase();
@@ -45,6 +47,7 @@ export async function savePost(post) {
  * @returns {Promise<boolean>} 지운 행이 있으면 true. 이미 지워졌거나 내 것이 아니면 false예요
  */
 export async function removePost(id) {
+  assertNotDeletingAll();
   let response;
   try {
     const supabase = await getSupabase();

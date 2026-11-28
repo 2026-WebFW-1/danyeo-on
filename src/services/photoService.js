@@ -1,5 +1,6 @@
 import { toUploadedImageFolders, toUploadedImagePaths } from '@/utils/photoFileKey';
 
+import { assertNotDeletingAll } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 
 const PHOTO_BUCKET = 'photos';
@@ -25,6 +26,7 @@ export async function getMyData() {
  * @returns {Promise<import('@/types').SavePhotosResult>}
  */
 export async function savePhotos(photos) {
+  assertNotDeletingAll();
   if (photos.length === 0)
     return {
       saved: [],
@@ -55,6 +57,7 @@ export async function savePhotos(photos) {
  * @returns {Promise<string[]>} 실제로 지운 사진 ID
  */
 export async function deletePhotos(ids) {
+  assertNotDeletingAll();
   if (ids.length === 0) return [];
 
   const supabase = await getSupabase();
@@ -89,6 +92,7 @@ export async function deletePhotos(ids) {
  * @returns {Promise<void>}
  */
 export async function savePhotoImage(fileKey, images) {
+  assertNotDeletingAll();
   const paths = toUploadedImagePaths(fileKey);
   if (!paths) throw new Error(`올린 사진의 fileKey가 아니에요: ${fileKey}`);
 

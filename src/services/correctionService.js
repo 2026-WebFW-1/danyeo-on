@@ -1,3 +1,4 @@
+import { assertNotDeletingAll } from './deleteAllGate';
 import { getSupabase } from './getSupabase';
 import { getMyData } from './photoService';
 
@@ -33,6 +34,7 @@ export async function getCorrections() {
  * @returns {Promise<string>} 저장된 보정의 id
  */
 export async function addCorrection(correction) {
+  assertNotDeletingAll();
   let response;
   try {
     const supabase = await getSupabase();
@@ -52,6 +54,7 @@ export async function addCorrection(correction) {
  * @returns {Promise<boolean>} 지운 행이 있으면 true. 이미 지워졌거나 내 것이 아니면 false예요
  */
 export async function removeCorrection(id) {
+  assertNotDeletingAll();
   let response;
   try {
     const supabase = await getSupabase();
@@ -76,6 +79,7 @@ export async function removeCorrection(id) {
  * @returns {Promise<boolean>} 바꾼 연결이 있으면 true. 이미 옮겼거나 없으면 false예요
  */
 export async function moveCorrectionPhoto(correctionId, fromPhotoId, toPhotoId) {
+  assertNotDeletingAll();
   let response;
   try {
     const supabase = await getSupabase();

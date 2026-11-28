@@ -1,13 +1,15 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
+import { beginDeleteAll } from '@/services/deleteAllGate';
 import { getSupabase } from '@/services/getSupabase';
-import { beginDeleteAll, deleteJourney } from '@/services/journeyService';
+import { deleteJourney } from '@/services/journeyService';
 import { deleteAllMyData } from '@/services/myDataService';
 import { clearMyPhotos } from '@/services/myPhotosService';
 import { deleteAllUploadedImages } from '@/services/photoService';
 
+vi.mock('@/services/deleteAllGate', () => ({ beginDeleteAll: vi.fn() }));
 vi.mock('@/services/getSupabase', () => ({ getSupabase: vi.fn() }));
-vi.mock('@/services/journeyService', () => ({ beginDeleteAll: vi.fn(), deleteJourney: vi.fn() }));
+vi.mock('@/services/journeyService', () => ({ deleteJourney: vi.fn() }));
 vi.mock('@/services/myPhotosService', () => ({ clearMyPhotos: vi.fn() }));
 vi.mock('@/services/photoService', () => ({ deleteAllUploadedImages: vi.fn() }));
 

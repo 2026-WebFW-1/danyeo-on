@@ -3,8 +3,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { UNKNOWN_PLACE } from '@/constants/geocode';
 import { JOURNEY_RULES_VERSION } from '@/constants/journey';
 import { getSupabase } from '@/services/getSupabase';
+import { beginDeleteAll } from '@/services/deleteAllGate';
 import {
-  beginDeleteAll,
   deleteJourney,
   getJourney,
   getJourneyVersion,
@@ -478,7 +478,7 @@ describe('deleteJourney', () => {
   });
 });
 
-describe('beginDeleteAll', () => {
+describe('사진을 모두 지우는 사이에 걸친 계산(deleteAllGate)', () => {
   /** 계산을 시작해 두고, 사진을 읽고 계산하는 중에 멈춰 둬요. */
   async function startRefresh(userId) {
     const building = deferred();
@@ -494,7 +494,7 @@ describe('beginDeleteAll', () => {
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
     const { building, refreshing } = await startRefresh(userId);
-    const endDelete = beginDeleteAll(userId);
+    const endDelete = beginDeleteAll();
 
     // when
     building.resolve(journeyOf('old'));
@@ -509,7 +509,7 @@ describe('beginDeleteAll', () => {
     // given: 이미 보낸 보정 저장이 지우는 중에 끝나 계산을 시작한 경우예요
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('old'));
-    const endDelete = beginDeleteAll(userId);
+    const endDelete = beginDeleteAll();
     const { building, refreshing } = await startRefresh(userId);
     endDelete();
 
@@ -525,7 +525,7 @@ describe('beginDeleteAll', () => {
     // given
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
-    beginDeleteAll(userId)();
+    beginDeleteAll()();
     vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
     vi.mocked(buildJourney).mockResolvedValue(journeyOf('new'));
 
@@ -540,8 +540,8 @@ describe('beginDeleteAll', () => {
     // given
     const userId = newUserId();
     const calls = fakeWritableSupabase(savedRow, () => journeyOf('new'));
-    const endFirst = beginDeleteAll(userId);
-    const endSecond = beginDeleteAll(userId);
+    const endFirst = beginDeleteAll();
+    const endSecond = beginDeleteAll();
     endFirst();
     endFirst();
     vi.mocked(getMyData).mockResolvedValue(myDataOf(userId));
