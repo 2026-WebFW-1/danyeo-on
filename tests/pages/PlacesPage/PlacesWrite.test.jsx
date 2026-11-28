@@ -197,7 +197,6 @@ describe('PlacesPage [+ 글 쓰기] (#216)', () => {
   });
 
   test('글 있는 날을 고르면 그 글로 열리고, [글 지우기]로 지우면 [글 보기]에서 빠져요', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await render(BANFF_TRIP);
 
     await pick(blockOf('밴프'), '2025-08-26');
@@ -207,6 +206,7 @@ describe('PlacesPage [+ 글 쓰기] (#216)', () => {
     expect(editor.querySelector('input[name="title"]').value).toBe(banffPost.title);
 
     await click(buttonOf(editor, /^글 지우기$/));
+    await click(buttonOf(document.querySelector('[role="dialog"]'), /^지우기$/));
     await act(async () => {});
 
     expect(removePost).toHaveBeenCalledWith(banffPost.id);
@@ -233,7 +233,6 @@ describe('PlacesPage [+ 글 쓰기] (#216)', () => {
   });
 
   test('지우는 사이 다른 날짜를 열면, 늦게 끝난 지우기가 새로 연 편집기를 닫지 않아요', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     let finishRemove;
     vi.mocked(removePost).mockReturnValue(
       new Promise((resolve) => {
@@ -244,6 +243,7 @@ describe('PlacesPage [+ 글 쓰기] (#216)', () => {
 
     await pick(blockOf('밴프'), '2025-08-26');
     await click(buttonOf(editorOf(blockOf('밴프')), /^글 지우기$/));
+    await click(buttonOf(document.querySelector('[role="dialog"]'), /^지우기$/));
     // 지우기가 끝나기 전에 [+ 글 쓰기]로 다른 날을 열어요
     await pick(blockOf('밴프'), '2025-08-25');
     expect(editorOf(blockOf('밴프')).getAttribute('aria-label')).toBe('글 쓰기');

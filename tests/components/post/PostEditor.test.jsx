@@ -47,6 +47,10 @@ const findButton = (text) =>
   [...container.querySelectorAll('button')].find((button) => button.textContent === text);
 const saveButton = () => findButton('저장');
 const cancelButton = () => findButton('취소');
+// 확인 창은 document.body에 그려져서(portal) container 밖에서 찾아요.
+const dialog = () => document.querySelector('[role="dialog"]');
+const dialogButton = (text) =>
+  [...dialog().querySelectorAll('button')].find((button) => button.textContent === text);
 const tagTexts = () =>
   [...container.querySelectorAll('button[aria-label$=" 빼기"]')].map((button) =>
     button.getAttribute('aria-label').replace(' 빼기', ''),
@@ -540,11 +544,7 @@ describe('저장', () => {
 });
 
 describe('취소', () => {
-  const LEAVE_QUESTION = '저장하지 않은 내용이 있어요. 닫을까요?';
-
-  beforeEach(() => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-  });
+  const LEAVE_QUESTION = '저장하지 않은 내용이 있어요.닫을까요?';
 
   afterEach(() => {
     vi.useRealTimers();
@@ -559,13 +559,12 @@ describe('취소', () => {
     await click(cancelButton());
 
     // then
-    expect(window.confirm).not.toHaveBeenCalled();
+    expect(dialog()).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  test('고친 게 있으면 묻고, 아니요를 고르면 그대로예요', async () => {
+  test('고친 게 있으면 묻고, [계속 쓰기]를 고르면 그대로예요', async () => {
     // given
-    vi.mocked(window.confirm).mockReturnValue(false);
     await open();
     await type(titleInput(), '새 제목');
 
@@ -573,7 +572,14 @@ describe('취소', () => {
     await click(cancelButton());
 
     // then
-    expect(window.confirm).toHaveBeenCalledWith(LEAVE_QUESTION);
+    expect(dialog().textContent).toContain(LEAVE_QUESTION);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // when
+    await click(dialogButton('계속 쓰기'));
+
+    // then
+    expect(dialog()).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
     expect(titleInput().value).toBe('새 제목');
   });
@@ -588,9 +594,9 @@ describe('취소', () => {
 
     // when
     await click(cancelButton());
+    await click(dialogButton('닫기'));
 
     // then
-    expect(window.confirm).toHaveBeenCalledWith(LEAVE_QUESTION);
     expect(readDraft('u1', DATE)).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -603,6 +609,7 @@ describe('취소', () => {
 
     // when: 0.5초가 지나기 전에 취소하고, 카드가 닫혀요
     await click(cancelButton());
+    await click(dialogButton('닫기'));
     await act(async () => root.render(<div />));
 
     // then
@@ -619,6 +626,7 @@ describe('취소', () => {
 
     // when
     await click(cancelButton());
+    await click(dialogButton('닫기'));
 
     // then
     expect(titleInput().value).toBe(post.title);
@@ -638,6 +646,7 @@ describe('취소', () => {
 
     // when
     await click(cancelButton());
+    await click(dialogButton('닫기'));
 
     // then
     expect(container.textContent).not.toContain('저장하지 못했어요');
@@ -1032,12 +1041,8 @@ describe('사진', () => {
 });
 
 describe('지우기', () => {
-  const DELETE_QUESTION = '이 글을 지울까요? 되돌릴 수 없어요.';
+  const DELETE_QUESTION = '이 글을 지울까요?되돌릴 수 없어요.';
   const deleteButton = () => findButton('글 지우기');
-
-  beforeEach(() => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-  });
 
   afterEach(() => {
     vi.useRealTimers();
@@ -1052,18 +1057,36 @@ describe('지우기', () => {
     expect(deleteButton()).toBeUndefined();
   });
 
-  test('묻고, 아니요를 고르면 지우지 않아요', async () => {
+  test('묻고, [취소]를 고르면 지우지 않아요', async () => {
     // given
-    window.confirm.mockReturnValue(false);
     await open();
 
     // when
     await click(deleteButton());
 
     // then
-    expect(window.confirm).toHaveBeenCalledWith(DELETE_QUESTION);
+    expect(dialog().textContent).toContain(DELETE_QUESTION);
+
+    // when
+    await click(dialogButton('취소'));
+
+    // then
+    expect(dialog()).toBeNull();
     expect(removePost).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('묻는 중에 다른 계정으로 바뀌면 확인 창을 닫아요', async () => {
+    // given
+    await open();
+    await click(deleteButton());
+
+    // when
+    await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
+
+    // then: 이전 계정에서 띄운 확인으로 새 계정의 글을 지우지 않아요
+    expect(dialog()).toBeNull();
+    expect(removePost).not.toHaveBeenCalled();
   });
 
   test('확인하면 지우고, 임시본도 지우고 닫아요', async () => {
@@ -1077,6 +1100,7 @@ describe('지우기', () => {
 
     // when
     await click(deleteButton());
+    await click(dialogButton('지우기'));
     await act(async () => vi.advanceTimersByTime(500));
 
     // then
@@ -1094,6 +1118,7 @@ describe('지우기', () => {
 
     // when
     await click(deleteButton());
+    await click(dialogButton('지우기'));
 
     // then
     expect(container.textContent).toContain('지우는 중…');
@@ -1131,6 +1156,7 @@ describe('지우기', () => {
     vi.mocked(savePost).mockReturnValue(request.promise);
     await open();
     await click(deleteButton());
+    await click(dialogButton('지우기'));
     await type(titleInput(), '새 제목');
 
     // when
@@ -1164,6 +1190,7 @@ describe('지우기', () => {
     vi.mocked(removePost).mockRejectedValueOnce({ status: 0, code: 'REMOVE_FAILED', message: 'x' });
     await open();
     await click(deleteButton());
+    await click(dialogButton('지우기'));
     expect(container.textContent).toContain('지우지 못했어요');
 
     // when: 다른 탭에서 u2로 로그인해요
@@ -1180,6 +1207,7 @@ describe('지우기', () => {
     vi.mocked(removePost).mockReturnValue(request.promise);
     await open();
     await click(deleteButton());
+    await click(dialogButton('지우기'));
 
     // when
     await act(async () => useAuthStore.setState({ user: { id: 'u2' } }));
@@ -1196,6 +1224,7 @@ describe('지우기', () => {
     vi.mocked(savePost).mockResolvedValue();
     await open();
     await click(deleteButton());
+    await click(dialogButton('지우기'));
     await type(titleInput(), '새 제목');
 
     // when
@@ -1220,6 +1249,7 @@ describe('지우기', () => {
 
     // when
     await click(deleteButton());
+    await click(dialogButton('지우기'));
 
     // then
     expect(findButton('불러오기').disabled).toBe(true);
@@ -1236,6 +1266,7 @@ describe('지우기', () => {
 
     // when
     await click(deleteButton());
+    await click(dialogButton('지우기'));
 
     // then
     expect(container.textContent).toContain('지우지 못했어요');

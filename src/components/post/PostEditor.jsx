@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from '@/constants/post';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostStore } from '@/stores/postStore';
@@ -17,6 +18,20 @@ const EMPTY_POST = { title: '', body: '', tags: [], photoIds: [] };
 const NO_PHOTOS = [];
 const FIELD_CLASS =
   'w-full border border-line bg-white px-4 py-3 text-lg leading-body-lg font-normal text-ink disabled:opacity-60';
+const CONFIRMS = {
+  delete: {
+    title: '이 글을 지울까요?',
+    description: '되돌릴 수 없어요.',
+    confirmLabel: '지우기',
+    isDanger: true,
+  },
+  leave: {
+    title: '저장하지 않은 내용이 있어요.',
+    description: '닫을까요?',
+    confirmLabel: '닫기',
+    cancelLabel: '계속 쓰기',
+  },
+};
 const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
 
 /**
@@ -41,7 +56,7 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *  - 다 불러오기 전에는 입력을 끕니다. 그때 쓴 내용이 불러온 글을 덮거나, 그날 글을 못 찾아 글이 늘 수 있어요(#110).
  *  - 태그 칸에 쓰고 Enter를 안 눌렀어도 저장 대상에 넣습니다. 쓴 태그가 말없이 사라지지 않게요.
  *  - 저장 중 [취소]는 끕니다. 이미 보낸 저장은 되돌릴 수 없어요.
- *  - [글 지우기]는 저장된 글에만 둡니다(#207). 되돌릴 수 없어서 window.confirm으로 한 번 묻고, 지우면 임시본도 지우고 닫습니다.
+ *  - [글 지우기]는 저장된 글에만 둡니다(#207). 되돌릴 수 없어서 확인 창(ConfirmDialog)으로 한 번 묻고, 지우면 임시본도 지우고 닫습니다.
  *    피그마 14a에 자리가 없어서, 저장·취소보다 덜 눈에 띄게 버튼 줄 오른쪽 끝의 밑줄 글자로 둡니다.
  *    저장 중에는 지울 수 없고, 지우는 중에는 입력과 버튼을 모두 막습니다. 실패하면 글을 그대로 두고 [다시 시도]를 띄웁니다.
  *    "저장됨 · 방금"을 보여 주는 1초 동안도 끕니다. 그 사이 편집기가 닫혀 지우기 결과를 못 보게 돼요.
@@ -60,7 +75,8 @@ const LABEL_CLASS = 'flex flex-col gap-1 text-xs font-medium text-dim';
  *    dayPhotos가 비면 사진 칸을 숨기고 photoIds를 글 그대로 둡니다. 사진 목록이 없다고 붙은 사진을 지우지 않게요.
  *    고르는 중인 사진은 onPhotoIdsChange로 알려요. 02가 왼쪽 큰 사진을 저장 전에도 바꿔 보여 줘요.
  *  - 앱 안 이동은 막지 않습니다. useBlocker는 createBrowserRouter에서만 동작해서, 대신 임시본으로 글을 지킵니다.
- *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 window.confirm으로 묻습니다.
+ *    탭 닫기·새로고침은 고친 게 있을 때만 beforeunload로, [취소]는 확인 창(ConfirmDialog)으로 묻습니다(#282).
+ *    [취소]의 확인 창은 피그마 14b dialog/leave처럼 남는 쪽을 [계속 쓰기]로 적습니다. [취소]를 눌러 뜬 창에 또 [취소]가 있으면 헷갈려요.
  *
  * 피그마: https://www.figma.com/design/gwBUdHoYY9mr6JtNbvCsxY/danyeo-on?node-id=195-158
  */
@@ -87,6 +103,8 @@ export default function PostEditor({
   const [hasSaveFailed, setHasSaveFailed] = useState(false);
   const [hasDeleteFailed, setHasDeleteFailed] = useState(false);
   const [draftUserId, setDraftUserId] = useState(userId);
+  // 확인 창으로 묻는 중인 일이에요. 'delete' | 'leave' | null
+  const [asking, setAsking] = useState(null);
   const pendingDraftRef = useRef(null);
 
   // 다른 탭에서 계정이 바뀌어도 편집기는 그대로 남아요. 이전 계정의 입력·임시본을 버리고 새 계정 것을 읽어요.
@@ -97,6 +115,7 @@ export default function PostEditor({
     setTagText('');
     // 이전 계정에서 받은 지우기 확인으로 새 계정의 글을 지우지 않게, 지우기 실패 안내도 비워요.
     setHasDeleteFailed(false);
+    setAsking(null);
   }
 
   useEffect(() => {
@@ -217,18 +236,23 @@ export default function PostEditor({
     onClose?.();
   };
 
-  const handleDelete = () => {
-    if (!window.confirm('이 글을 지울까요? 되돌릴 수 없어요.')) return;
-    deletePost();
-  };
-
-  const handleCancel = () => {
-    if (isDirty && !window.confirm('저장하지 않은 내용이 있어요. 닫을까요?')) return;
+  const closeEditor = () => {
     removeStoredDraft();
     clearInput();
     setHasSaveFailed(false);
     setIsJustSaved(false);
     onClose?.();
+  };
+
+  const handleCancel = () => {
+    if (isDirty) setAsking('leave');
+    else closeEditor();
+  };
+
+  const handleConfirm = () => {
+    setAsking(null);
+    if (asking === 'delete') deletePost();
+    else closeEditor();
   };
 
   return (
@@ -377,13 +401,20 @@ export default function PostEditor({
           <button
             type="button"
             disabled={!isReady || isBusy || isJustSaved}
-            onClick={handleDelete}
+            onClick={() => setAsking('delete')}
             className="ml-auto text-sm text-accent underline underline-offset-4 disabled:opacity-60"
           >
             글 지우기
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={asking !== null}
+        {...CONFIRMS[asking]}
+        onConfirm={handleConfirm}
+        onCancel={() => setAsking(null)}
+      />
     </div>
   );
 }

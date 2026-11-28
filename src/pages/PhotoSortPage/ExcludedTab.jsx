@@ -8,6 +8,12 @@ import ExcludedPhotoRow from './ExcludedPhotoRow';
 import PagedPhotoList from './PagedPhotoList';
 import { COLUMN_LABEL_CLASS, EXCLUDED_ROW_GRID_CLASS, SECTION_CLASS } from './sectionClass';
 
+const DELETE_CONFIRM = {
+  title: '다녀온에서 이 사진을 영구 삭제할까요?',
+  description: '삭제 후에는 복구할 수 없어요.',
+  confirmLabel: '영구 삭제',
+};
+
 /**
  * 제외한 사진 탭이에요. 뺀 사진을 최근에 뺀 순서로 보여 주고, 사진마다 [복구] · [영구 삭제]가 있어요.
  *
@@ -20,7 +26,8 @@ import { COLUMN_LABEL_CLASS, EXCLUDED_ROW_GRID_CLASS, SECTION_CLASS } from './se
  *  - 복구한 사진은 바로 이 목록에서 빠지고, 여행 묶음에는 Journey를 다시 계산한 뒤 돌아와요.
  *  - 피그마에 이 탭의 디자인이 없어서 07a 여행 표처럼 사진 한 장을 한 줄로 그리고, 버튼은 줄 오른쪽 끝에 둬요(ExcludedPhotoRow).
  *  - 목록은 보정에서 만들어서, 보정을 다 불러오기 전에는 그리지 않아요.
- *  - [영구 삭제]는 되돌릴 수 없어서 window.confirm으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
+ *  - [영구 삭제]는 되돌릴 수 없어서 확인 창으로 한 번 묻고(#207 글 지우기와 같아요), 그 사진 한 장만 지워요.
+ *    묻는 것은 줄(ExcludedPhotoRow)이 맡고, 확인했을 때만 여기의 지우기를 불러요(#282).
  *    지우기 전에 onBeforeDelete로 그 사진에 건 split · merge 기준을 옮겨요. 사진과 함께 연결이 지워지면 나눈 여행이
  *    다시 붙거나 합친 여행이 다시 갈라져서예요. 옮기기가 실패하면 사진을 지우지 않아요.
  *    사진을 지우지 못하면 옮긴 기준을 되돌려요. 옮긴 채 [복구]하면 나눈 자리가 옮긴 사진으로 바뀌어 있어서예요.
@@ -59,8 +66,6 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
   };
 
   const handleDelete = async (photo) => {
-    if (!window.confirm('다녀온에서 이 사진을 영구 삭제할까요? 삭제 후에는 복구할 수 없어요.'))
-      return;
     setDeletingId(photo.id);
     try {
       await deletePhoto(photo);
@@ -119,6 +124,7 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
                 workingLabel: '삭제하는 중…',
                 failMessage: '사진을 지우지 못했어요. 다시 눌러 주세요',
                 disabled: deletingId !== null && deletingId !== photo.id,
+                confirm: DELETE_CONFIRM,
                 onAction: () => handleDelete(photo),
               },
             ]}
