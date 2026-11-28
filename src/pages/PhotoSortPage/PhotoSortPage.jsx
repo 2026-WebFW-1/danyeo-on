@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { DEFAULT_SORT_TAB, SORT_TAB_PARAM, SORT_TABS } from '@/constants/photoSort';
@@ -92,6 +92,14 @@ export default function PhotoSortPage() {
         state.imageUpload.total,
   );
   const navigate = useNavigate();
+  // 지우는 사이 Nav · [완료]로 07을 떠났으면, 다 지운 뒤 13으로 끌고 가지 않아요.
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   // 'idle' | 'deleting' | 'failed'
   const [deleteAllStatus, setDeleteAllStatus] = useState('idle');
   const isDeletingAll = deleteAllStatus === 'deleting';
@@ -186,6 +194,8 @@ export default function PhotoSortPage() {
 
   const handleDeleteAll = async () => {
     setDeleteAllStatus('deleting');
+    // 끝날 때 비우면, 지우는 사이 13으로 가서 새로 고른 사진까지 지워져요.
+    resetUpload();
     try {
       await deleteAllMyData(userId);
     } catch (error) {
@@ -196,8 +206,7 @@ export default function PhotoSortPage() {
       resetCorrections();
       resetPosts();
     }
-    resetUpload();
-    navigate('/upload');
+    if (isMountedRef.current) navigate('/upload');
   };
 
   return (

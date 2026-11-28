@@ -1,6 +1,6 @@
 import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, onTestFinished, test, vi } from 'vitest';
 
 import edgeGroup from '@/data/fixtures/edge.group.json';
@@ -1235,7 +1235,42 @@ describe('07 사진 모두 삭제', () => {
     expect(container.textContent).toContain('사진을 모두 지우지 못했어요. 다시 눌러 주세요');
     expect(resetCorrections).toHaveBeenCalledOnce();
     expect(resetPosts).toHaveBeenCalledOnce();
-    expect(resetUpload).not.toHaveBeenCalled();
+    // 올리기 스토어는 지우기 시작할 때 비워요.
+    expect(resetUpload).toHaveBeenCalledOnce();
+  });
+
+  test('지우는 사이 07을 떠났으면, 다 지운 뒤 13으로 끌고 가지 않아요', async () => {
+    // given: [완료]로 03에 가 있는 동안 지우기가 끝나요
+    let finish;
+    vi.mocked(deleteAllMyData).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/edit/photos']}>
+          <LocationProbe
+            onChange={(path) => {
+              location = path;
+            }}
+          />
+          <Routes>
+            <Route path="/edit/photos" element={<PhotoSortPage />} />
+            <Route path="/places" element={<p>03</p>} />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    );
+    await click(buttonByText('사진 모두 삭제'));
+    await click(dialogButton('모두 삭제'));
+    await click([...container.querySelectorAll('a')].find((a) => a.textContent === '완료'));
+
+    // when
+    await act(async () => finish());
+
+    // then
+    expect(location).toBe('/places');
   });
 
   test('지우는 동안 07의 다른 편집을 막아요', async () => {
