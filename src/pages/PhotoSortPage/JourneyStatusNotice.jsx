@@ -15,8 +15,9 @@ import { SECTION_CLASS } from './sectionClass';
  * @param {object} props
  * @param {'idle' | 'building' | 'saved' | 'failed'} props.status
  * @param {() => void} props.onRetry
+ * @param {boolean} [props.canRetry] 사진을 모두 지우는 중이면 false예요. 그때 다시 계산하면 지우기 전 사진으로 옛 Journey를 써요
  */
-export default function JourneyStatusNotice({ status, onRetry }) {
+export default function JourneyStatusNotice({ status, onRetry, canRetry = true }) {
   if (status === 'building') {
     return (
       <div className={`${SECTION_CLASS} pt-10`}>
@@ -40,7 +41,8 @@ export default function JourneyStatusNotice({ status, onRetry }) {
           <button
             type="button"
             onClick={onRetry}
-            className="bg-ink px-5 py-2.5 text-md font-bold text-white"
+            disabled={!canRetry}
+            className="bg-ink px-5 py-2.5 text-md font-bold text-white disabled:bg-dim"
           >
             다시 시도
           </button>

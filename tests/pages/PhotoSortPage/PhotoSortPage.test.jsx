@@ -1217,11 +1217,13 @@ describe('07 사진 모두 삭제', () => {
     expect(location).toBe('/upload');
   });
 
-  test('지우지 못하면 07에 남아 안내하고 스토어는 그대로 둬요', async () => {
+  test('지우지 못하면 07에 남아 안내하고, 앞 단계에서 지웠을 수 있는 보정 · 글은 다시 읽게 비워요', async () => {
     // given
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const resetCorrections = vi.spyOn(useCorrectionStore.getState(), 'reset');
-    vi.mocked(deleteAllMyData).mockRejectedValue(new Error('storage 실패'));
+    const resetPosts = vi.spyOn(usePostStore.getState(), 'reset');
+    const resetUpload = vi.spyOn(useUploadStore.getState(), 'reset');
+    vi.mocked(deleteAllMyData).mockRejectedValue(new Error('corrections 실패'));
     await render('/edit/photos');
     await click(buttonByText('사진 모두 삭제'));
 
@@ -1231,7 +1233,75 @@ describe('07 사진 모두 삭제', () => {
     // then
     expect(location).toBe('/edit/photos');
     expect(container.textContent).toContain('사진을 모두 지우지 못했어요. 다시 눌러 주세요');
-    expect(resetCorrections).not.toHaveBeenCalled();
+    expect(resetCorrections).toHaveBeenCalledOnce();
+    expect(resetPosts).toHaveBeenCalledOnce();
+    expect(resetUpload).not.toHaveBeenCalled();
+  });
+
+  test('지우는 동안 07의 다른 편집을 막아요', async () => {
+    // given
+    let finish;
+    vi.mocked(deleteAllMyData).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await render('/edit/photos');
+    await click(buttonByText('사진 모두 삭제'));
+
+    // when
+    await click(dialogButton('모두 삭제'));
+
+    // then
+    expect(buttonByText('삭제하는 중…').disabled).toBe(true);
+    expect(renameButton('방콕 · 다낭').disabled).toBe(true);
+
+    await act(async () => finish());
+  });
+
+  test('지우는 동안 제외한 사진의 [복구] · [영구 삭제]를 막아요', async () => {
+    // given
+    mockCorrections({
+      corrections: [{ id: 'c_1', type: 'exclude', photoId: bangkokPhotoIds[0] }],
+    });
+    let finish;
+    vi.mocked(deleteAllMyData).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await render('/edit/photos?tab=excluded');
+    await click(buttonByText('사진 모두 삭제'));
+
+    // when
+    await click(dialogButton('모두 삭제'));
+
+    // then
+    expect(buttonByText('복구').disabled).toBe(true);
+    expect(buttonByText('영구 삭제').disabled).toBe(true);
+
+    await act(async () => finish());
+  });
+
+  test('지우는 동안 Journey 계산 [다시 시도]를 막아요', async () => {
+    // given
+    mockCorrections({ journeyStatus: 'failed' });
+    let finish;
+    vi.mocked(deleteAllMyData).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await render('/edit/photos');
+    await click(buttonByText('사진 모두 삭제'));
+
+    // when
+    await click(dialogButton('모두 삭제'));
+
+    // then
+    expect(buttonByText('다시 시도').disabled).toBe(true);
+
+    await act(async () => finish());
   });
 
   test('보정을 저장하는 중이면 [사진 모두 삭제]를 막아요', async () => {

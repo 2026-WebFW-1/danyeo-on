@@ -19,6 +19,7 @@ async function render(props = {}) {
           tripCount={14}
           cityCount={19}
           canDeleteAll
+          deleteStatus="idle"
           onDeleteAll={vi.fn()}
           {...props}
         />
@@ -49,7 +50,6 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  vi.restoreAllMocks();
 });
 
 test('[사진 모두 삭제]를 누르면 장수와 함께 지워지는 것을 묻고, 묻는 동안에는 지우지 않아요', async () => {
@@ -81,15 +81,9 @@ test('확인 창에서 취소하면 닫고 지우지 않아요', async () => {
   expect(onDeleteAll).not.toHaveBeenCalled();
 });
 
-test('[모두 삭제]를 누르면 창을 닫고, 지우는 동안 버튼을 막아요', async () => {
+test('[모두 삭제]를 누르면 창을 닫고 onDeleteAll을 불러요', async () => {
   // given
-  let finish;
-  const onDeleteAll = vi.fn(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
+  const onDeleteAll = vi.fn();
   await render({ onDeleteAll });
   await click(buttonByText('사진 모두 삭제'));
 
@@ -99,20 +93,19 @@ test('[모두 삭제]를 누르면 창을 닫고, 지우는 동안 버튼을 막
   // then
   expect(dialog()).toBeNull();
   expect(onDeleteAll).toHaveBeenCalledOnce();
-  expect(buttonByText('삭제하는 중…').disabled).toBe(true);
-
-  await act(async () => finish());
 });
 
-test('지우지 못하면 버튼 아래에 안내를 남기고, 다시 누를 수 있어요', async () => {
-  // given
-  vi.spyOn(console, 'error').mockImplementation(() => {});
-  const onDeleteAll = vi.fn().mockRejectedValue(new Error('storage 실패'));
-  await render({ onDeleteAll });
-  await click(buttonByText('사진 모두 삭제'));
-
+test('지우는 중이면 버튼 글자를 바꾸고 막아요', async () => {
   // when
-  await click(dialogButton('모두 삭제'));
+  await render({ deleteStatus: 'deleting' });
+
+  // then
+  expect(buttonByText('삭제하는 중…').disabled).toBe(true);
+});
+
+test('지우지 못했으면 버튼 아래에 안내를 남기고, 다시 누를 수 있어요', async () => {
+  // when
+  await render({ deleteStatus: 'failed' });
 
   // then
   expect(alert().textContent).toBe('사진을 모두 지우지 못했어요. 다시 눌러 주세요');

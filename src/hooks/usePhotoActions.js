@@ -3,7 +3,6 @@ import { useState } from 'react';
 /**
  * 사진 하나에 붙은 동작 버튼들의 요청 중 · 실패 상태예요.
  * 07a 펼친 여행 사진 칸(SortPhotoCard)과 제외한 사진 줄(ExcludedPhotoRow)이 같은 방식으로 버튼을 다뤄서 뺐어요.
- * 요약 줄의 [사진 모두 삭제](SortSummary)도 버튼 하나짜리로 써요.
  * 상태는 부른 컴포넌트마다 따로예요(사진 한 장의 값이에요).
  *
  * const { runningLabel, failMessage, run } = usePhotoActions();

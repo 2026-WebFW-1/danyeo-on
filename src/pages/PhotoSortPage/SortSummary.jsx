@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 
 import ConfirmDialog from '@/components/common/ConfirmDialog';
-import { usePhotoActions } from '@/hooks/usePhotoActions';
 
 import { SECTION_CLASS } from './sectionClass';
 
@@ -12,13 +11,14 @@ import { SECTION_CLASS } from './sectionClass';
  *
  * 호출: PhotoSortPage가 사진 수와 여행·도시 수를 넘겨요.
  * <SortSummary photos={{ total: 1284, located: 1261, unlocated: 23 }} tripCount={7} cityCount={13}
- *   canDeleteAll onDeleteAll={handleDeleteAll} />
+ *   canDeleteAll deleteStatus="idle" onDeleteAll={handleDeleteAll} />
  *
  * 의도:
  *  - [사진 더 추가]는 13 올리기, [완료]는 03 전체 기록으로 가요. Journey를 아직 계산하는 중이면 03은 앞 Journey를
  *    보여 주다가 저장되면 새로고침 없이 바뀌어요(#151).
  *  - 여행·도시 수는 Journey 기준이라, 보정을 저장한 뒤 계산이 끝날 때까지는 앞 값이에요.
- *  - [사진 모두 삭제](#284)는 되돌릴 수 없어서 확인 창(ConfirmDialog)으로 한 번 묻고, 확인했을 때만 지워요.
+ *  - [사진 모두 삭제](#284)는 되돌릴 수 없어서 확인 창(ConfirmDialog)으로 한 번 묻고, 확인했을 때만 onDeleteAll을 불러요.
+ *    묻는 중인지는 이 버튼만 써서 여기 두고, 지우는 중 · 실패는 07의 다른 편집도 막아야 해서 PhotoSortPage가 들고 있어요.
  *    지우는 동안 버튼 글자를 바꾸고 막아요. 실패하면 버튼 아래에 안내를 남기고, 다시 누르면 남은 것만 지워요.
  *    사진이 없으면 지울 게 없어서 버튼을 그리지 않아요.
  *
@@ -27,20 +27,23 @@ import { SECTION_CLASS } from './sectionClass';
  * @param {number} props.tripCount
  * @param {number} props.cityCount
  * @param {boolean} props.canDeleteAll 보정을 저장하거나 Journey를 계산하는 중이면 false
- * @param {() => Promise<unknown>} props.onDeleteAll 모두 지워요. 실패하면 던져요
+ * @param {'idle' | 'deleting' | 'failed'} props.deleteStatus 모두 지우기 상태
+ * @param {() => void} props.onDeleteAll 확인 창에서 [모두 삭제]를 누르면 불러요
  */
-export default function SortSummary({ photos, tripCount, cityCount, canDeleteAll, onDeleteAll }) {
-  const { runningLabel, failMessage, run } = usePhotoActions();
+export default function SortSummary({
+  photos,
+  tripCount,
+  cityCount,
+  canDeleteAll,
+  deleteStatus,
+  onDeleteAll,
+}) {
   const [isAsking, setIsAsking] = useState(false);
-  const isDeleting = runningLabel !== null;
+  const isDeleting = deleteStatus === 'deleting';
 
   const handleConfirm = () => {
     setIsAsking(false);
-    run({
-      label: '사진 모두 삭제',
-      failMessage: '사진을 모두 지우지 못했어요. 다시 눌러 주세요',
-      onAction: onDeleteAll,
-    });
+    onDeleteAll();
   };
 
   const counts = [
@@ -82,12 +85,12 @@ export default function SortSummary({ photos, tripCount, cityCount, canDeleteAll
             >
               {isDeleting ? '삭제하는 중…' : '사진 모두 삭제'}
             </button>
-            {failMessage && (
+            {deleteStatus === 'failed' && (
               <p
                 role="alert"
                 className="absolute top-full right-0 pt-2 text-xs whitespace-nowrap text-accent"
               >
-                {failMessage}
+                사진을 모두 지우지 못했어요. 다시 눌러 주세요
               </p>
             )}
           </div>

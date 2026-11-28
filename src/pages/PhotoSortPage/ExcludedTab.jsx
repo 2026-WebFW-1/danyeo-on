@@ -18,7 +18,7 @@ const DELETE_CONFIRM = {
  * 제외한 사진 탭이에요. 뺀 사진을 최근에 뺀 순서로 보여 주고, 사진마다 [복구] · [영구 삭제]가 있어요.
  *
  * 호출: PhotoSortPage가 ?tab=excluded일 때 그려요.
- * <ExcludedTab photos={excludedPhotos} status={correctionStatus} onRestore={handleRestore}
+ * <ExcludedTab photos={excludedPhotos} status={correctionStatus} canEdit onRestore={handleRestore}
  *   onBeforeDelete={handleMoveAnchors} onDeleted={handleRestore} />
  *
  * 의도:
@@ -42,12 +42,20 @@ const DELETE_CONFIRM = {
  * @param {object} props
  * @param {import('@/utils/photoSort').ExcludedPhoto[]} props.photos
  * @param {'idle' | 'loading' | 'ready' | 'error'} props.status 보정 불러오기 상태
+ * @param {boolean} props.canEdit 사진을 모두 지우는 중이면 false예요(#284). [복구] · [영구 삭제]를 막아요
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onRestore 실패하면 던져요
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<() => Promise<unknown>>} props.onBeforeDelete
  *   지우기 전에 split · merge 기준을 옮기고, 옮긴 것을 되돌리는 함수를 돌려줘요. 실패하면 던져요
  * @param {(photo: import('@/utils/photoSort').ExcludedPhoto) => Promise<unknown>} props.onDeleted 사진을 지운 뒤 그 exclude를 지워요. 실패하면 던져요
  */
-export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete, onDeleted }) {
+export default function ExcludedTab({
+  photos,
+  status,
+  canEdit,
+  onRestore,
+  onBeforeDelete,
+  onDeleted,
+}) {
   const [deletingId, setDeletingId] = useState(null);
 
   const deletePhoto = async (photo) => {
@@ -111,7 +119,7 @@ export default function ExcludedTab({ photos, status, onRestore, onBeforeDelete,
             key={photo.id}
             fileKey={photo.fileKey}
             date={photo.takenAt ? formatDateRange(photo.takenAt, photo.takenAt) : null}
-            canAct
+            canAct={canEdit}
             actions={[
               {
                 label: '복구',

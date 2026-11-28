@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { DEFAULT_SORT_TAB, SORT_TAB_PARAM, SORT_TABS } from '@/constants/photoSort';
@@ -56,8 +56,11 @@ import UnlocatedTab from './UnlocatedTab';
  *    넣어요. 지점 ID는 첫 사진 ID라, 한 장만 넣으면 그 사진을 뺐을 때 경유가 풀려요. 되돌리기는 그 보정을 모두 지워요.
  *  - [복구]는 그 사진의 exclude를 모두 지워요. 서버가 사진마다 하나만 저장하지만(BE #8) 둘이 남아 있어도 복구되게요.
  *  - 보정을 다 불러오기 전에는 저장할 수 없어서(useCorrectionStore.add) ✎ · [빼기]를 막아 둬요.
- *  - [사진 모두 삭제](#284)는 글 · 보정 · 사진 · 이미지 · Journey를 지운 뒤(deleteAllMyData) 보정 · 글 · 올리기 스토어를
- *    처음 상태로 돌리고 13 올리기로 가요. 스토어에 지운 보정 · 글이 남아 있으면 다른 화면이 그 값을 그려서예요.
+ *  - [사진 모두 삭제](#284)는 글 · 보정 · 사진 · 이미지 · Journey를 지운 뒤(deleteAllMyData) 13 올리기로 가요.
+ *    끝나면 실패해도 보정 · 글 스토어를 처음 상태로 돌려 다시 읽게 해요. 중간에 실패해도 앞 단계는 이미 지워져서,
+ *    스토어에 지운 보정 · 글이 남으면 다른 화면이 그 값을 그려요. 올리기 스토어는 다 지웠을 때만 비워요.
+ *    지우는 동안에는 07의 다른 편집([다시 시도] 포함)을 모두 막아요. 그 사이 보정을 저장하면 Journey 계산이
+ *    지우기 전 사진을 읽어, 다 지운 뒤에 옛 Journey를 다시 써요. 그래서 지우는 중 · 실패 상태를 여기 둬요.
  *    보정을 저장하거나 Journey를 계산하는 중, 13의 저장 · 이미지 올리기가 도는 중에는 막아요.
  *    그 작업이 지운 뒤에 끝나면 옛 Journey · 사진 · 이미지를 다시 써서예요.
  *  - 사진을 다 받을 때까지 기다려요. useMyPhotos는 못 받는 동안 빈 배열을 줘서, 그대로 그리면 "불러온 사진 0"과
@@ -93,11 +96,15 @@ export default function PhotoSortPage() {
         state.imageUpload.total,
   );
   const navigate = useNavigate();
+  // 'idle' | 'deleting' | 'failed'
+  const [deleteAllStatus, setDeleteAllStatus] = useState('idle');
+  const isDeletingAll = deleteAllStatus === 'deleting';
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get(SORT_TAB_PARAM);
   const tab = SORT_TABS.some((item) => item.key === requestedTab) ? requestedTab : DEFAULT_SORT_TAB;
 
   const isCorrectionsReady = correctionStatus === 'ready';
+  const canEdit = isCorrectionsReady && !isDeletingAll;
   // 다 불러오기 전의 보정 목록은 비어 있어서, 뺀 사진은 Journey의 값을 써요.
   const excludedIds = useMemo(
     () => selectExcludedIds(journey, isCorrectionsReady ? corrections : null),
@@ -182,9 +189,17 @@ export default function PhotoSortPage() {
   };
 
   const handleDeleteAll = async () => {
-    await deleteAllMyData(userId);
-    resetCorrections();
-    resetPosts();
+    setDeleteAllStatus('deleting');
+    try {
+      await deleteAllMyData(userId);
+    } catch (error) {
+      console.error(error);
+      setDeleteAllStatus('failed');
+      return;
+    } finally {
+      resetCorrections();
+      resetPosts();
+    }
     resetUpload();
     navigate('/upload');
   };
@@ -198,15 +213,20 @@ export default function PhotoSortPage() {
         tripCount={totals.trips}
         cityCount={totals.cities}
         canDeleteAll={
-          isCorrectionsReady &&
+          canEdit &&
           !hasPending &&
           !isRefreshing &&
           journeyStatus !== 'building' &&
           !isUploadBusy
         }
+        deleteStatus={deleteAllStatus}
         onDeleteAll={handleDeleteAll}
       />
-      <JourneyStatusNotice status={journeyStatus} onRetry={refreshJourney} />
+      <JourneyStatusNotice
+        status={journeyStatus}
+        onRetry={refreshJourney}
+        canRetry={!isDeletingAll}
+      />
       {correctionStatus === 'error' && (
         <p role="alert" className={`${SECTION_CLASS} pt-6 text-md text-accent`}>
           고친 기록을 불러오지 못해 지금은 고칠 수 없어요. 새로고침해 주세요.
@@ -215,17 +235,17 @@ export default function PhotoSortPage() {
 
       {tab === 'trips' && (
         <>
-          <TransitNotice trips={trips} canEdit={isCorrectionsReady} onMark={handleMarkTransit} />
+          <TransitNotice trips={trips} canEdit={canEdit} onMark={handleMarkTransit} />
           <TripTable
             trips={trips}
-            canEdit={isCorrectionsReady}
+            canEdit={canEdit}
             onRename={handleRename}
             onExclude={handleExclude}
             onSplit={handleSplit}
             onUndoSplit={handleUndoSplit}
             onUndoTransit={handleUndoTransit}
             canMerge={
-              isCorrectionsReady &&
+              canEdit &&
               !hasPending &&
               !isRefreshing &&
               journeyStatus !== 'building' &&
@@ -241,6 +261,7 @@ export default function PhotoSortPage() {
         <ExcludedTab
           photos={excludedPhotos}
           status={correctionStatus}
+          canEdit={canEdit}
           onRestore={handleRestore}
           onBeforeDelete={handleMoveAnchors}
           onDeleted={handleRestore}
@@ -249,7 +270,7 @@ export default function PhotoSortPage() {
       {tab === 'unlocated' && (
         <UnlocatedTab
           groups={unlocatedGroups}
-          canExclude={isCorrectionsReady}
+          canExclude={canEdit}
           onExclude={handleExcludeMany}
         />
       )}
